@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window>
+  <controls>
+    <control type="label" id="201">
+      <description>Home placeholder</description>
+      <label>Twitch Center</label>
+    </control>
+  </controls>
+</window>
