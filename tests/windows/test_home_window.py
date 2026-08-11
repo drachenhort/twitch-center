@@ -374,3 +374,23 @@ def test_selecting_a_game_with_no_live_matches_shows_no_matches_message():
     channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
     assert channel_control.size() == 0
     assert win.getControl(HomeWindow.EMPTY_LABEL_ID).getLabel() != ""
+
+
+def test_selecting_discover_button_opens_discover_window_and_closes_home():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch(
+        "lib.windows.home.DiscoverWindow"
+    ) as mock_discover_window_cls:
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+        win.setFocusId(HomeWindow.DISCOVER_BUTTON_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    mock_discover_window_cls.assert_called_once()
+    mock_discover_window_cls.return_value.show.assert_called_once()
+    assert win.closed_event.is_set()

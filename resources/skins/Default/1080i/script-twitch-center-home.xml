@@ -134,5 +134,15 @@
       <align>center</align>
       <label>Log in again</label>
     </control>
+    <control type="button" id="106">
+      <description>Discover</description>
+      <posx>60</posx>
+      <posy>1010</posy>
+      <width>300</width>
+      <height>60</height>
+      <font>font13</font>
+      <align>center</align>
+      <label>Discover</label>
+    </control>
   </controls>
 </window>

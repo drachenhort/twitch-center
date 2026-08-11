@@ -7,12 +7,14 @@ import xbmcgui
 
 from lib.twitch import api, auth, gql
 from lib.windows.login import LoginWindow
+from lib.windows.discover import DiscoverWindow
 
 CHANNEL_LIST_ID = 101
 EMPTY_LABEL_ID = 102
 ERROR_LABEL_ID = 103
 RELOGIN_BUTTON_ID = 104
 GAMES_LIST_ID = 105
+DISCOVER_BUTTON_ID = 106
 
 _MISSING_TOKEN_MESSAGE = "You're not logged in. Reopen the addon to log in."
 _EMPTY_FOLLOWED_MESSAGE = "You're not following anyone yet."
@@ -61,6 +63,7 @@ class HomeWindow(xbmcgui.WindowXML):
     ERROR_LABEL_ID = ERROR_LABEL_ID
     RELOGIN_BUTTON_ID = RELOGIN_BUTTON_ID
     GAMES_LIST_ID = GAMES_LIST_ID
+    DISCOVER_BUTTON_ID = DISCOVER_BUTTON_ID
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -190,6 +193,8 @@ class HomeWindow(xbmcgui.WindowXML):
                 self._open_login_window()
             elif self.getFocusId() == self.GAMES_LIST_ID:
                 self._on_game_selected()
+            elif self.getFocusId() == self.DISCOVER_BUTTON_ID:
+                self._open_discover_window()
 
     def _on_game_selected(self):
         selected = self.getControl(self.GAMES_LIST_ID).getSelectedItem()
@@ -205,5 +210,14 @@ class HomeWindow(xbmcgui.WindowXML):
             "script-twitch-center-login.xml", addon.getAddonInfo("path"), "Default", "1080i"
         )
         login_window.show()
+        self.close()
+        self.closed_event.set()
+
+    def _open_discover_window(self):
+        addon = xbmcaddon.Addon()
+        discover_window = DiscoverWindow(
+            "script-twitch-center-discover.xml", addon.getAddonInfo("path"), "Default", "1080i"
+        )
+        discover_window.show()
         self.close()
         self.closed_event.set()
