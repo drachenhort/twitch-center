@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import xbmcaddon
+import xbmcgui
 
 from lib.twitch import api
 from lib.twitch.auth import save_token
@@ -149,3 +150,91 @@ def test_oninit_shows_error_state_on_network_failure():
         win = HomeWindow("script-twitch-center-home.xml", "/tmp")
         win.onInit()
     assert win.getControl(HomeWindow.ERROR_LABEL_ID).getLabel() != ""
+
+
+def test_oninit_shows_relogin_when_token_has_no_user_id():
+    # Tokens saved by the already-shipped device-code-login feature, before
+    # this plan added user_id/login/display_name caching, have no user_id
+    # key. onInit must treat that as needing re-login rather than crashing
+    # with a swallowed KeyError that reports a misleading network error.
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref"})
+    with patch("xbmcaddon.Addon", return_value=addon):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+
+    from lib.twitch.auth import load_token
+
+    assert load_token(addon) is None
+    assert win.getControl(HomeWindow.ERROR_LABEL_ID).getLabel() != ""
+    assert win.getControl(HomeWindow.RELOGIN_BUTTON_ID).isVisible() is True
+
+
+def test_oninit_saves_refreshed_token_even_if_retry_hits_network_error():
+    # Refresh tokens are single-use: once refresh_access_token succeeds, the
+    # old refresh_token is dead. The new token must be persisted even if the
+    # subsequent retry call fails with a transient (non-401) network error,
+    # otherwise the next launch's refresh attempt would fail outright.
+    import requests
+
+    old_token = {"access_token": "old", "refresh_token": "ref", "user_id": "u1", "login": "x", "display_name": "X"}
+    new_token = {"access_token": "new", "refresh_token": "ref2"}
+    addon = _addon_with_token(old_token)
+
+    def fake_get_followed(access_token, client_id, user_id):
+        if access_token == "old":
+            raise api.TokenExpiredError()
+        raise requests.ConnectionError("boom")
+
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", side_effect=fake_get_followed
+    ), patch("lib.windows.home.auth.refresh_access_token", return_value=new_token):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+
+    from lib.twitch.auth import load_token
+
+    saved = load_token(addon)
+    assert saved is not None
+    assert saved["access_token"] == "new"
+    assert saved["refresh_token"] == "ref2"
+
+
+def test_populate_hides_relogin_button_on_success():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+    assert win.getControl(HomeWindow.RELOGIN_BUTTON_ID).isVisible() is False
+
+
+def test_relogin_button_visible_when_relogin_prompt_shown():
+    old_token = {"access_token": "old", "refresh_token": "ref", "user_id": "u1"}
+    addon = _addon_with_token(old_token)
+
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", side_effect=api.TokenExpiredError()
+    ), patch("lib.windows.home.auth.refresh_access_token", return_value=None):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+
+    assert win.getControl(HomeWindow.RELOGIN_BUTTON_ID).isVisible() is True
+
+
+def test_selecting_relogin_button_opens_login_window_and_closes_home():
+    addon = _addon_with_token({"access_token": "old", "refresh_token": "ref", "user_id": "u1"})
+
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", side_effect=api.TokenExpiredError()
+    ), patch("lib.windows.home.auth.refresh_access_token", return_value=None), patch(
+        "lib.windows.home.LoginWindow"
+    ) as mock_login_window_cls:
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+        win.setFocusId(HomeWindow.RELOGIN_BUTTON_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    mock_login_window_cls.assert_called_once()
+    mock_login_window_cls.return_value.show.assert_called_once()
+    assert win.closed_event.is_set()

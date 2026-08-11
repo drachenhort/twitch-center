@@ -6,6 +6,7 @@ import xbmcaddon
 import xbmcgui
 
 from lib.twitch import api, auth
+from lib.windows.login import LoginWindow
 
 CHANNEL_LIST_ID = 101
 EMPTY_LABEL_ID = 102
@@ -68,6 +69,14 @@ class HomeWindow(xbmcgui.WindowXML):
         if token is None:
             self._show_error(_MISSING_TOKEN_MESSAGE)
             return
+        if not token.get("user_id"):
+            # Tokens saved by the earlier device-code-login feature (before
+            # user_id/login/display_name caching was added) don't have this
+            # key. Treat that the same as an expired session rather than
+            # letting the KeyError below get swallowed as a network error.
+            auth.clear_token(addon)
+            self._show_error(_RELOGIN_MESSAGE)
+            return
 
         try:
             self._load_and_populate(addon, client_id, token)
@@ -96,6 +105,14 @@ class HomeWindow(xbmcgui.WindowXML):
         new_token["login"] = token.get("login")
         new_token["display_name"] = token.get("display_name")
 
+        # Twitch's device-code refresh tokens are single-use for public
+        # clients: the moment refresh_access_token succeeded above, the OLD
+        # refresh_token was invalidated. Persist the new token now, before
+        # the retry below - if the retry hits a transient (non-401) error,
+        # we still want the new refresh_token on disk rather than the
+        # now-dead old one, or the next launch's refresh would fail outright.
+        auth.save_token(new_token, addon)
+
         try:
             self._load_and_populate(addon, client_id, new_token)
         except api.TokenExpiredError:
@@ -110,9 +127,8 @@ class HomeWindow(xbmcgui.WindowXML):
             self._show_error(_NETWORK_ERROR_MESSAGE)
             return
 
-        auth.save_token(new_token, addon)
-
     def _populate(self, followed, live_list):
+        self.getControl(self.RELOGIN_BUTTON_ID).setVisible(False)
         control = self.getControl(self.CHANNEL_LIST_ID)
         control.reset()
         if not followed:
@@ -125,8 +141,23 @@ class HomeWindow(xbmcgui.WindowXML):
 
     def _show_error(self, message):
         self.getControl(self.ERROR_LABEL_ID).setLabel(message)
+        self.getControl(self.RELOGIN_BUTTON_ID).setVisible(True)
 
     def onAction(self, action):
         if action.getId() in (xbmcgui.ACTION_PREVIOUS_MENU, xbmcgui.ACTION_NAV_BACK):
             self.close()
             self.closed_event.set()
+        elif (
+            action.getId() == xbmcgui.ACTION_SELECT_ITEM
+            and self.getFocusId() == self.RELOGIN_BUTTON_ID
+        ):
+            self._open_login_window()
+
+    def _open_login_window(self):
+        addon = xbmcaddon.Addon()
+        login_window = LoginWindow(
+            "script-twitch-center-login.xml", addon.getAddonInfo("path"), "Default", "1080i"
+        )
+        login_window.show()
+        self.close()
+        self.closed_event.set()

@@ -2,6 +2,7 @@
 
 ACTION_PREVIOUS_MENU = 10
 ACTION_NAV_BACK = 92
+ACTION_SELECT_ITEM = 7
 
 
 class Action:
@@ -48,6 +49,7 @@ class ControlLabel:
     def __init__(self):
         self._label = ""
         self._items = []
+        self._visible = True
 
     def setLabel(self, text):
         self._label = text
@@ -67,12 +69,19 @@ class ControlLabel:
     def getSelectedItem(self):
         return self._items[0] if self._items else None
 
+    def setVisible(self, visible):
+        self._visible = visible
+
+    def isVisible(self):
+        return self._visible
+
 
 class WindowXML:
     def __init__(self, xml_filename, script_path, default_skin="Default", default_res="1080i"):
         self.xml_filename = xml_filename
         self.script_path = script_path
         self._controls = {}
+        self._focus_id = None
 
     def show(self):
         pass
@@ -84,6 +93,12 @@ class WindowXML:
         if control_id not in self._controls:
             self._controls[control_id] = ControlLabel()
         return self._controls[control_id]
+
+    def setFocusId(self, control_id):
+        self._focus_id = control_id
+
+    def getFocusId(self):
+        return self._focus_id
 
 
 class WindowXMLDialog(WindowXML):
