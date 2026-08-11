@@ -18,6 +18,7 @@ SEARCH_BUTTON_ID = 107
 
 _MISSING_TOKEN_MESSAGE = "You're not logged in. Reopen the addon to log in."
 _EMPTY_RESULTS_MESSAGE = "Nothing found."
+_EMPTY_GAMES_MESSAGE = "No games to browse right now."
 _NETWORK_ERROR_MESSAGE = "Couldn't reach Twitch. Check your connection and reopen the addon."
 _RELOGIN_MESSAGE = "Your session expired. Log in again to continue."
 
@@ -86,7 +87,13 @@ class DiscoverWindow(xbmcgui.WindowXML):
         games = api.get_top_games(token["access_token"], client_id)
         self._populate_games(games)
 
-    def _handle_expired_token(self, addon, client_id, token):
+    def _handle_expired_token(self, addon, client_id, token, on_success=None, on_error=None):
+        """Refresh the access token, then redo whatever the user was doing.
+
+        on_success is a callable taking the refreshed token; it defaults to
+        reloading the top-games row (onInit's behaviour). Callers that were
+        mid-action (browse-by-game, search) pass a closure that retries THAT
+        action, so an expiry doesn't silently discard the user's click."""
         new_token = auth.refresh_access_token(client_id, token["refresh_token"])
         if new_token is None:
             auth.clear_token(addon)
@@ -98,8 +105,13 @@ class DiscoverWindow(xbmcgui.WindowXML):
         new_token["display_name"] = token.get("display_name")
         auth.save_token(new_token, addon)
 
+        if on_success is None:
+            on_success = self._load_games
+        if on_error is None:
+            on_error = self._show_error
+
         try:
-            self._load_games(addon, client_id, new_token)
+            on_success(addon, client_id, new_token)
         except api.TokenExpiredError:
             auth.clear_token(addon)
             self._show_error(_RELOGIN_MESSAGE)
@@ -109,12 +121,17 @@ class DiscoverWindow(xbmcgui.WindowXML):
                 + repr(exc),
                 xbmc.LOGERROR,
             )
-            self._show_error(_NETWORK_ERROR_MESSAGE)
+            on_error(_NETWORK_ERROR_MESSAGE)
 
     def _populate_games(self, games):
         self.getControl(self.RELOGIN_BUTTON_ID).setVisible(False)
         control = self.getControl(self.GAMES_LIST_ID)
         control.reset()
+        if not games:
+            # Without this the row would just render blank with no
+            # explanation, unlike the results list which already says so.
+            self.getControl(self.EMPTY_LABEL_ID).setLabel(_EMPTY_GAMES_MESSAGE)
+            return
         items = []
         for game in games:
             item = xbmcgui.ListItem(game["name"])
@@ -132,6 +149,14 @@ class DiscoverWindow(xbmcgui.WindowXML):
             return
         control.addItems(items)
 
+    def _load_streams_for_game(self, addon, client_id, token, game_id):
+        streams = api.get_live_streams_by_game(token["access_token"], client_id, game_id)
+        self._populate_results([_build_stream_item(stream) for stream in streams])
+
+    def _load_search_results(self, addon, client_id, token, query):
+        channels = api.search_channels(token["access_token"], client_id, query)
+        self._populate_results([_build_channel_item(channel) for channel in channels])
+
     def _on_game_selected(self):
         selected = self.getControl(self.GAMES_LIST_ID).getSelectedItem()
         if selected is None:
@@ -140,21 +165,27 @@ class DiscoverWindow(xbmcgui.WindowXML):
         client_id = addon.getSetting("client_id")
         token = auth.load_token(addon)
         if token is None:
+            self._show_results_error(_MISSING_TOKEN_MESSAGE)
             return
         game_id = selected.getProperty("game_id")
         try:
-            streams = api.get_live_streams_by_game(token["access_token"], client_id, game_id)
+            self._load_streams_for_game(addon, client_id, token, game_id)
         except api.TokenExpiredError:
-            self._handle_expired_token(addon, client_id, token)
-            return
+            # Retry THIS game with the refreshed token rather than just
+            # reloading the games row, which would silently drop the click.
+            self._handle_expired_token(
+                addon,
+                client_id,
+                token,
+                on_success=lambda a, c, t: self._load_streams_for_game(a, c, t, game_id),
+                on_error=self._show_results_error,
+            )
         except Exception as exc:
             xbmc.log(
                 "script.twitch.center: Discover browse-by-game failed: " + repr(exc),
                 xbmc.LOGERROR,
             )
-            self._show_error(_NETWORK_ERROR_MESSAGE)
-            return
-        self._populate_results([_build_stream_item(stream) for stream in streams])
+            self._show_results_error(_NETWORK_ERROR_MESSAGE)
 
     def _on_search(self):
         query = self.getControl(self.SEARCH_EDIT_ID).getText()
@@ -164,24 +195,37 @@ class DiscoverWindow(xbmcgui.WindowXML):
         client_id = addon.getSetting("client_id")
         token = auth.load_token(addon)
         if token is None:
+            self._show_results_error(_MISSING_TOKEN_MESSAGE)
             return
         try:
-            channels = api.search_channels(token["access_token"], client_id, query)
+            self._load_search_results(addon, client_id, token, query)
         except api.TokenExpiredError:
-            self._handle_expired_token(addon, client_id, token)
-            return
+            self._handle_expired_token(
+                addon,
+                client_id,
+                token,
+                on_success=lambda a, c, t: self._load_search_results(a, c, t, query),
+                on_error=self._show_results_error,
+            )
         except Exception as exc:
             xbmc.log("script.twitch.center: Discover search failed: " + repr(exc), xbmc.LOGERROR)
-            self._show_error(_NETWORK_ERROR_MESSAGE)
-            return
-        self._populate_results([_build_channel_item(channel) for channel in channels])
+            self._show_results_error(_NETWORK_ERROR_MESSAGE)
 
     def _show_error(self, message):
+        """Fatal failure (onInit / expired session): the whole screen is
+        unusable, so wipe everything and offer the re-login button."""
         self.getControl(self.GAMES_LIST_ID).reset()
         self.getControl(self.RESULTS_LIST_ID).reset()
         self.getControl(self.EMPTY_LABEL_ID).setLabel("")
         self.getControl(self.ERROR_LABEL_ID).setLabel(message)
         self.getControl(self.RELOGIN_BUTTON_ID).setVisible(True)
+
+    def _show_results_error(self, message):
+        """Transient failure of one browse/search: keep the top-games row
+        intact so a single network blip doesn't force an addon restart."""
+        self.getControl(self.RESULTS_LIST_ID).reset()
+        self.getControl(self.EMPTY_LABEL_ID).setLabel("")
+        self.getControl(self.ERROR_LABEL_ID).setLabel(message)
 
     def onAction(self, action):
         if action.getId() in (xbmcgui.ACTION_PREVIOUS_MENU, xbmcgui.ACTION_NAV_BACK):

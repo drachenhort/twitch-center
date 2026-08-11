@@ -5,7 +5,7 @@ import xbmcaddon
 import xbmcgui
 
 from lib.twitch import api
-from lib.twitch.auth import save_token
+from lib.twitch.auth import clear_token, save_token
 from lib.windows.discover import (
     DiscoverWindow,
     _build_channel_item,
@@ -222,3 +222,130 @@ def test_back_from_discover_sets_the_shared_event():
     assert win.closed_event is shared
     win.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
     assert shared.is_set()
+
+
+def test_empty_top_games_shows_a_message_instead_of_a_blank_row():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=[]
+    ):
+        win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
+        win.onInit()
+
+    assert win.getControl(DiscoverWindow.EMPTY_LABEL_ID).getLabel() != ""
+    assert win.getControl(DiscoverWindow.GAMES_LIST_ID).size() == 0
+    assert win.getControl(DiscoverWindow.ERROR_LABEL_ID).getLabel() == ""
+
+
+def test_search_failure_keeps_the_top_games_row_intact():
+    import requests
+
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(api, "search_channels", side_effect=requests.ConnectionError("boom")):
+        win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
+        win.onInit()
+        assert win.getControl(DiscoverWindow.GAMES_LIST_ID).size() == 2
+        win.getControl(DiscoverWindow.SEARCH_EDIT_ID).setText("bob")
+        win.setFocusId(DiscoverWindow.SEARCH_BUTTON_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    assert win.getControl(DiscoverWindow.ERROR_LABEL_ID).getLabel() != ""
+    # A transient blip must not force an addon restart.
+    assert win.getControl(DiscoverWindow.GAMES_LIST_ID).size() == 2
+    assert win.getControl(DiscoverWindow.RELOGIN_BUTTON_ID).isVisible() is False
+
+
+def test_game_select_failure_keeps_the_top_games_row_intact():
+    import requests
+
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(
+        api, "get_live_streams_by_game", side_effect=requests.ConnectionError("boom")
+    ):
+        win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
+        win.onInit()
+        win.getControl(DiscoverWindow.GAMES_LIST_ID).selectItem(0)
+        win.setFocusId(DiscoverWindow.GAMES_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    assert win.getControl(DiscoverWindow.ERROR_LABEL_ID).getLabel() != ""
+    assert win.getControl(DiscoverWindow.GAMES_LIST_ID).size() == 2
+
+
+def test_expired_token_during_game_select_retries_that_game_after_refresh():
+    addon = _addon_with_token({"access_token": "old", "refresh_token": "ref", "user_id": "u1"})
+    calls = []
+
+    def fake_streams(access_token, client_id, game_id, **kwargs):
+        calls.append((access_token, game_id))
+        if access_token == "old":
+            raise api.TokenExpiredError()
+        return STREAMS
+
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(api, "get_live_streams_by_game", side_effect=fake_streams), patch(
+        "lib.windows.discover.auth.refresh_access_token",
+        return_value={"access_token": "new", "refresh_token": "ref2"},
+    ):
+        win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
+        win.onInit()
+        win.getControl(DiscoverWindow.GAMES_LIST_ID).selectItem(0)
+        win.setFocusId(DiscoverWindow.GAMES_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    # The user's original game was retried with the refreshed token, not
+    # silently dropped in favour of reloading the games row.
+    assert calls == [("old", "509658"), ("new", "509658")]
+    results_control = win.getControl(DiscoverWindow.RESULTS_LIST_ID)
+    assert results_control.size() == 1
+    assert results_control._items[0].getLabel() == "Alice"
+
+
+def test_expired_token_during_search_retries_that_search_after_refresh():
+    addon = _addon_with_token({"access_token": "old", "refresh_token": "ref", "user_id": "u1"})
+    calls = []
+
+    def fake_search(access_token, client_id, query, **kwargs):
+        calls.append((access_token, query))
+        if access_token == "old":
+            raise api.TokenExpiredError()
+        return SEARCH_RESULTS
+
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(api, "search_channels", side_effect=fake_search), patch(
+        "lib.windows.discover.auth.refresh_access_token",
+        return_value={"access_token": "new", "refresh_token": "ref2"},
+    ):
+        win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
+        win.onInit()
+        win.getControl(DiscoverWindow.SEARCH_EDIT_ID).setText("bob")
+        win.setFocusId(DiscoverWindow.SEARCH_BUTTON_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    assert calls == [("old", "bob"), ("new", "bob")]
+    results_control = win.getControl(DiscoverWindow.RESULTS_LIST_ID)
+    assert results_control.size() == 2
+    assert results_control._items[0].getLabel() == "Bob"
+
+
+def test_missing_token_at_click_time_shows_an_error_instead_of_no_op():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ):
+        win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
+        win.onInit()
+        # Another window cleared the token between onInit and the click.
+        clear_token(addon)
+        win.getControl(DiscoverWindow.SEARCH_EDIT_ID).setText("bob")
+        win.setFocusId(DiscoverWindow.SEARCH_BUTTON_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    assert win.getControl(DiscoverWindow.ERROR_LABEL_ID).getLabel() != ""
+    assert win.getControl(DiscoverWindow.GAMES_LIST_ID).size() == 2
