@@ -18,6 +18,8 @@
       <width>1200</width>
       <height>60</height>
       <font>font13</font>
+      <onright>107</onright>
+      <ondown>105</ondown>
       <label>Search channels...</label>
     </control>
     <control type="button" id="107">
@@ -28,6 +30,9 @@
       <height>60</height>
       <font>font13</font>
       <align>center</align>
+      <onleft>106</onleft>
+      <onright>104</onright>
+      <ondown>105</ondown>
       <label>Search</label>
     </control>
     <control type="list" id="105">
@@ -37,7 +42,7 @@
       <width>1800</width>
       <height>90</height>
       <orientation>horizontal</orientation>
-      <onup>105</onup>
+      <onup>106</onup>
       <ondown>101</ondown>
       <onleft>105</onleft>
       <onright>105</onright>
@@ -151,6 +156,8 @@
       <height>60</height>
       <font>font13</font>
       <align>center</align>
+      <onleft>107</onleft>
+      <ondown>105</ondown>
       <label>Log in again</label>
     </control>
   </controls>

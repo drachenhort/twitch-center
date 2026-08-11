@@ -12,6 +12,28 @@ HOME_SKIN_XML = (
     / "1080i"
     / "script-twitch-center-home.xml"
 )
+DISCOVER_SKIN_XML = (
+    Path(__file__).resolve().parent.parent
+    / "resources"
+    / "skins"
+    / "Default"
+    / "1080i"
+    / "script-twitch-center-discover.xml"
+)
+
+_NAV_TAGS = ("onup", "ondown", "onleft", "onright")
+
+
+def _nav_targets(skin_xml):
+    """Every control id referenced as the destination of a directional-nav
+    element anywhere in the skin file."""
+    root = ET.parse(skin_xml).getroot()
+    targets = set()
+    for tag in _NAV_TAGS:
+        for element in root.iter(tag):
+            if element.text and element.text.strip().isdigit():
+                targets.add(int(element.text.strip()))
+    return targets
 
 
 def test_addon_xml_parses_with_expected_id():
@@ -79,4 +101,30 @@ def test_home_skin_xml_declares_all_expected_control_ids():
         for control in root.iter("control")
         if "id" in control.attrib
     }
-    assert {101, 102, 103, 104, 105} <= control_ids
+    assert {101, 102, 103, 104, 105, 106} <= control_ids
+
+
+def test_discover_skin_xml_declares_all_expected_control_ids():
+    tree = ET.parse(DISCOVER_SKIN_XML)
+    root = tree.getroot()
+    control_ids = {
+        int(control.attrib["id"])
+        for control in root.iter("control")
+        if "id" in control.attrib
+    }
+    assert {101, 102, 103, 104, 105, 106, 107} <= control_ids
+
+
+def test_home_skin_focusable_controls_are_reachable_by_navigation():
+    # The lists used to point only at each other, leaving the Discover and
+    # "Log in again" buttons with no incoming nav edge - unreachable with a
+    # remote on the normal populated-list path.
+    targets = _nav_targets(HOME_SKIN_XML)
+    for control_id in (104, 105, 106):
+        assert control_id in targets, f"control {control_id} is not a navigation target"
+
+
+def test_discover_skin_focusable_controls_are_reachable_by_navigation():
+    targets = _nav_targets(DISCOVER_SKIN_XML)
+    for control_id in (104, 105, 106, 107):
+        assert control_id in targets, f"control {control_id} is not a navigation target"
