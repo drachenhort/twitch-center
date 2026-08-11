@@ -37,16 +37,22 @@ in-app (client-side-routed) refetch of that tab:
 viewers are relevant for a "filter to what's live right now" row — so no further investigation into
 other possible `type` values was needed (confirmed with you directly).
 
-**Known limitation — response shape is unverified.** Capturing the actual JSON response was
+**Response shape — since verified.** At implementation time, capturing the actual JSON response was
 blocked (replaying the authenticated call via injected JS was refused by a safety classifier, as a
-reasonable precaution against scripted use of session credentials). The response field names below
-(`data.currentUser.followedGames.nodes[].{id,name,displayName}`) are inferred from Twitch's typical
-GraphQL naming conventions used elsewhere in community documentation, **not independently
-confirmed**. Parsing must be defensive — any `KeyError`/`TypeError`/`IndexError`/`ValueError` while
-walking the response results in an empty list, so a wrong guess degrades to "games row doesn't
-show" rather than crashing. This is consistent with the already-approved best-effort posture and
-should be corrected against a real captured response the first time this is manually verified in
-practice (e.g., during the real-Kodi verification pass this plan will need before merge).
+reasonable precaution against scripted use of session credentials), so the response field names
+were initially inferred rather than confirmed, and parsing was made defensive as a hedge. During
+the final-review real-Kodi verification pass, a real response was captured (same browser-hook
+technique, this time reading the response body after the request had already fired rather than
+replaying it), confirming the actual shape:
+`data.currentUser.followedGames.nodes[].{id, slug, name, displayName, boxArtURL, viewersCount,
+tags, ...}` — `name` and `displayName` are both the human-readable display form (e.g.
+`"Warhammer: Vermintide 2"`), confirmed identical across every node in a real followed-games list;
+the URL-slug form lives in a separate `slug` field not used by this feature. The field names
+`id`/`name`/`displayName` already assumed by `lib/twitch/gql.py` were correct as implemented — no
+code changes were needed. The defensive per-node parsing (skip a node only if both `name` and
+`displayName` are missing, rather than failing the whole list on one bad node) remains in place as
+cheap insurance against future response-shape changes, even though the original guess turned out
+right.
 
 ## Components
 
