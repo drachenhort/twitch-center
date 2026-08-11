@@ -1,6 +1,5 @@
 """Twitch OAuth device-code flow. No xbmc* imports - pure Python, pytest-testable."""
 import json
-import time
 
 import requests
 
@@ -18,6 +17,7 @@ def request_device_code(client_id, scopes):
     response = requests.post(
         DEVICE_CODE_URL,
         data={"client_id": client_id, "scopes": " ".join(scopes)},
+        timeout=10,
     )
     response.raise_for_status()
     return response.json()
@@ -42,6 +42,7 @@ def poll_device_code_once(client_id, device_code):
                 "device_code": device_code,
                 "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
             },
+            timeout=10,
         )
     except requests.RequestException:
         return {"status": "pending"}
@@ -89,7 +90,8 @@ def run_device_code_login(
     on_code,
     on_status,
     cancel_event,
-    sleep_fn=time.sleep,
+    sleep_fn=None,
+    wait_fn=None,
     request_fn=request_device_code,
     poll_fn=poll_device_code_once,
 ):
@@ -97,41 +99,68 @@ def run_device_code_login(
     on_code, then poll until success/expiry/cancellation, reporting status via
     on_status after each attempt. Returns True on successful login (token saved),
     False otherwise. Safe to run on a background thread - all callbacks are the
-    caller's responsibility to make thread-safe for their UI toolkit."""
+    caller's responsibility to make thread-safe for their UI toolkit.
+
+    wait_fn(seconds) is used to pause between poll attempts; it defaults to
+    cancel_event.wait(seconds), which both sleeps AND returns early the moment
+    cancellation is requested, so cancellation during the wait is near-instant.
+    sleep_fn is kept as a legacy override for tests that don't want to deal
+    with a real Event: when supplied (and wait_fn isn't), it's used instead.
+    Any unexpected exception (malformed Twitch responses, etc.) is caught and
+    reported via on_status("error") rather than propagating out of this
+    function - it's expected to run on a background thread with no other
+    error surface."""
+    if wait_fn is None:
+        if sleep_fn is not None:
+            wait_fn = lambda seconds: sleep_fn(seconds)
+        else:
+            wait_fn = lambda seconds: cancel_event.wait(seconds)
+
     try:
-        device_info = request_fn(client_id, scopes)
-    except requests.RequestException:
-        on_status("error")
-        return False
-
-    on_code(device_info["user_code"], device_info["verification_uri"])
-    on_status("pending")
-
-    interval = device_info.get("interval", 5)
-    expires_in = device_info.get("expires_in", 1800)
-    elapsed = 0
-
-    while elapsed < expires_in:
-        if cancel_event.is_set():
+        try:
+            device_info = request_fn(client_id, scopes)
+        except requests.RequestException:
+            on_status("error")
             return False
-        sleep_fn(interval)
-        elapsed += interval
 
-        result = poll_fn(client_id, device_info["device_code"])
-        status = result["status"]
-
-        if status == "success":
-            save_token(result["token"], addon)
-            on_status("success")
-            return True
-        if status == "slow_down":
-            interval += 5
-            on_status("pending")
-            continue
-        if status == "expired":
-            on_status("expired")
-            return False
+        on_code(device_info["user_code"], device_info["verification_uri"])
         on_status("pending")
 
-    on_status("expired")
-    return False
+        interval = device_info.get("interval", 5)
+        expires_in = device_info.get("expires_in", 1800)
+        elapsed = 0
+
+        while elapsed < expires_in:
+            if cancel_event.is_set():
+                return False
+            wait_fn(interval)
+            elapsed += interval
+
+            if cancel_event.is_set():
+                return False
+
+            result = poll_fn(client_id, device_info["device_code"])
+
+            if cancel_event.is_set():
+                return False
+
+            status = result["status"]
+
+            if status == "success":
+                save_token(result["token"], addon)
+                on_status("success")
+                return True
+            if status == "slow_down":
+                interval += 5
+                on_status("pending")
+                continue
+            if status == "expired":
+                on_status("expired")
+                return False
+            on_status("pending")
+
+        on_status("expired")
+        return False
+    except Exception:
+        on_status("error")
+        return False
