@@ -8,6 +8,7 @@ from lib.twitch.auth import save_token
 from lib.windows.discover import DiscoverWindow
 from lib.windows.home import HomeWindow, _build_list_item, _merge_channels
 from lib.windows.login import LoginWindow
+from lib.twitch import stream
 
 FakeAddon = xbmcaddon.Addon
 
@@ -466,3 +467,142 @@ def test_discover_chain_sets_the_shared_event_only_when_discover_closes():
         discover_window.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
 
     assert shared_event.is_set()
+
+
+def test_build_list_item_live_sets_broadcaster_login_and_is_live_true():
+    channel = FOLLOWED[1]  # Bob, broadcaster_login "bob"
+    stream_data = LIVE[0]
+    item = _build_list_item(channel, stream_data)
+    assert item.getProperty("broadcaster_login") == "bob"
+    assert item.getProperty("is_live") == "true"
+
+
+def test_build_list_item_offline_sets_is_live_false():
+    channel = FOLLOWED[0]  # Alice
+    item = _build_list_item(channel, None)
+    assert item.getProperty("broadcaster_login") == "alice"
+    assert item.getProperty("is_live") == "false"
+
+
+def test_selecting_a_live_channel_plays_it():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch(
+        "lib.windows.home.stream.resolve_stream_url",
+        return_value="https://example.invalid/stream.m3u8",
+    ) as mock_resolve, patch(
+        "lib.windows.home.player.play_stream", return_value=True
+    ) as mock_play:
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+        channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
+        # LIVE-first order per _merge_channels: Carol (200 viewers) then Bob (50), then offline Alice.
+        channel_control.selectItem(0)  # Carol, live
+        win.setFocusId(HomeWindow.CHANNEL_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    mock_resolve.assert_called_once_with("tok", "carol")
+    mock_play.assert_called_once_with("https://example.invalid/stream.m3u8")
+
+
+def test_selecting_an_offline_channel_does_nothing():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+        channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
+        channel_control.selectItem(2)  # Carol, Bob, then offline Alice at index 2
+        win.setFocusId(HomeWindow.CHANNEL_LIST_ID)
+        with patch("lib.windows.home.stream.resolve_stream_url") as mock_resolve:
+            win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    mock_resolve.assert_not_called()
+
+
+def test_selecting_a_live_channel_shows_error_when_resolution_fails():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch(
+        "lib.windows.home.stream.resolve_stream_url",
+        side_effect=stream.StreamUnavailableError("carol"),
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+        channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
+        channel_control.selectItem(0)
+        win.setFocusId(HomeWindow.CHANNEL_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    assert win.getControl(HomeWindow.ERROR_LABEL_ID).getLabel() != ""
+    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 3
+
+
+def test_selecting_a_live_channel_shows_error_when_playback_declined():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch(
+        "lib.windows.home.stream.resolve_stream_url",
+        return_value="https://example.invalid/stream.m3u8",
+    ), patch("lib.windows.home.player.play_stream", return_value=False):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+        channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
+        channel_control.selectItem(0)
+        win.setFocusId(HomeWindow.CHANNEL_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    assert win.getControl(HomeWindow.ERROR_LABEL_ID).getLabel() != ""
+
+
+def test_expired_token_during_channel_select_retries_playback_after_refresh():
+    old_token = {
+        "access_token": "old",
+        "refresh_token": "ref",
+        "user_id": "u1",
+        "login": "x",
+        "display_name": "X",
+    }
+    new_token = {"access_token": "new", "refresh_token": "ref2"}
+    addon = _addon_with_token(old_token)
+
+    resolve_calls = []
+
+    def fake_resolve(access_token, broadcaster_login):
+        resolve_calls.append((access_token, broadcaster_login))
+        if access_token == "old":
+            raise api.TokenExpiredError()
+        return "https://example.invalid/stream.m3u8"
+
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch(
+        "lib.windows.home.stream.resolve_stream_url", side_effect=fake_resolve
+    ), patch(
+        "lib.windows.home.player.play_stream", return_value=True
+    ) as mock_play, patch(
+        "lib.windows.home.auth.refresh_access_token", return_value=new_token
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+        channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
+        channel_control.selectItem(0)
+        win.setFocusId(HomeWindow.CHANNEL_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    assert resolve_calls == [("old", "carol"), ("new", "carol")]
+    mock_play.assert_called_once_with("https://example.invalid/stream.m3u8")
