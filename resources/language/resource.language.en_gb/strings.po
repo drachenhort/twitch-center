@@ -21,3 +21,11 @@ msgstr ""
 msgctxt "#30004"
 msgid "Both"
 msgstr ""
+
+msgctxt "#30005"
+msgid "Twitch Client ID"
+msgstr ""
+
+msgctxt "#30006"
+msgid "Twitch Token"
+msgstr ""

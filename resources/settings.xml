@@ -15,6 +15,22 @@
           </constraints>
           <control type="list" format="string"/>
         </setting>
+        <setting id="client_id" type="string" label="30005" help="">
+          <level>2</level>
+          <default>f6exkvelsf4gmy83b8zat5i10t3gy6</default>
+          <control type="edit" format="string"/>
+          <constraints>
+            <options>hidden</options>
+          </constraints>
+        </setting>
+        <setting id="twitch_token" type="string" label="30006" help="">
+          <level>2</level>
+          <default></default>
+          <control type="edit" format="string"/>
+          <constraints>
+            <options>hidden</options>
+          </constraints>
+        </setting>
       </group>
     </category>
   </section>
