@@ -111,3 +111,75 @@ def test_get_live_status_empty_ids_makes_no_request():
         result = api.get_live_status("token", "client-id", [])
     assert result == []
     mock_get.assert_not_called()
+
+
+def test_get_top_games_returns_id_and_name():
+    body = {
+        "data": [
+            {"id": "509658", "name": "Just Chatting", "box_art_url": "https://example.invalid/1.jpg"},
+            {"id": "21779", "name": "League of Legends", "box_art_url": "https://example.invalid/2.jpg"},
+        ]
+    }
+    with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:
+        result = api.get_top_games("token", "client-id")
+    assert result == [
+        {"id": "509658", "name": "Just Chatting"},
+        {"id": "21779", "name": "League of Legends"},
+    ]
+    assert mock_get.call_args.kwargs["params"]["first"] == 20
+
+
+def test_get_top_games_raises_token_expired_on_401():
+    with patch.object(api.requests, "get", return_value=_response({}, status_code=401)):
+        with pytest.raises(api.TokenExpiredError):
+            api.get_top_games("token", "client-id")
+
+
+def test_get_live_streams_by_game_returns_data():
+    body = {"data": [{"user_id": "1", "user_name": "A", "game_name": "Foo", "viewer_count": 10}]}
+    with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:
+        result = api.get_live_streams_by_game("token", "client-id", "509658")
+    assert result == body["data"]
+    assert mock_get.call_args.kwargs["params"]["game_id"] == "509658"
+    assert mock_get.call_args.kwargs["params"]["first"] == 20
+
+
+def test_get_live_streams_by_game_raises_token_expired_on_401():
+    with patch.object(api.requests, "get", return_value=_response({}, status_code=401)):
+        with pytest.raises(api.TokenExpiredError):
+            api.get_live_streams_by_game("token", "client-id", "509658")
+
+
+def test_search_channels_returns_data_with_live_only_default():
+    body = {
+        "data": [
+            {
+                "broadcaster_login": "someone",
+                "display_name": "Someone",
+                "id": "999",
+                "is_live": True,
+                "game_name": "Foo",
+                "thumbnail_url": "https://example.invalid/thumb.jpg",
+            }
+        ]
+    }
+    with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:
+        result = api.search_channels("token", "client-id", "someone")
+    assert result == body["data"]
+    params = mock_get.call_args.kwargs["params"]
+    assert params["query"] == "someone"
+    assert params["live_only"] is True
+    assert params["first"] == 20
+
+
+def test_search_channels_can_disable_live_only():
+    body = {"data": []}
+    with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:
+        api.search_channels("token", "client-id", "someone", live_only=False)
+    assert mock_get.call_args.kwargs["params"]["live_only"] is False
+
+
+def test_search_channels_raises_token_expired_on_401():
+    with patch.object(api.requests, "get", return_value=_response({}, status_code=401)):
+        with pytest.raises(api.TokenExpiredError):
+            api.search_channels("token", "client-id", "someone")

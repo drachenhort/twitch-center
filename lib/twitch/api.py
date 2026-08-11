@@ -72,11 +72,33 @@ def get_games_for_channels(access_token, user_ids):
     raise NotImplementedError
 
 
-def get_live_streams_by_game(access_token, game_id):
-    """Return currently-live streams (Helix /streams?game_id=) for the given game_id."""
-    raise NotImplementedError
+def get_top_games(access_token, client_id, first=20):
+    """Return Twitch's current top-viewed games (Helix /games/top) as a list of
+    {"id", "name"} dicts."""
+    body = _get(HELIX_BASE + "/games/top", access_token, client_id, params={"first": first})
+    return [{"id": game["id"], "name": game["name"]} for game in body["data"]]
 
 
-def search_channels(access_token, query):
-    """Free-text channel search (Helix /search/channels) for the given query string."""
-    raise NotImplementedError
+def get_live_streams_by_game(access_token, client_id, game_id, first=20):
+    """Return currently-live streams (Helix /streams?game_id=) for the given game_id -
+    any streamer, not just followed channels."""
+    body = _get(
+        HELIX_BASE + "/streams",
+        access_token,
+        client_id,
+        params={"game_id": game_id, "first": first},
+    )
+    return body["data"]
+
+
+def search_channels(access_token, client_id, query, live_only=True, first=20):
+    """Free-text channel search (Helix /search/channels) for the given query string.
+    Defaults to only currently-live channels - this app is about finding something
+    to watch now, not a general channel directory."""
+    body = _get(
+        HELIX_BASE + "/search/channels",
+        access_token,
+        client_id,
+        params={"query": query, "live_only": live_only, "first": first},
+    )
+    return body["data"]
