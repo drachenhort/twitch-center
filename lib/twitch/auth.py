@@ -3,6 +3,8 @@ import json
 
 import requests
 
+from lib.twitch import api
+
 DEVICE_CODE_URL = "https://id.twitch.tv/oauth2/device"
 TOKEN_URL = "https://id.twitch.tv/oauth2/token"
 SCOPES = ["user:read:follows"]
@@ -83,6 +85,36 @@ def load_token(addon):
         return None
 
 
+def refresh_access_token(client_id, refresh_token):
+    """Exchange a refresh_token for a new token dict. Returns None on any failure
+    (network error, non-200 response, unparseable body) rather than raising -
+    "refresh didn't work" is an expected outcome the caller must handle either way."""
+    try:
+        response = requests.post(
+            TOKEN_URL,
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token,
+                "client_id": client_id,
+            },
+            timeout=10,
+        )
+    except requests.RequestException:
+        return None
+    if response.status_code != 200:
+        return None
+    try:
+        return response.json()
+    except ValueError:
+        return None
+
+
+def clear_token(addon):
+    """Remove the saved token, e.g. after a refresh attempt fails and the user
+    must log in again from scratch."""
+    addon.setSetting("twitch_token", "")
+
+
 def run_device_code_login(
     client_id,
     scopes,
@@ -94,6 +126,7 @@ def run_device_code_login(
     wait_fn=None,
     request_fn=request_device_code,
     poll_fn=poll_device_code_once,
+    get_current_user_fn=None,
 ):
     """Orchestrates the full device-code login flow: request a code, report it via
     on_code, then poll until success/expiry/cancellation, reporting status via
@@ -109,12 +142,21 @@ def run_device_code_login(
     Any unexpected exception (malformed Twitch responses, etc.) is caught and
     reported via on_status("error") rather than propagating out of this
     function - it's expected to run on a background thread with no other
-    error surface."""
+    error surface.
+
+    get_current_user_fn(access_token, client_id) is called once, right after a
+    successful token exchange and before the token is saved, to cache the
+    logged-in user's id/login/display_name onto the token dict (defaults to
+    api.get_current_user). If it raises, the whole login is treated as failed -
+    on_status("error"), nothing saved - rather than saving a token with no
+    cached user info."""
     if wait_fn is None:
         if sleep_fn is not None:
             wait_fn = lambda seconds: sleep_fn(seconds)
         else:
             wait_fn = lambda seconds: cancel_event.wait(seconds)
+    if get_current_user_fn is None:
+        get_current_user_fn = api.get_current_user
 
     try:
         try:
@@ -147,7 +189,20 @@ def run_device_code_login(
             status = result["status"]
 
             if status == "success":
-                save_token(result["token"], addon)
+                token = result["token"]
+                try:
+                    user_info = get_current_user_fn(token["access_token"], client_id)
+                except Exception:
+                    on_status("error")
+                    return False
+                token["user_id"] = user_info["id"]
+                token["login"] = user_info["login"]
+                token["display_name"] = user_info["display_name"]
+
+                if cancel_event.is_set():
+                    return False
+
+                save_token(token, addon)
                 on_status("success")
                 return True
             if status == "slow_down":

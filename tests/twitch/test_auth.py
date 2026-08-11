@@ -124,6 +124,7 @@ def test_run_device_code_login_success_flow():
     }
     token = {"access_token": "tok"}
     poll_results = iter([{"status": "pending"}, {"status": "success", "token": token}])
+    user_info = {"id": "999", "login": "someuser", "display_name": "SomeUser"}
 
     result = auth.run_device_code_login(
         "client-id",
@@ -135,12 +136,17 @@ def test_run_device_code_login_success_flow():
         sleep_fn=lambda seconds: None,
         request_fn=lambda client_id, scopes: device_info,
         poll_fn=lambda client_id, device_code: next(poll_results),
+        get_current_user_fn=lambda access_token, client_id: user_info,
     )
 
     assert result is True
     assert codes == [("ABCD-1234", "https://www.twitch.tv/activate")]
     assert statuses[-1] == "success"
-    assert auth.load_token(addon) == token
+    saved = auth.load_token(addon)
+    assert saved["access_token"] == "tok"
+    assert saved["user_id"] == "999"
+    assert saved["login"] == "someuser"
+    assert saved["display_name"] == "SomeUser"
 
 
 def test_run_device_code_login_cancel_stops_before_saving_token():
@@ -310,3 +316,98 @@ def test_run_device_code_login_request_failure_reports_error():
 
     assert result is False
     assert statuses == ["error"]
+
+
+def test_run_device_code_login_caches_user_info_on_success():
+    addon = FakeAddon()
+    device_info = {
+        "device_code": "dc1",
+        "user_code": "ABCD-1234",
+        "verification_uri": "https://www.twitch.tv/activate",
+        "expires_in": 1800,
+        "interval": 5,
+    }
+    token = {"access_token": "tok", "refresh_token": "ref"}
+    user_info = {"id": "999", "login": "someuser", "display_name": "SomeUser"}
+
+    result = auth.run_device_code_login(
+        "client-id",
+        ["user:read:follows"],
+        addon,
+        on_code=lambda code, uri: None,
+        on_status=lambda status: None,
+        cancel_event=threading.Event(),
+        sleep_fn=lambda seconds: None,
+        request_fn=lambda client_id, scopes: device_info,
+        poll_fn=lambda client_id, device_code: {"status": "success", "token": dict(token)},
+        get_current_user_fn=lambda access_token, client_id: user_info,
+    )
+
+    assert result is True
+    saved = auth.load_token(addon)
+    assert saved["access_token"] == "tok"
+    assert saved["user_id"] == "999"
+    assert saved["login"] == "someuser"
+    assert saved["display_name"] == "SomeUser"
+
+
+def test_run_device_code_login_reports_error_when_user_info_fetch_fails():
+    addon = FakeAddon()
+    statuses = []
+    device_info = {
+        "device_code": "dc1",
+        "user_code": "ABCD-1234",
+        "verification_uri": "https://www.twitch.tv/activate",
+        "expires_in": 1800,
+        "interval": 5,
+    }
+
+    def failing_get_current_user(access_token, client_id):
+        raise requests.ConnectionError("boom")
+
+    result = auth.run_device_code_login(
+        "client-id",
+        ["user:read:follows"],
+        addon,
+        on_code=lambda code, uri: None,
+        on_status=lambda status: statuses.append(status),
+        cancel_event=threading.Event(),
+        sleep_fn=lambda seconds: None,
+        request_fn=lambda client_id, scopes: device_info,
+        poll_fn=lambda client_id, device_code: {
+            "status": "success",
+            "token": {"access_token": "tok"},
+        },
+        get_current_user_fn=failing_get_current_user,
+    )
+
+    assert result is False
+    assert statuses[-1] == "error"
+    assert auth.load_token(addon) is None
+
+
+def test_refresh_access_token_success():
+    new_token = {"access_token": "new-tok", "refresh_token": "new-ref", "expires_in": 14400}
+    with patch.object(auth.requests, "post", return_value=_fake_response(new_token)):
+        result = auth.refresh_access_token("client-id", "old-ref")
+    assert result == new_token
+
+
+def test_refresh_access_token_returns_none_on_http_error():
+    with patch.object(auth.requests, "post", return_value=_fake_response({}, status_code=400)):
+        result = auth.refresh_access_token("client-id", "old-ref")
+    assert result is None
+
+
+def test_refresh_access_token_returns_none_on_network_error():
+    with patch.object(auth.requests, "post", side_effect=requests.ConnectionError("boom")):
+        result = auth.refresh_access_token("client-id", "old-ref")
+    assert result is None
+
+
+def test_clear_token_removes_saved_token():
+    addon = FakeAddon()
+    auth.save_token({"access_token": "tok"}, addon)
+    assert auth.load_token(addon) is not None
+    auth.clear_token(addon)
+    assert auth.load_token(addon) is None
