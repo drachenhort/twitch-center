@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window>
+  <controls>
+    <control type="label" id="101">
+      <description>User code</description>
+      <label></label>
+    </control>
+    <control type="label" id="102">
+      <description>Verification URL</description>
+      <label></label>
+    </control>
+    <control type="label" id="103">
+      <description>Status</description>
+      <label></label>
+    </control>
+    <control type="button" id="104">
+      <description>Cancel</description>
+      <label>Cancel</label>
+      <onclick>PreviousMenu</onclick>
+    </control>
+  </controls>
+</window>
