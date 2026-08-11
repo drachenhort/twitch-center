@@ -83,3 +83,27 @@ def test_xbmcgui_stub_control_additems_reset_size_and_selection():
     control.reset()
     assert control.size() == 0
     assert control.getSelectedItem() is None
+
+
+def test_xbmcgui_stub_control_selectitem_changes_selected_item():
+    import xbmcgui
+    win = xbmcgui.WindowXML("dummy.xml", "/tmp")
+    control = win.getControl(101)
+    item1 = xbmcgui.ListItem("First")
+    item2 = xbmcgui.ListItem("Second")
+    control.addItems([item1, item2])
+    assert control.getSelectedItem() is item1
+    control.selectItem(1)
+    assert control.getSelectedItem() is item2
+
+
+def test_xbmcgui_stub_control_reset_clears_selection():
+    import xbmcgui
+    win = xbmcgui.WindowXML("dummy.xml", "/tmp")
+    control = win.getControl(101)
+    control.addItems([xbmcgui.ListItem("A"), xbmcgui.ListItem("B")])
+    control.selectItem(1)
+    control.reset()
+    assert control.getSelectedItem() is None
+    control.addItems([xbmcgui.ListItem("C")])
+    assert control.getSelectedItem().getLabel() == "C"

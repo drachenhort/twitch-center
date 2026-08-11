@@ -50,6 +50,7 @@ class ControlLabel:
         self._label = ""
         self._items = []
         self._visible = True
+        self._selected_index = 0
 
     def setLabel(self, text):
         self._label = text
@@ -62,12 +63,19 @@ class ControlLabel:
 
     def reset(self):
         self._items = []
+        self._selected_index = 0
 
     def size(self):
         return len(self._items)
 
     def getSelectedItem(self):
-        return self._items[0] if self._items else None
+        if not self._items:
+            return None
+        index = min(self._selected_index, len(self._items) - 1)
+        return self._items[index]
+
+    def selectItem(self, index):
+        self._selected_index = index
 
     def setVisible(self, visible):
         self._visible = visible
