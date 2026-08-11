@@ -1,4 +1,4 @@
-"""Typed wrapper over xbmcaddon settings. Only lib/windows.py and this module touch xbmcaddon."""
+"""Typed wrapper over xbmcaddon settings. Only lib/windows/* and this module import Kodi's xbmc* modules."""
 import xbmcaddon
 
 VALID_CHAT_DISPLAY_MODES = ("overlay", "standalone", "both")
