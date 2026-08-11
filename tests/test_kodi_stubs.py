@@ -116,3 +116,28 @@ def test_xbmcgui_stub_control_settext_gettext_round_trip():
     assert control.getText() == ""
     control.setText("elden ring")
     assert control.getText() == "elden ring"
+
+
+def test_xbmc_stub_player_play_does_not_raise():
+    import xbmc
+    player = xbmc.Player()
+    player.play("https://example.invalid/stream.m3u8")
+
+
+def test_xbmcgui_stub_listitem_path_and_playback_properties():
+    import xbmcgui
+    item = xbmcgui.ListItem(path="https://example.invalid/stream.m3u8")
+    assert item.getPath() == "https://example.invalid/stream.m3u8"
+    item.setPath("https://example.invalid/other.m3u8")
+    assert item.getPath() == "https://example.invalid/other.m3u8"
+    item.setMimeType("application/x-mpegURL")
+    assert item.getMimeType() == "application/x-mpegURL"
+    item.setContentLookup(False)
+    assert item.getContentLookup() is False
+
+
+def test_inputstreamhelper_stub_helper_check_inputstream():
+    import inputstreamhelper
+    helper = inputstreamhelper.Helper("hls")
+    assert helper.inputstream_addon == "inputstream.adaptive"
+    assert helper.check_inputstream() is True

@@ -14,11 +14,14 @@ class Action:
 
 
 class ListItem:
-    def __init__(self, label=""):
+    def __init__(self, label="", path=""):
         self._label = label
         self._label2 = ""
         self._art = {}
         self._properties = {}
+        self._path = path
+        self._mimetype = ""
+        self._content_lookup = True
 
     def setLabel(self, text):
         self._label = text
@@ -43,6 +46,24 @@ class ListItem:
 
     def getProperty(self, key):
         return self._properties.get(key, "")
+
+    def setPath(self, path):
+        self._path = path
+
+    def getPath(self):
+        return self._path
+
+    def setMimeType(self, mimetype):
+        self._mimetype = mimetype
+
+    def getMimeType(self):
+        return self._mimetype
+
+    def setContentLookup(self, enabled):
+        self._content_lookup = enabled
+
+    def getContentLookup(self):
+        return self._content_lookup
 
 
 class ControlLabel:

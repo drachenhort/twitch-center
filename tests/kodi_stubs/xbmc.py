@@ -19,3 +19,10 @@ class Monitor:
 
     def abortRequested(self):
         return False
+
+
+class Player:
+    """Minimal stand-in for xbmc.Player; real Kodi starts playback."""
+
+    def play(self, item=None, listitem=None, windowed=False, startpos=-1):
+        pass
