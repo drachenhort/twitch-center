@@ -60,7 +60,7 @@ def get_live_status(access_token, client_id, user_ids):
     results = []
     for i in range(0, len(user_ids), _MAX_USER_IDS_PER_REQUEST):
         chunk = user_ids[i : i + _MAX_USER_IDS_PER_REQUEST]
-        params = [("user_id", uid) for uid in chunk]
+        params = [("first", 100)] + [("user_id", uid) for uid in chunk]
         body = _get(HELIX_BASE + "/streams", access_token, client_id, params=params)
         results.extend(body["data"])
     return results

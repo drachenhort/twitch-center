@@ -92,8 +92,12 @@ def test_get_live_status_batches_over_100_ids():
     assert mock_get.call_count == 2
     first_params = mock_get.call_args_list[0].kwargs["params"]
     second_params = mock_get.call_args_list[1].kwargs["params"]
-    assert len(first_params) == 100
-    assert len(second_params) == 50
+    first_user_ids = [uid for key, uid in first_params if key == "user_id"]
+    second_user_ids = [uid for key, uid in second_params if key == "user_id"]
+    assert len(first_user_ids) == 100
+    assert len(second_user_ids) == 50
+    assert ("first", 100) in first_params
+    assert ("first", 100) in second_params
 
 
 def test_get_live_status_raises_token_expired_on_401():
