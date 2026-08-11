@@ -126,3 +126,50 @@ def test_run_opens_home_window_when_token_saved():
     assert len(FakeHomeWindow.instances) == 1
     assert FakeHomeWindow.instances[0].shown is True
     assert len(FakeLoginWindow.instances) == 0
+
+
+def test_run_keeps_waiting_while_a_child_window_owns_the_shared_event():
+    """A window that hands off to another (Home -> Discover) must not end
+    run()'s wait loop; only the window that actually closes for real does."""
+    windows = []
+
+    class HandOffWindow(FakeWindow):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.closed_event = threading.Event()
+            windows.append(self)
+
+    class TickingMonitor:
+        def __init__(self):
+            self.calls = 0
+
+        def waitForAbort(self, timeout=None):
+            self.calls += 1
+            if self.calls == 2:
+                # Parent "hands off": closes itself but passes its event on to
+                # a child window without setting it.
+                child = HandOffWindow("child.xml", "/fake/addon/path")
+                child.closed_event = windows[0].closed_event
+                child.show()
+            elif self.calls >= 4:
+                # The child finally closes for real.
+                windows[-1].closed_event.set()
+            return False
+
+    monitors = []
+
+    def monitor_cls():
+        monitor = TickingMonitor()
+        monitors.append(monitor)
+        return monitor
+
+    main.run(
+        [],
+        addon=FakeAddon(token={"access_token": "tok"}),
+        login_window_cls=FakeLoginWindow,
+        home_window_cls=HandOffWindow,
+        monitor_cls=monitor_cls,
+    )
+
+    assert monitors[-1].calls == 4
+    assert windows[0].closed_event.is_set()

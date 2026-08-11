@@ -54,9 +54,10 @@ class DiscoverWindow(xbmcgui.WindowXML):
     SEARCH_EDIT_ID = SEARCH_EDIT_ID
     SEARCH_BUTTON_ID = SEARCH_BUTTON_ID
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, closed_event=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.closed_event = threading.Event()
+        # Shared across the whole window-navigation chain - see LoginWindow.
+        self.closed_event = closed_event or threading.Event()
 
     def onInit(self):
         addon = xbmcaddon.Addon()
@@ -198,8 +199,13 @@ class DiscoverWindow(xbmcgui.WindowXML):
     def _open_login_window(self):
         addon = xbmcaddon.Addon()
         login_window = LoginWindow(
-            "script-twitch-center-login.xml", addon.getAddonInfo("path"), "Default", "1080i"
+            "script-twitch-center-login.xml",
+            addon.getAddonInfo("path"),
+            "Default",
+            "1080i",
+            closed_event=self.closed_event,
         )
         login_window.show()
+        # Deliberately NOT setting closed_event: this window is handing off,
+        # not ending the chain. The login window now owns the shared event.
         self.close()
-        self.closed_event.set()

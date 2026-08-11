@@ -20,11 +20,17 @@ class LoginWindow(xbmcgui.WindowXML):
     URL_LABEL_ID = 102
     STATUS_LABEL_ID = 103
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, closed_event=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._cancel_event = threading.Event()
         self._thread = None
-        self.closed_event = threading.Event()
+        # The whole navigation chain (Login -> Home -> Discover -> Login ...)
+        # shares ONE closed_event: main.run() blocks on the FIRST window's
+        # event, so a window handing off to another must pass its own event
+        # along rather than creating a fresh one, or the script would tear
+        # down (destroying the newly-shown window) the moment the parent set
+        # its own event.
+        self.closed_event = closed_event or threading.Event()
 
     def onInit(self):
         if self._thread is not None and self._thread.is_alive():

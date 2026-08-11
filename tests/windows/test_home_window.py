@@ -5,7 +5,9 @@ import xbmcgui
 
 from lib.twitch import api, gql
 from lib.twitch.auth import save_token
+from lib.windows.discover import DiscoverWindow
 from lib.windows.home import HomeWindow, _build_list_item, _merge_channels
+from lib.windows.login import LoginWindow
 
 FakeAddon = xbmcaddon.Addon
 
@@ -244,8 +246,37 @@ def test_selecting_relogin_button_opens_login_window_and_closes_home():
         win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
     mock_login_window_cls.assert_called_once()
+    assert mock_login_window_cls.call_args.kwargs["closed_event"] is win.closed_event
     mock_login_window_cls.return_value.show.assert_called_once()
-    assert win.closed_event.is_set()
+    # Handing off to the login window must NOT set the shared event: main.run
+    # blocks on it, so setting it here would tear the script (and the just-
+    # shown login window) down immediately.
+    assert not win.closed_event.is_set()
+
+
+def test_relogin_chain_sets_the_shared_event_only_when_login_window_closes():
+    """The event main.run() waits on must survive Home -> Login navigation and
+    end up set when the login window itself finally closes."""
+    addon = _addon_with_token({"access_token": "old", "refresh_token": "ref", "user_id": "u1"})
+
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", side_effect=api.TokenExpiredError()
+    ), patch("lib.windows.home.auth.refresh_access_token", return_value=None):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        shared_event = win.closed_event
+        win.onInit()
+        win.setFocusId(HomeWindow.RELOGIN_BUTTON_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+        assert not shared_event.is_set()
+
+        login_window = LoginWindow(
+            "script-twitch-center-login.xml", "/tmp", closed_event=shared_event
+        )
+        assert login_window.closed_event is shared_event
+        login_window.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
+
+    assert shared_event.is_set()
 
 
 GAMES = [
@@ -392,5 +423,32 @@ def test_selecting_discover_button_opens_discover_window_and_closes_home():
         win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
     mock_discover_window_cls.assert_called_once()
+    assert mock_discover_window_cls.call_args.kwargs["closed_event"] is win.closed_event
     mock_discover_window_cls.return_value.show.assert_called_once()
-    assert win.closed_event.is_set()
+    # Handing off, not ending the chain - see the relogin test above.
+    assert not win.closed_event.is_set()
+
+
+def test_discover_chain_sets_the_shared_event_only_when_discover_closes():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch.object(api, "get_top_games", return_value=[]):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        shared_event = win.closed_event
+        win.onInit()
+        win.setFocusId(HomeWindow.DISCOVER_BUTTON_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+        assert not shared_event.is_set()
+
+        discover_window = DiscoverWindow(
+            "script-twitch-center-discover.xml", "/tmp", closed_event=shared_event
+        )
+        assert discover_window.closed_event is shared_event
+        discover_window.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
+
+    assert shared_event.is_set()

@@ -1,3 +1,4 @@
+import threading
 from unittest.mock import patch
 
 import xbmcaddon
@@ -10,6 +11,7 @@ from lib.windows.discover import (
     _build_channel_item,
     _build_stream_item,
 )
+from lib.windows.login import LoginWindow
 
 FakeAddon = xbmcaddon.Addon
 
@@ -185,5 +187,38 @@ def test_selecting_relogin_button_opens_login_window_and_closes_discover():
         win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
     mock_login_window_cls.assert_called_once()
+    assert mock_login_window_cls.call_args.kwargs["closed_event"] is win.closed_event
     mock_login_window_cls.return_value.show.assert_called_once()
-    assert win.closed_event.is_set()
+    # Handing off to the login window must NOT set the shared event, or
+    # main.run's wait loop would exit and tear the script down immediately.
+    assert not win.closed_event.is_set()
+
+
+def test_relogin_chain_sets_the_shared_event_only_when_login_window_closes():
+    addon = _addon_with_token({"access_token": "old", "refresh_token": "ref", "user_id": "u1"})
+
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", side_effect=api.TokenExpiredError()
+    ), patch("lib.windows.discover.auth.refresh_access_token", return_value=None):
+        win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
+        shared_event = win.closed_event
+        win.onInit()
+        win.setFocusId(DiscoverWindow.RELOGIN_BUTTON_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+        assert not shared_event.is_set()
+
+        login_window = LoginWindow(
+            "script-twitch-center-login.xml", "/tmp", closed_event=shared_event
+        )
+        login_window.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
+
+    assert shared_event.is_set()
+
+
+def test_back_from_discover_sets_the_shared_event():
+    shared = threading.Event()
+    win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp", closed_event=shared)
+    assert win.closed_event is shared
+    win.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
+    assert shared.is_set()

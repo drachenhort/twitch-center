@@ -60,6 +60,16 @@ def test_on_action_back_sets_cancel_event_and_closes():
     assert win.closed_event.is_set()
 
 
+def test_shared_closed_event_is_used_instead_of_a_fresh_one():
+    shared = threading.Event()
+    win = LoginWindow("script-twitch-center-login.xml", "/tmp", closed_event=shared)
+    assert win.closed_event is shared
+    win._cancel_event = threading.Event()
+    with patch.object(win, "close"):
+        win._on_status("success")
+    assert shared.is_set()
+
+
 def test_on_action_unrelated_key_does_nothing():
     import xbmcgui
 
