@@ -1,8 +1,9 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
 import requests
 
-from lib.twitch import gql
+from lib.twitch import api, gql
 
 
 def _response(json_body, status_code=200):
@@ -128,3 +129,58 @@ def test_get_followed_live_games_skips_node_missing_both_name_fields():
         {"id": "1", "name": "just-chatting", "displayName": "Just Chatting"},
         {"id": "3", "name": "programming", "displayName": "Programming"},
     ]
+
+
+def test_get_playback_access_token_returns_value_and_signature_on_success():
+    body = {
+        "data": {
+            "streamPlaybackAccessToken": {"value": "opaque-token-json", "signature": "abc123"}
+        }
+    }
+    with patch.object(gql.requests, "post", return_value=_response(body)) as mock_post:
+        result = gql.get_playback_access_token("access-token", "somechannel")
+    assert result == {"value": "opaque-token-json", "signature": "abc123"}
+    payload = mock_post.call_args.kwargs["json"]
+    assert payload["operationName"] == "PlaybackAccessToken"
+    assert payload["variables"] == {
+        "isLive": True,
+        "login": "somechannel",
+        "isVod": False,
+        "vodID": "",
+        "playerType": "site",
+        "platform": "web",
+    }
+    assert (
+        payload["extensions"]["persistedQuery"]["sha256Hash"]
+        == "ed230aa1e33e07eebb8928504583da78a5173989fadfb1ac94be06a04f3cdbe9"
+    )
+    headers = mock_post.call_args.kwargs["headers"]
+    assert headers["Client-Id"] == gql.WEB_CLIENT_ID
+    assert headers["Authorization"] == "OAuth access-token"
+
+
+def test_get_playback_access_token_raises_token_expired_on_401():
+    with patch.object(gql.requests, "post", return_value=_response({}, status_code=401)):
+        with pytest.raises(api.TokenExpiredError):
+            gql.get_playback_access_token("access-token", "somechannel")
+
+
+def test_get_playback_access_token_returns_none_on_network_error():
+    with patch.object(gql.requests, "post", side_effect=requests.ConnectionError("boom")):
+        assert gql.get_playback_access_token("access-token", "somechannel") is None
+
+
+def test_get_playback_access_token_returns_none_on_other_non_200():
+    with patch.object(gql.requests, "post", return_value=_response({}, status_code=500)):
+        assert gql.get_playback_access_token("access-token", "somechannel") is None
+
+
+def test_get_playback_access_token_returns_none_on_missing_token_data():
+    body = {"data": {"streamPlaybackAccessToken": None}}
+    with patch.object(gql.requests, "post", return_value=_response(body)):
+        assert gql.get_playback_access_token("access-token", "somechannel") is None
+
+
+def test_get_playback_access_token_returns_none_on_unexpected_shape():
+    with patch.object(gql.requests, "post", return_value=_response({"unexpected": "shape"})):
+        assert gql.get_playback_access_token("access-token", "somechannel") is None

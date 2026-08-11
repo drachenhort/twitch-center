@@ -9,10 +9,13 @@ an empty result rather than raising, since this data is decoration
 something the rest of Home should ever fail over."""
 import requests
 
+from lib.twitch import api
+
 GQL_URL = "https://gql.twitch.tv/gql"
 WEB_CLIENT_ID = "kimne78kx3ncx6brgo4mv6wki5h1ko"
 
 _FOLLOWING_GAMES_QUERY_HASH = "f3c5d45175d623ed3d5ff4ca4c7de379ea6a1a4852236087dc1b81b7dbfd3114"
+_PLAYBACK_ACCESS_TOKEN_QUERY_HASH = "ed230aa1e33e07eebb8928504583da78a5173989fadfb1ac94be06a04f3cdbe9"
 
 
 def get_followed_live_games(access_token, limit=100):
@@ -71,3 +74,62 @@ def get_followed_live_games(access_token, limit=100):
             {"id": node.get("id", ""), "name": node.get("name", ""), "displayName": display_name}
         )
     return games
+
+
+def get_playback_access_token(access_token, channel_login):
+    """Return a {"value", "signature"} playback access token for the given
+    live channel login, or None on any non-401 failure (network error,
+    non-200, unexpected response shape) - never raises for those. Raises
+    api.TokenExpiredError on HTTP 401, unlike get_followed_live_games's pure
+    best-effort convention: playback is not decoration, so an expired token
+    here must be distinguishable from genuine unavailability, to let the
+    caller retry after a refresh rather than just failing silently.
+
+    "value" is an opaque JSON string Twitch issues - never parse it, just
+    pass it through unchanged to usher.ttvnw.net."""
+    try:
+        response = requests.post(
+            GQL_URL,
+            json={
+                "operationName": "PlaybackAccessToken",
+                "variables": {
+                    "isLive": True,
+                    "login": channel_login,
+                    "isVod": False,
+                    "vodID": "",
+                    "playerType": "site",
+                    "platform": "web",
+                },
+                "extensions": {
+                    "persistedQuery": {
+                        "version": 1,
+                        "sha256Hash": _PLAYBACK_ACCESS_TOKEN_QUERY_HASH,
+                    }
+                },
+            },
+            headers={
+                "Client-Id": WEB_CLIENT_ID,
+                "Authorization": "OAuth " + access_token,
+            },
+            timeout=10,
+        )
+    except requests.RequestException:
+        return None
+
+    if response.status_code == 401:
+        raise api.TokenExpiredError()
+    if response.status_code != 200:
+        return None
+
+    try:
+        body = response.json()
+        token = body["data"]["streamPlaybackAccessToken"]
+        value = token["value"]
+        signature = token["signature"]
+    except (ValueError, KeyError, TypeError):
+        return None
+
+    if not value or not signature:
+        return None
+
+    return {"value": value, "signature": signature}
