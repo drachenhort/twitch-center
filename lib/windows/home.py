@@ -15,6 +15,7 @@ ERROR_LABEL_ID = 103
 RELOGIN_BUTTON_ID = 104
 GAMES_LIST_ID = 105
 DISCOVER_BUTTON_ID = 106
+TITLE_LABEL_ID = 107
 
 _MISSING_TOKEN_MESSAGE = "You're not logged in. Reopen the addon to log in."
 _EMPTY_FOLLOWED_MESSAGE = "You're not following anyone yet."
@@ -64,6 +65,7 @@ class HomeWindow(xbmcgui.WindowXML):
     RELOGIN_BUTTON_ID = RELOGIN_BUTTON_ID
     GAMES_LIST_ID = GAMES_LIST_ID
     DISCOVER_BUTTON_ID = DISCOVER_BUTTON_ID
+    TITLE_LABEL_ID = TITLE_LABEL_ID
 
     def __init__(self, *args, closed_event=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -76,6 +78,8 @@ class HomeWindow(xbmcgui.WindowXML):
 
     def onInit(self):
         addon = xbmcaddon.Addon()
+        version = addon.getAddonInfo("version")
+        self.getControl(self.TITLE_LABEL_ID).setLabel("Twitch Center v" + version)
         client_id = addon.getSetting("client_id")
         token = auth.load_token(addon)
         if token is None:

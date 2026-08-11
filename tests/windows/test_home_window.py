@@ -87,6 +87,20 @@ def test_oninit_populates_list_on_success():
     assert control.size() == 3
 
 
+def test_oninit_sets_title_with_addon_version():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=[]
+    ), patch.object(api, "get_live_status", return_value=[]), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+    title = win.getControl(HomeWindow.TITLE_LABEL_ID).getLabel()
+    assert title.startswith("Twitch Center v")
+    assert addon.getAddonInfo("version") in title
+
+
 def test_oninit_shows_empty_state_when_no_followed_channels():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(

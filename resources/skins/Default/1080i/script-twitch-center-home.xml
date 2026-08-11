@@ -2,8 +2,8 @@
 <window>
   <defaultcontrol always="true">101</defaultcontrol>
   <controls>
-    <control type="label">
-      <description>Title</description>
+    <control type="label" id="107">
+      <description>Title with version</description>
       <posx>60</posx>
       <posy>60</posy>
       <width>800</width>

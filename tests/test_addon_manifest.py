@@ -101,7 +101,7 @@ def test_home_skin_xml_declares_all_expected_control_ids():
         for control in root.iter("control")
         if "id" in control.attrib
     }
-    assert {101, 102, 103, 104, 105, 106} <= control_ids
+    assert {101, 102, 103, 104, 105, 106, 107} <= control_ids
 
 
 def test_discover_skin_xml_declares_all_expected_control_ids():
