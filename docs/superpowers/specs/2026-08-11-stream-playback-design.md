@@ -51,27 +51,30 @@ install-prompt logic.
 
 ### `lib/twitch/gql.py` (extended)
 
-- `get_playback_access_token(access_token, channel_login) -> dict | None` — same best-effort/
-  never-raises convention as `get_followed_live_games`: returns `None` on any failure (network
-  error, non-200, unexpected response shape), never raises. Returns `{"value": ..., "signature":
-  ...}` on success.
+- `get_playback_access_token(access_token, channel_login) -> dict | None` — **deliberate exception**
+  to this module's usual best-effort/never-raises convention: a 401 response raises
+  `api.TokenExpiredError` (importing the same exception class `lib/twitch/api.py` already defines,
+  rather than duplicating it) instead of collapsing into `None`. Every other failure (network error,
+  other non-200, unexpected response shape) still returns `None`, matching
+  `get_followed_live_games`. The reason for the exception: playback is not decoration — a click the
+  user expects to work must be able to trigger the same refresh-then-retry flow every other
+  network-backed action in this app already has (game-select, search), which requires
+  distinguishing "token expired, worth retrying" from "genuinely unavailable, nothing to retry."
+  Returns `{"value": ..., "signature": ...}` on success.
 
 ### `lib/twitch/stream.py` (replaces the stub)
 
 - `StreamUnavailableError(Exception)` — **new**. Raised when a stream genuinely can't be resolved
-  to a playable URL (the `gql` call came back `None` — channel not live, access denied, or Twitch
-  rejected the request). Unlike `gql.py`'s best-effort convention, this module's whole purpose is
-  "give me a URL or tell me why not" — a failure here is not decorative, it's the thing the user
-  clicked expecting to work, so it must be surfaced rather than silently swallowed.
+  to a playable URL (the `gql` call came back `None` — channel not live, access denied, or a
+  non-401 request failure). Unlike `gql.py`'s general best-effort convention, this module's whole
+  purpose is "give me a URL or tell me why not" — a failure here is not decorative, it's the thing
+  the user clicked expecting to work, so it must be surfaced rather than silently swallowed.
 - `resolve_stream_url(access_token, channel_login) -> str` — calls
   `gql.get_playback_access_token`; raises `StreamUnavailableError` if it returns `None`; otherwise
-  builds and returns the usher master-playlist URL exactly as verified above. `gql.py` itself
-  already catches network errors internally and returns `None` for them (per its established
-  never-raises contract), so from `stream.py`'s point of view a network failure and a genuinely
-  unavailable stream are indistinguishable — both surface as `StreamUnavailableError`. This is an
-  intentional simplification: the caller (a window's click handler) only needs one exception type
-  to catch, and "couldn't reach Twitch" vs. "channel not available" both resolve to the same
-  user-facing "couldn't play this" message anyway.
+  builds and returns the usher master-playlist URL exactly as verified above. Does **not** catch
+  `api.TokenExpiredError` — lets it propagate unchanged, so the caller (a window's click handler)
+  can catch it specifically and drive the existing refresh-then-retry flow, exactly as it already
+  does for game-select and search.
 
 ### `lib/windows/player.py` (replaces the stub)
 
@@ -112,6 +115,13 @@ New `<import addon="script.module.inputstreamhelper" version="0.4.6"/>` in `<req
 - `player.play_stream` returning `False` (user declined the inputstream install prompt) is treated
   the same as a resolution failure for messaging purposes — a brief "couldn't start playback"
   message, not a crash.
+- **Home's `_handle_expired_token` needs the same `on_success`/`on_error` callback parameters
+  Discover's already has** (added during the Discover screen's own final review to let game-select/
+  search retry themselves after a refresh, defaulting to the original `onInit`-reload behavior when
+  not supplied). Home has never needed this until now — its only prior network-backed mid-session
+  action was game-select, which is a purely local list-filter with no network call. Playback is
+  Home's first action that can hit `TokenExpiredError` outside `onInit`, so this generalization is
+  required, not optional.
 
 ## Data flow
 
@@ -122,23 +132,33 @@ User selects a LIVE item in Home's channel list or Discover's results list
   -> is_live == "true":
        auth.load_token(addon) -> token
        stream.resolve_stream_url(token["access_token"], broadcaster_login)
-         -> gql.get_playback_access_token(...) -> usher URL, or raises StreamUnavailableError
+         -> gql.get_playback_access_token(...)
+              -> 401: raises api.TokenExpiredError (propagates through resolve_stream_url unchanged)
+              -> other failure: returns None -> resolve_stream_url raises StreamUnavailableError
+              -> success: usher URL returned
        player.play_stream(url)
          -> inputstreamhelper.Helper("hls").check_inputstream()
               False -> return False (declined/unavailable)
               True -> xbmc.Player().play(url, list_item) -> return True
+
+Caller catches TokenExpiredError specifically -> refresh-then-retry (replays the same playback
+attempt with the new token) via the same _handle_expired_token(on_success=..., on_error=...)
+pattern game-select/search already use. Caller catches StreamUnavailableError -> shows the
+non-fatal results-error message, no retry (nothing to retry - the stream just isn't available).
 ```
 
 ## Error handling
 
 - Offline item clicked: silent no-op (already-established scope decision).
-- `StreamUnavailableError` (channel not live / access denied / underlying network failure): brief
-  error message via each window's non-fatal results-error path, list contents untouched.
-- Missing/expired token at click-time: reuses each window's existing token-handling
-  (`auth.load_token`, refresh-then-retry via `_handle_expired_token`, same pattern as game-select
-  and search already use) — the retry replays the same playback attempt with the refreshed token,
-  matching the "don't silently discard the user's action" fix from the Discover screen's final
-  review.
+- `StreamUnavailableError` (channel not live / access denied / non-401 request failure): brief
+  error message via each window's non-fatal results-error path, list contents untouched, no retry.
+- `TokenExpiredError` at click-time (expired token, or the token going stale between page load and
+  click): refresh-then-retry via each window's `_handle_expired_token`, replaying the same playback
+  attempt with the refreshed token — matching the "don't silently discard the user's action" fix
+  from the Discover screen's final review. If the refresh itself fails, falls through to the
+  existing clear-token-and-reprompt-login flow, same as every other action.
+- Missing token at click-time (cleared by another window mid-session): shows the results-error
+  message via `_show_results_error`, same as game-select/search's existing missing-token handling.
 - `player.play_stream` returns `False`: same brief error message as a resolution failure.
 
 ## Testing
