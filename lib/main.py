@@ -1,5 +1,13 @@
 """Addon entry point, referenced by addon.xml's library="lib/main.py"."""
+import os
 import sys
+
+# Kodi runs this file as a script, which puts its own directory (.../lib) on
+# sys.path rather than the addon root — so "from lib.twitch import auth"
+# below would fail with ModuleNotFoundError under real Kodi (though not
+# under pytest, which adds the root via pytest.ini's pythonpath=.). Add the
+# addon root explicitly before any lib.* import.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import xbmc
 import xbmcaddon
