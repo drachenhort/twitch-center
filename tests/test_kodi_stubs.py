@@ -107,3 +107,12 @@ def test_xbmcgui_stub_control_reset_clears_selection():
     assert control.getSelectedItem() is None
     control.addItems([xbmcgui.ListItem("C")])
     assert control.getSelectedItem().getLabel() == "C"
+
+
+def test_xbmcgui_stub_control_settext_gettext_round_trip():
+    import xbmcgui
+    win = xbmcgui.WindowXML("dummy.xml", "/tmp")
+    control = win.getControl(106)
+    assert control.getText() == ""
+    control.setText("elden ring")
+    assert control.getText() == "elden ring"

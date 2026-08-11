@@ -58,6 +58,12 @@ class ControlLabel:
     def getLabel(self):
         return self._label
 
+    def setText(self, text):
+        self._label = text
+
+    def getText(self):
+        return self._label
+
     def addItems(self, items):
         self._items.extend(items)
 
