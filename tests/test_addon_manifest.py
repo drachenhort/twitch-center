@@ -4,6 +4,14 @@ from pathlib import Path
 
 ADDON_XML = Path(__file__).resolve().parent.parent / "addon.xml"
 SETTINGS_XML = Path(__file__).resolve().parent.parent / "resources" / "settings.xml"
+HOME_SKIN_XML = (
+    Path(__file__).resolve().parent.parent
+    / "resources"
+    / "skins"
+    / "Default"
+    / "1080i"
+    / "script-twitch-center-home.xml"
+)
 
 
 def test_addon_xml_parses_with_expected_id():
@@ -57,3 +65,18 @@ def test_settings_xml_hides_client_id_and_twitch_token():
         visible = setting_ids[setting_id].find("visible")
         assert visible is not None, f"{setting_id} should have a <visible> element"
         assert visible.text == "false"
+
+
+def test_home_skin_xml_declares_all_expected_control_ids():
+    # The Kodi stub auto-creates a fake control for any id on demand, so a
+    # control genuinely missing from the skin XML would stay green in tests
+    # but crash real Kodi at runtime. Verify the skin file itself declares
+    # every control id the home window code references.
+    tree = ET.parse(HOME_SKIN_XML)
+    root = tree.getroot()
+    control_ids = {
+        int(control.attrib["id"])
+        for control in root.iter("control")
+        if "id" in control.attrib
+    }
+    assert {101, 102, 103, 104, 105} <= control_ids
