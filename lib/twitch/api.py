@@ -99,6 +99,13 @@ def search_channels(access_token, client_id, query, live_only=True, first=20):
         HELIX_BASE + "/search/channels",
         access_token,
         client_id,
-        params={"query": query, "live_only": live_only, "first": first},
+        # Serialise the bool ourselves: requests would render a bare Python
+        # True/False as the literal "True"/"False", which Helix rejects - it
+        # wants lowercase true/false.
+        params={
+            "query": query,
+            "live_only": "true" if live_only else "false",
+            "first": first,
+        },
     )
     return body["data"]

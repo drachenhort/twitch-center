@@ -168,7 +168,9 @@ def test_search_channels_returns_data_with_live_only_default():
     assert result == body["data"]
     params = mock_get.call_args.kwargs["params"]
     assert params["query"] == "someone"
-    assert params["live_only"] is True
+    # Helix wants lowercase true/false; requests would render a bare Python
+    # bool as "True"/"False", which Twitch rejects.
+    assert params["live_only"] == "true"
     assert params["first"] == 20
 
 
@@ -176,7 +178,7 @@ def test_search_channels_can_disable_live_only():
     body = {"data": []}
     with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:
         api.search_channels("token", "client-id", "someone", live_only=False)
-    assert mock_get.call_args.kwargs["params"]["live_only"] is False
+    assert mock_get.call_args.kwargs["params"]["live_only"] == "false"
 
 
 def test_search_channels_raises_token_expired_on_401():
