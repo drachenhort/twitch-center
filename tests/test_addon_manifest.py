@@ -128,3 +128,13 @@ def test_discover_skin_focusable_controls_are_reachable_by_navigation():
     targets = _nav_targets(DISCOVER_SKIN_XML)
     for control_id in (104, 105, 106, 107):
         assert control_id in targets, f"control {control_id} is not a navigation target"
+
+
+def test_addon_xml_requires_inputstreamhelper_module():
+    tree = ET.parse(ADDON_XML)
+    root = tree.getroot()
+    requires = root.find("requires")
+    assert requires is not None
+    imports = requires.findall("import")
+    addon_ids = [imp.attrib.get("addon") for imp in imports]
+    assert "script.module.inputstreamhelper" in addon_ids
