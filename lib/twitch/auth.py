@@ -47,7 +47,10 @@ def poll_device_code_once(client_id, device_code):
         return {"status": "pending"}
 
     if response.status_code == 200:
-        return {"status": "success", "token": response.json()}
+        try:
+            return {"status": "success", "token": response.json()}
+        except ValueError:
+            return {"status": "pending"}
 
     try:
         body = response.json()

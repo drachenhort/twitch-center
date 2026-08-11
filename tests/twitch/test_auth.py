@@ -79,6 +79,14 @@ def test_poll_device_code_once_expired():
     assert result == {"status": "expired"}
 
 
+def test_poll_device_code_once_success_with_bad_json_treated_as_pending():
+    response = _fake_response({})
+    response.json.side_effect = ValueError("bad json")
+    with patch.object(auth.requests, "post", return_value=response):
+        result = auth.poll_device_code_once("client-id", "device-code")
+    assert result == {"status": "pending"}
+
+
 def test_poll_device_code_once_network_error_treated_as_pending():
     with patch.object(auth.requests, "post", side_effect=requests.ConnectionError("boom")):
         result = auth.poll_device_code_once("client-id", "device-code")
