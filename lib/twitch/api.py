@@ -1,17 +1,69 @@
 """Twitch Helix API calls. No xbmc* imports - pure Python, pytest-testable."""
+import requests
+
+HELIX_BASE = "https://api.twitch.tv/helix"
+_MAX_USER_IDS_PER_REQUEST = 100
 
 
-def get_followed_channels(access_token, user_id):
+class TokenExpiredError(Exception):
+    """Raised when a Helix call gets HTTP 401 - the access token no longer works.
+    Callers decide what to do next (refresh, re-login, etc.) - this module has
+    no knowledge of tokens beyond the one it was handed for this call."""
+
+
+def _headers(access_token, client_id):
+    return {"Authorization": "Bearer " + access_token, "Client-Id": client_id}
+
+
+def _get(url, access_token, client_id, params=None):
+    response = requests.get(
+        url, headers=_headers(access_token, client_id), params=params, timeout=10
+    )
+    if response.status_code == 401:
+        raise TokenExpiredError()
+    response.raise_for_status()
+    return response.json()
+
+
+def get_current_user(access_token, client_id):
+    """Return the token owner's Twitch user info: {id, login, display_name}."""
+    body = _get(HELIX_BASE + "/users", access_token, client_id)
+    user = body["data"][0]
+    return {"id": user["id"], "login": user["login"], "display_name": user["display_name"]}
+
+
+def get_followed_channels(access_token, client_id, user_id):
     """Return the user's followed channels as a list of dicts (Helix
     /channels/followed), each with at least broadcaster_id, broadcaster_login,
-    broadcaster_name."""
-    raise NotImplementedError
+    broadcaster_name. Follows Twitch's pagination cursor to completion."""
+    channels = []
+    cursor = None
+    while True:
+        params = {"user_id": user_id, "first": 100}
+        if cursor:
+            params["after"] = cursor
+        body = _get(HELIX_BASE + "/channels/followed", access_token, client_id, params=params)
+        channels.extend(body["data"])
+        cursor = body.get("pagination", {}).get("cursor")
+        if not cursor:
+            break
+    return channels
 
 
-def get_live_status(access_token, user_ids):
+def get_live_status(access_token, client_id, user_ids):
     """Return live-stream info (Helix /streams) for the given broadcaster user_ids -
-    only entries for currently-live channels are returned."""
-    raise NotImplementedError
+    only entries for currently-live channels are returned. Twitch caps this endpoint
+    at 100 user_id params per request, so user_ids is split into chunks of 100 and
+    the results concatenated."""
+    if not user_ids:
+        return []
+    results = []
+    for i in range(0, len(user_ids), _MAX_USER_IDS_PER_REQUEST):
+        chunk = user_ids[i : i + _MAX_USER_IDS_PER_REQUEST]
+        params = [("user_id", uid) for uid in chunk]
+        body = _get(HELIX_BASE + "/streams", access_token, client_id, params=params)
+        results.extend(body["data"])
+    return results
 
 
 def get_games_for_channels(access_token, user_ids):
