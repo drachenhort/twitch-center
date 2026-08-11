@@ -1,6 +1,7 @@
 """Addon entry point, referenced by addon.xml's library="lib/main.py"."""
 import sys
 
+import xbmc
 import xbmcaddon
 
 from lib.twitch import auth
@@ -8,18 +9,34 @@ from lib.windows.home import HomeWindow
 from lib.windows.login import LoginWindow
 
 
-def run(argv, addon=None, login_window_cls=None, home_window_cls=None):
-    """Route to LoginWindow if no token is saved, otherwise HomeWindow."""
+def run(argv, addon=None, login_window_cls=None, home_window_cls=None, monitor_cls=None):
+    """Route to LoginWindow if no token is saved, otherwise HomeWindow.
+
+    Kodi's xbmc.python.script addons run to completion and tear down; a
+    non-modal window (shown via show(), not doModal()) would be destroyed
+    the instant run() returns. So after showing the window, block on an
+    xbmc.Monitor() wait loop until either Kodi is shutting down or the
+    window signals (via its closed_event) that it's done."""
     addon = addon or xbmcaddon.Addon()
     login_window_cls = login_window_cls or LoginWindow
     home_window_cls = home_window_cls or HomeWindow
+    monitor_cls = monitor_cls or xbmc.Monitor
 
     token = auth.load_token(addon)
     if token is None:
-        window = login_window_cls("script-twitch-center-login.xml", addon.getAddonInfo("path"))
+        window = login_window_cls(
+            "script-twitch-center-login.xml", addon.getAddonInfo("path"), "Default", "1080i"
+        )
     else:
-        window = home_window_cls("script-twitch-center-home.xml", addon.getAddonInfo("path"))
+        window = home_window_cls(
+            "script-twitch-center-home.xml", addon.getAddonInfo("path"), "Default", "1080i"
+        )
     window.show()
+
+    monitor = monitor_cls()
+    while not window.closed_event.is_set():
+        if monitor.waitForAbort(1):
+            break
 
 
 if __name__ == "__main__":

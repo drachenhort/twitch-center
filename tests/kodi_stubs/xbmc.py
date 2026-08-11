@@ -9,3 +9,13 @@ LOGFATAL = 4
 
 def log(msg, level=LOGINFO):
     pass
+
+
+class Monitor:
+    """Minimal stand-in for xbmc.Monitor; real Kodi blocks until abort or timeout."""
+
+    def waitForAbort(self, timeout=None):
+        return False
+
+    def abortRequested(self):
+        return False
