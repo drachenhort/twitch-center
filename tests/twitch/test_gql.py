@@ -76,3 +76,55 @@ def test_get_followed_live_games_returns_empty_list_on_missing_nodes_key():
     with patch.object(gql.requests, "post", return_value=_response(body)):
         result = gql.get_followed_live_games("access-token")
     assert result == []
+
+
+def test_get_followed_live_games_falls_back_to_name_when_display_name_missing():
+    # Per-node field access must be defensive: a node missing displayName
+    # (one of the three unverified field-name guesses) should still produce
+    # a usable entry via the "name" fallback, not abort the whole list.
+    body = [
+        {
+            "data": {
+                "currentUser": {
+                    "followedGames": {
+                        "nodes": [
+                            {"id": "1", "name": "just-chatting", "displayName": "Just Chatting"},
+                            {"id": "2", "name": "programming"},
+                        ]
+                    }
+                }
+            }
+        }
+    ]
+    with patch.object(gql.requests, "post", return_value=_response(body)):
+        result = gql.get_followed_live_games("access-token")
+    assert result == [
+        {"id": "1", "name": "just-chatting", "displayName": "Just Chatting"},
+        {"id": "2", "name": "programming", "displayName": "programming"},
+    ]
+
+
+def test_get_followed_live_games_skips_node_missing_both_name_fields():
+    # A single unusable node (missing both displayName and name) must be
+    # skipped, not cause the whole call to degrade to [].
+    body = [
+        {
+            "data": {
+                "currentUser": {
+                    "followedGames": {
+                        "nodes": [
+                            {"id": "1", "name": "just-chatting", "displayName": "Just Chatting"},
+                            {"id": "2"},
+                            {"id": "3", "name": "programming", "displayName": "Programming"},
+                        ]
+                    }
+                }
+            }
+        }
+    ]
+    with patch.object(gql.requests, "post", return_value=_response(body)):
+        result = gql.get_followed_live_games("access-token")
+    assert result == [
+        {"id": "1", "name": "just-chatting", "displayName": "Just Chatting"},
+        {"id": "3", "name": "programming", "displayName": "Programming"},
+    ]

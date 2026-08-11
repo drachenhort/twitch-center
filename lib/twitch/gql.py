@@ -57,9 +57,17 @@ def get_followed_live_games(access_token, limit=100):
     try:
         body = response.json()
         nodes = body[0]["data"]["currentUser"]["followedGames"]["nodes"]
-        return [
-            {"id": node["id"], "name": node["name"], "displayName": node["displayName"]}
-            for node in nodes
-        ]
     except (ValueError, KeyError, IndexError, TypeError):
         return []
+
+    games = []
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        display_name = node.get("displayName") or node.get("name")
+        if not display_name:
+            continue
+        games.append(
+            {"id": node.get("id", ""), "name": node.get("name", ""), "displayName": display_name}
+        )
+    return games
