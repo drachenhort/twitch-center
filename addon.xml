@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="script.twitch.center" name="Twitch Center" version="0.1.0" provider-name="drachenhort">
+  <requires>
+    <import addon="xbmc.python" version="3.0.0"/>
+  </requires>
+  <extension point="xbmc.python.script" library="lib/main.py">
+    <provides>executable</provides>
+  </extension>
+  <extension point="xbmc.addon.metadata">
+    <summary lang="en_GB">Watch Twitch streams and chat from Kodi</summary>
+    <description lang="en_GB">
+      View Twitch streams using Kodi's own playback, with a paired IRC chat view. Not designed
+      for chatting back to streamers - a second way to consume streamer-generated content.
+    </description>
+    <platform>all</platform>
+    <license>MIT</license>
+    <source>https://github.com/drachenhort/twitch-center</source>
+  </extension>
+</addon>
