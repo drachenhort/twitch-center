@@ -1,20 +1,56 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <window>
+  <defaultcontrol always="true">104</defaultcontrol>
   <controls>
+    <control type="label">
+      <description>Title</description>
+      <posx>560</posx>
+      <posy>260</posy>
+      <width>800</width>
+      <height>50</height>
+      <font>font32</font>
+      <align>center</align>
+      <label>Activate Twitch Center</label>
+    </control>
     <control type="label" id="101">
       <description>User code</description>
+      <posx>560</posx>
+      <posy>340</posy>
+      <width>800</width>
+      <height>140</height>
+      <font>font37</font>
+      <align>center</align>
+      <aligny>center</aligny>
       <label></label>
     </control>
     <control type="label" id="102">
       <description>Verification URL</description>
+      <posx>560</posx>
+      <posy>500</posy>
+      <width>800</width>
+      <height>40</height>
+      <font>font13</font>
+      <align>center</align>
       <label></label>
     </control>
     <control type="label" id="103">
       <description>Status</description>
+      <posx>560</posx>
+      <posy>560</posy>
+      <width>800</width>
+      <height>40</height>
+      <font>font13</font>
+      <align>center</align>
       <label></label>
     </control>
     <control type="button" id="104">
       <description>Cancel</description>
+      <posx>760</posx>
+      <posy>640</posy>
+      <width>400</width>
+      <height>60</height>
+      <font>font13</font>
+      <align>center</align>
       <label>Cancel</label>
       <onclick>PreviousMenu</onclick>
     </control>
