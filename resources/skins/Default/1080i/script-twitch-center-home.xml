@@ -1,9 +1,89 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <window>
+  <defaultcontrol always="true">101</defaultcontrol>
   <controls>
-    <control type="label" id="201">
-      <description>Home placeholder</description>
+    <control type="label">
+      <description>Title</description>
+      <posx>60</posx>
+      <posy>60</posy>
+      <width>800</width>
+      <height>50</height>
+      <font>font32</font>
       <label>Twitch Center</label>
+    </control>
+    <control type="list" id="101">
+      <description>Followed channels</description>
+      <posx>60</posx>
+      <posy>140</posy>
+      <width>1800</width>
+      <height>850</height>
+      <onup>101</onup>
+      <ondown>101</ondown>
+      <itemlayout width="1800" height="120">
+        <control type="label">
+          <posx>10</posx>
+          <width>1780</width>
+          <height>60</height>
+          <font>font20</font>
+          <label>$INFO[ListItem.Label]</label>
+        </control>
+        <control type="label">
+          <posx>10</posx>
+          <posy>65</posy>
+          <width>1780</width>
+          <height>40</height>
+          <font>font13</font>
+          <label>$INFO[ListItem.Label2]</label>
+        </control>
+      </itemlayout>
+      <focusedlayout width="1800" height="120">
+        <control type="label">
+          <posx>10</posx>
+          <width>1780</width>
+          <height>60</height>
+          <font>font20</font>
+          <textcolor>ff9146ff</textcolor>
+          <label>$INFO[ListItem.Label]</label>
+        </control>
+        <control type="label">
+          <posx>10</posx>
+          <posy>65</posy>
+          <width>1780</width>
+          <height>40</height>
+          <font>font13</font>
+          <label>$INFO[ListItem.Label2]</label>
+        </control>
+      </focusedlayout>
+    </control>
+    <control type="label" id="102">
+      <description>Empty followed list message</description>
+      <posx>560</posx>
+      <posy>460</posy>
+      <width>800</width>
+      <height>60</height>
+      <font>font20</font>
+      <align>center</align>
+      <label></label>
+    </control>
+    <control type="label" id="103">
+      <description>Error / re-login message</description>
+      <posx>560</posx>
+      <posy>460</posy>
+      <width>800</width>
+      <height>60</height>
+      <font>font20</font>
+      <align>center</align>
+      <label></label>
+    </control>
+    <control type="button" id="104">
+      <description>Log in again</description>
+      <posx>760</posx>
+      <posy>540</posy>
+      <width>400</width>
+      <height>60</height>
+      <font>font13</font>
+      <align>center</align>
+      <label>Log in again</label>
     </control>
   </controls>
 </window>
