@@ -37,3 +37,23 @@ def test_settings_xml_declares_twitch_token_setting():
     root = tree.getroot()
     setting_ids = {s.attrib["id"]: s for s in root.iter("setting")}
     assert "twitch_token" in setting_ids
+
+
+def test_addon_xml_requires_requests_module():
+    tree = ET.parse(ADDON_XML)
+    root = tree.getroot()
+    requires = root.find("requires")
+    assert requires is not None
+    imports = requires.findall("import")
+    addon_ids = [imp.attrib.get("addon") for imp in imports]
+    assert "script.module.requests" in addon_ids
+
+
+def test_settings_xml_hides_client_id_and_twitch_token():
+    tree = ET.parse(SETTINGS_XML)
+    root = tree.getroot()
+    setting_ids = {s.attrib["id"]: s for s in root.iter("setting")}
+    for setting_id in ("client_id", "twitch_token"):
+        visible = setting_ids[setting_id].find("visible")
+        assert visible is not None, f"{setting_id} should have a <visible> element"
+        assert visible.text == "false"
