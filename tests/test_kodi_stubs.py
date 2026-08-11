@@ -48,3 +48,38 @@ def test_xbmcgui_stub_windowxml_getcontrol_returns_label_and_persists():
     control.setLabel("world")
     assert win.getControl(101).getLabel() == "world"
     assert win.getControl(102).getLabel() == ""
+
+
+def test_xbmcgui_stub_listitem_label_and_label2():
+    import xbmcgui
+    item = xbmcgui.ListItem("Channel Name")
+    assert item.getLabel() == "Channel Name"
+    item.setLabel2("playing Foo")
+    assert item.getLabel2() == "playing Foo"
+
+
+def test_xbmcgui_stub_listitem_art_and_properties():
+    import xbmcgui
+    item = xbmcgui.ListItem("Channel Name")
+    item.setArt({"thumb": "https://example.invalid/thumb.jpg"})
+    assert item.getArt("thumb") == "https://example.invalid/thumb.jpg"
+    assert item.getArt("missing") == ""
+    item.setProperty("broadcaster_id", "12345")
+    assert item.getProperty("broadcaster_id") == "12345"
+    assert item.getProperty("missing") == ""
+
+
+def test_xbmcgui_stub_control_additems_reset_size_and_selection():
+    import xbmcgui
+    win = xbmcgui.WindowXML("dummy.xml", "/tmp")
+    control = win.getControl(101)
+    assert control.size() == 0
+    assert control.getSelectedItem() is None
+    item1 = xbmcgui.ListItem("First")
+    item2 = xbmcgui.ListItem("Second")
+    control.addItems([item1, item2])
+    assert control.size() == 2
+    assert control.getSelectedItem() is item1
+    control.reset()
+    assert control.size() == 0
+    assert control.getSelectedItem() is None

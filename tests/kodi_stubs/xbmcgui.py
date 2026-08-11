@@ -12,15 +12,60 @@ class Action:
         return self._action_id
 
 
-class ControlLabel:
-    def __init__(self):
-        self._label = ""
+class ListItem:
+    def __init__(self, label=""):
+        self._label = label
+        self._label2 = ""
+        self._art = {}
+        self._properties = {}
 
     def setLabel(self, text):
         self._label = text
 
     def getLabel(self):
         return self._label
+
+    def setLabel2(self, text):
+        self._label2 = text
+
+    def getLabel2(self):
+        return self._label2
+
+    def setArt(self, art):
+        self._art.update(art)
+
+    def getArt(self, key):
+        return self._art.get(key, "")
+
+    def setProperty(self, key, value):
+        self._properties[key] = value
+
+    def getProperty(self, key):
+        return self._properties.get(key, "")
+
+
+class ControlLabel:
+    def __init__(self):
+        self._label = ""
+        self._items = []
+
+    def setLabel(self, text):
+        self._label = text
+
+    def getLabel(self):
+        return self._label
+
+    def addItems(self, items):
+        self._items.extend(items)
+
+    def reset(self):
+        self._items = []
+
+    def size(self):
+        return len(self._items)
+
+    def getSelectedItem(self):
+        return self._items[0] if self._items else None
 
 
 class WindowXML:
