@@ -5,18 +5,21 @@ import xbmc
 import xbmcaddon
 import xbmcgui
 
-from lib.twitch import api, auth
+from lib.twitch import api, auth, gql
 from lib.windows.login import LoginWindow
 
 CHANNEL_LIST_ID = 101
 EMPTY_LABEL_ID = 102
 ERROR_LABEL_ID = 103
 RELOGIN_BUTTON_ID = 104
+GAMES_LIST_ID = 105
 
 _MISSING_TOKEN_MESSAGE = "You're not logged in. Reopen the addon to log in."
 _EMPTY_FOLLOWED_MESSAGE = "You're not following anyone yet."
 _NETWORK_ERROR_MESSAGE = "Couldn't reach Twitch. Check your connection and reopen the addon."
 _RELOGIN_MESSAGE = "Your session expired. Log in again to continue."
+_ALL_GAMES_LABEL = "All"
+_NO_MATCHES_MESSAGE = "None of your live followed channels are playing this game right now."
 
 
 def _thumbnail_url(raw_url, width=320, height=180):
@@ -57,10 +60,15 @@ class HomeWindow(xbmcgui.WindowXML):
     EMPTY_LABEL_ID = EMPTY_LABEL_ID
     ERROR_LABEL_ID = ERROR_LABEL_ID
     RELOGIN_BUTTON_ID = RELOGIN_BUTTON_ID
+    GAMES_LIST_ID = GAMES_LIST_ID
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.closed_event = threading.Event()
+        self._followed = []
+        self._live = []
+        self._games = []
+        self._selected_game = None
 
     def onInit(self):
         addon = xbmcaddon.Addon()
@@ -92,6 +100,12 @@ class HomeWindow(xbmcgui.WindowXML):
         followed = api.get_followed_channels(token["access_token"], client_id, token["user_id"])
         broadcaster_ids = [c["broadcaster_id"] for c in followed]
         live_list = api.get_live_status(token["access_token"], client_id, broadcaster_ids)
+        games = gql.get_followed_live_games(token["access_token"])
+        self._followed = followed
+        self._live = live_list
+        self._games = games
+        self._selected_game = None
+        self._populate_games(games)
         self._populate(followed, live_list)
 
     def _handle_expired_token(self, addon, client_id, token):
@@ -127,7 +141,21 @@ class HomeWindow(xbmcgui.WindowXML):
             self._show_error(_NETWORK_ERROR_MESSAGE)
             return
 
-    def _populate(self, followed, live_list):
+    def _populate_games(self, games):
+        control = self.getControl(self.GAMES_LIST_ID)
+        control.reset()
+        all_item = xbmcgui.ListItem(_ALL_GAMES_LABEL)
+        items = [all_item]
+        for game in games:
+            item = xbmcgui.ListItem(game["displayName"])
+            # Use displayName, not the GQL "name" slug: the filter below
+            # compares against Helix's live-status game_name field, which is
+            # the human-readable form (e.g. "Just Chatting"), not a slug.
+            item.setProperty("game_name", game["displayName"])
+            items.append(item)
+        control.addItems(items)
+
+    def _populate(self, followed, live_list, game_filter=None):
         self.getControl(self.RELOGIN_BUTTON_ID).setVisible(False)
         control = self.getControl(self.CHANNEL_LIST_ID)
         control.reset()
@@ -135,11 +163,18 @@ class HomeWindow(xbmcgui.WindowXML):
             self.getControl(self.EMPTY_LABEL_ID).setLabel(_EMPTY_FOLLOWED_MESSAGE)
             return
         live, offline = _merge_channels(followed, live_list)
+        if game_filter is not None:
+            live = [(channel, stream) for channel, stream in live if stream["game_name"] == game_filter]
+            offline = []
         items = [_build_list_item(channel, stream) for channel, stream in live]
         items += [_build_list_item(channel) for channel in offline]
+        if not items:
+            self.getControl(self.EMPTY_LABEL_ID).setLabel(_NO_MATCHES_MESSAGE)
+            return
         control.addItems(items)
 
     def _show_error(self, message):
+        self.getControl(self.GAMES_LIST_ID).reset()
         self.getControl(self.ERROR_LABEL_ID).setLabel(message)
         self.getControl(self.RELOGIN_BUTTON_ID).setVisible(True)
 
@@ -147,11 +182,19 @@ class HomeWindow(xbmcgui.WindowXML):
         if action.getId() in (xbmcgui.ACTION_PREVIOUS_MENU, xbmcgui.ACTION_NAV_BACK):
             self.close()
             self.closed_event.set()
-        elif (
-            action.getId() == xbmcgui.ACTION_SELECT_ITEM
-            and self.getFocusId() == self.RELOGIN_BUTTON_ID
-        ):
-            self._open_login_window()
+        elif action.getId() == xbmcgui.ACTION_SELECT_ITEM:
+            if self.getFocusId() == self.RELOGIN_BUTTON_ID:
+                self._open_login_window()
+            elif self.getFocusId() == self.GAMES_LIST_ID:
+                self._on_game_selected()
+
+    def _on_game_selected(self):
+        selected = self.getControl(self.GAMES_LIST_ID).getSelectedItem()
+        if selected is None:
+            return
+        game_name = selected.getProperty("game_name")
+        self._selected_game = game_name or None
+        self._populate(self._followed, self._live, game_filter=self._selected_game)
 
     def _open_login_window(self):
         addon = xbmcaddon.Addon()

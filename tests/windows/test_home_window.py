@@ -3,7 +3,7 @@ from unittest.mock import patch
 import xbmcaddon
 import xbmcgui
 
-from lib.twitch import api
+from lib.twitch import api, gql
 from lib.twitch.auth import save_token
 from lib.windows.home import HomeWindow, _build_list_item, _merge_channels
 
@@ -76,7 +76,9 @@ def test_oninit_populates_list_on_success():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
         api, "get_followed_channels", return_value=FOLLOWED
-    ), patch.object(api, "get_live_status", return_value=LIVE):
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ):
         win = HomeWindow("script-twitch-center-home.xml", "/tmp")
         win.onInit()
     control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
@@ -87,7 +89,9 @@ def test_oninit_shows_empty_state_when_no_followed_channels():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
         api, "get_followed_channels", return_value=[]
-    ), patch.object(api, "get_live_status", return_value=[]):
+    ), patch.object(api, "get_live_status", return_value=[]), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ):
         win = HomeWindow("script-twitch-center-home.xml", "/tmp")
         win.onInit()
     assert win.getControl(HomeWindow.EMPTY_LABEL_ID).getLabel() != ""
@@ -109,7 +113,9 @@ def test_oninit_refreshes_token_and_retries_on_expiry():
 
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
         api, "get_followed_channels", side_effect=fake_get_followed
-    ), patch.object(api, "get_live_status", return_value=[]), patch(
+    ), patch.object(api, "get_live_status", return_value=[]), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch(
         "lib.windows.home.auth.refresh_access_token", return_value=new_token
     ):
         win = HomeWindow("script-twitch-center-home.xml", "/tmp")
@@ -203,7 +209,9 @@ def test_populate_hides_relogin_button_on_success():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
         api, "get_followed_channels", return_value=FOLLOWED
-    ), patch.object(api, "get_live_status", return_value=LIVE):
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ):
         win = HomeWindow("script-twitch-center-home.xml", "/tmp")
         win.onInit()
     assert win.getControl(HomeWindow.RELOGIN_BUTTON_ID).isVisible() is False
@@ -238,3 +246,99 @@ def test_selecting_relogin_button_opens_login_window_and_closes_home():
     mock_login_window_cls.assert_called_once()
     mock_login_window_cls.return_value.show.assert_called_once()
     assert win.closed_event.is_set()
+
+
+GAMES = [
+    {"id": "10", "name": "just-chatting", "displayName": "Just Chatting"},
+    {"id": "20", "name": "programming", "displayName": "Programming"},
+]
+
+
+def test_oninit_populates_games_row_with_all_plus_followed_games():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=GAMES
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+    games_control = win.getControl(HomeWindow.GAMES_LIST_ID)
+    assert games_control.size() == 3
+    labels = [games_control._items[i].getLabel() for i in range(games_control.size())]
+    assert labels == ["All", "Just Chatting", "Programming"]
+
+
+def test_oninit_games_row_empty_when_gql_fails():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+    games_control = win.getControl(HomeWindow.GAMES_LIST_ID)
+    assert games_control.size() == 1
+    assert games_control._items[0].getLabel() == "All"
+    channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
+    assert channel_control.size() == 3
+
+
+def test_selecting_a_game_filters_channel_list_to_matching_live_channels():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=GAMES
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+        games_control = win.getControl(HomeWindow.GAMES_LIST_ID)
+        games_control.selectItem(1)  # "Just Chatting" (Bob, per LIVE fixture)
+        win.setFocusId(HomeWindow.GAMES_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
+    assert channel_control.size() == 1
+    assert channel_control._items[0].getLabel() == "Bob"
+
+
+def test_selecting_all_clears_the_filter():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=GAMES
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+        games_control = win.getControl(HomeWindow.GAMES_LIST_ID)
+        games_control.selectItem(1)
+        win.setFocusId(HomeWindow.GAMES_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        games_control.selectItem(0)  # "All"
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
+    assert channel_control.size() == 3
+
+
+def test_selecting_a_game_with_no_live_matches_shows_no_matches_message():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    games_with_unmatched = GAMES + [{"id": "30", "name": "some-other-game", "displayName": "Some Other Game"}]
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=games_with_unmatched
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+        games_control = win.getControl(HomeWindow.GAMES_LIST_ID)
+        games_control.selectItem(3)  # "Some Other Game" - no live followed channel plays it
+        win.setFocusId(HomeWindow.GAMES_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
+    assert channel_control.size() == 0
+    assert win.getControl(HomeWindow.EMPTY_LABEL_ID).getLabel() != ""

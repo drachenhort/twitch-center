@@ -11,13 +11,46 @@
       <font>font32</font>
       <label>Twitch Center</label>
     </control>
+    <control type="list" id="105">
+      <description>Followed games filter</description>
+      <posx>60</posx>
+      <posy>130</posy>
+      <width>1800</width>
+      <height>90</height>
+      <orientation>horizontal</orientation>
+      <onup>105</onup>
+      <ondown>101</ondown>
+      <onleft>105</onleft>
+      <onright>105</onright>
+      <itemlayout width="220" height="80">
+        <control type="label">
+          <width>220</width>
+          <height>80</height>
+          <font>font13</font>
+          <align>center</align>
+          <aligny>center</aligny>
+          <label>$INFO[ListItem.Label]</label>
+        </control>
+      </itemlayout>
+      <focusedlayout width="220" height="80">
+        <control type="label">
+          <width>220</width>
+          <height>80</height>
+          <font>font13</font>
+          <align>center</align>
+          <aligny>center</aligny>
+          <textcolor>ff9146ff</textcolor>
+          <label>$INFO[ListItem.Label]</label>
+        </control>
+      </focusedlayout>
+    </control>
     <control type="list" id="101">
       <description>Followed channels</description>
       <posx>60</posx>
-      <posy>140</posy>
+      <posy>240</posy>
       <width>1800</width>
-      <height>850</height>
-      <onup>101</onup>
+      <height>760</height>
+      <onup>105</onup>
       <ondown>101</ondown>
       <itemlayout width="1800" height="120">
         <control type="image">
