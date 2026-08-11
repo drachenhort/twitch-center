@@ -157,6 +157,7 @@ class HomeWindow(xbmcgui.WindowXML):
 
     def _populate(self, followed, live_list, game_filter=None):
         self.getControl(self.RELOGIN_BUTTON_ID).setVisible(False)
+        self.getControl(self.EMPTY_LABEL_ID).setLabel("")
         control = self.getControl(self.CHANNEL_LIST_ID)
         control.reset()
         if not followed:
@@ -175,6 +176,8 @@ class HomeWindow(xbmcgui.WindowXML):
 
     def _show_error(self, message):
         self.getControl(self.GAMES_LIST_ID).reset()
+        self.getControl(self.CHANNEL_LIST_ID).reset()
+        self.getControl(self.EMPTY_LABEL_ID).setLabel("")
         self.getControl(self.ERROR_LABEL_ID).setLabel(message)
         self.getControl(self.RELOGIN_BUTTON_ID).setVisible(True)
 

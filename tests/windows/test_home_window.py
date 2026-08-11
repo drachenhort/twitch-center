@@ -305,23 +305,55 @@ def test_selecting_a_game_filters_channel_list_to_matching_live_channels():
 
 
 def test_selecting_all_clears_the_filter():
+    # Select a game with zero live matches first, so the "no matches"
+    # message is showing, then select "All" - both the channel list and the
+    # stale empty-label message must be cleared/reset.
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    games_with_unmatched = GAMES + [{"id": "30", "name": "some-other-game", "displayName": "Some Other Game"}]
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
         api, "get_followed_channels", return_value=FOLLOWED
     ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
-        gql, "get_followed_live_games", return_value=GAMES
+        gql, "get_followed_live_games", return_value=games_with_unmatched
     ):
         win = HomeWindow("script-twitch-center-home.xml", "/tmp")
         win.onInit()
         games_control = win.getControl(HomeWindow.GAMES_LIST_ID)
-        games_control.selectItem(1)
+        games_control.selectItem(3)  # "Some Other Game" - no live matches
         win.setFocusId(HomeWindow.GAMES_LIST_ID)
         win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        assert win.getControl(HomeWindow.EMPTY_LABEL_ID).getLabel() != ""
         games_control.selectItem(0)  # "All"
         win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
     channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
     assert channel_control.size() == 3
+    assert win.getControl(HomeWindow.EMPTY_LABEL_ID).getLabel() == ""
+
+
+def test_show_error_resets_stale_channel_list_and_empty_label():
+    # onInit can re-fire (Kodi re-initializes windows). If a prior onInit
+    # successfully populated the channel list and a later one hits an error
+    # path, the error screen must not show a stale populated channel list
+    # underneath the error message.
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+
+    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 3
+
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", side_effect=api.TokenExpiredError()
+    ), patch("lib.windows.home.auth.refresh_access_token", return_value=None):
+        win.onInit()
+
+    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 0
+    assert win.getControl(HomeWindow.EMPTY_LABEL_ID).getLabel() == ""
+    assert win.getControl(HomeWindow.ERROR_LABEL_ID).getLabel() != ""
 
 
 def test_selecting_a_game_with_no_live_matches_shows_no_matches_message():
