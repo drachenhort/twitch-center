@@ -8,8 +8,17 @@ streamer-generated content.
 
 ## Status
 
-No code yet. This repo currently only has planning/docs files.
+The scaffold is in place: the addon manifest (`addon.xml`) and a `lib/` package
+skeleton (a `twitch/` API layer, a `windows/` UI layer, and `settings.py`) all
+exist, with tests covering them. The real Twitch/network/UI logic is not yet
+implemented — everything is currently stubbed. See `docs/superpowers/specs` and
+`docs/superpowers/plans` for the design and implementation tracking.
 
 ## Development
 
-Nothing to build or run yet. See `CLAUDE.md` for current state.
+```
+pip install -r requirements-dev.txt && pytest
+```
+
+This runs the test suite (28 tests, all passing as of this scaffold). See
+`CLAUDE.md` for current state.
