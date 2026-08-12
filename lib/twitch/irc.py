@@ -87,6 +87,7 @@ _BACKOFF_RESET_AFTER = 30  # seconds a connection must stay up to reset backoff
 
 def _default_socket_factory():
     raw = socket_module.create_connection((IRC_HOST, IRC_PORT), timeout=10)
+    raw.settimeout(None)
     context = ssl.create_default_context()
     return context.wrap_socket(raw, server_hostname=IRC_HOST)
 
