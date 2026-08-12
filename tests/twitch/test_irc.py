@@ -1,24 +1,58 @@
-import pytest
-from lib.twitch import irc
-from lib.twitch.irc import parse_line
+import threading
+
+from lib.twitch.irc import ChatClient, parse_line
 
 
-def test_chat_client_connect_not_implemented():
-    client = irc.ChatClient("some_channel")
-    with pytest.raises(NotImplementedError):
-        client.connect()
+class FakeSocket:
+    """Records sent bytes, replays queued recv() results. A queued item that
+    is an Exception instance is raised instead of returned."""
+
+    def __init__(self, recv_queue=None):
+        self._recv_queue = list(recv_queue or [])
+        self.sent = []
+        self.closed = False
+
+    def sendall(self, data):
+        self.sent.append(data.decode("utf-8"))
+
+    def recv(self, bufsize):
+        if not self._recv_queue:
+            return b""
+        item = self._recv_queue.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+    def close(self):
+        self.closed = True
 
 
-def test_chat_client_read_messages_not_implemented():
-    client = irc.ChatClient("some_channel")
-    with pytest.raises(NotImplementedError):
-        next(client.read_messages())
-
-
-def test_chat_client_disconnect_not_implemented():
-    client = irc.ChatClient("some_channel")
-    with pytest.raises(NotImplementedError):
+def test_connect_sends_anonymous_login_and_join():
+    fake = FakeSocket()
+    client = ChatClient("somechannel", socket_factory=lambda: fake, sleep_fn=lambda s: None)
+    client.connect()
+    try:
+        # Handshake happens synchronously at the start of the background
+        # thread, before it blocks on recv() - give it a moment to run.
+        for _ in range(100):
+            if len(fake.sent) >= 4:
+                break
+            threading.Event().wait(0.01)
+    finally:
         client.disconnect()
+
+    assert "CAP REQ :twitch.tv/tags twitch.tv/commands\r\n" in fake.sent
+    assert "PASS SCHMOOPIIE\r\n" in fake.sent
+    assert any(s.startswith("NICK justinfan") for s in fake.sent)
+    assert "JOIN #somechannel\r\n" in fake.sent
+
+
+def test_disconnect_is_safe_to_call_twice():
+    fake = FakeSocket()
+    client = ChatClient("somechannel", socket_factory=lambda: fake, sleep_fn=lambda s: None)
+    client.connect()
+    client.disconnect()
+    client.disconnect()  # must not raise
 
 
 def test_parse_line_privmsg_with_tags():
