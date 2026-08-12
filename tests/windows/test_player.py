@@ -34,6 +34,7 @@ class FakeChatOverlay:
         self.shown = True
 
     def close(self):
+        self._client.disconnect()
         self.closed = True
 
 
@@ -183,3 +184,35 @@ def test_chat_aware_player_teardown_closes_overlay_and_disconnects_client_on_end
 
     assert overlay.closed is True
     assert overlay._client.disconnected is True
+
+
+def test_play_stream_tears_down_previous_watcher_when_called_again():
+    FakeChatOverlay.instances.clear()
+    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
+        "lib.windows.player.xbmc.Player"
+    ) as mock_player_cls:
+        mock_helper_cls.return_value.check_inputstream.return_value = True
+        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
+
+        player.play_stream(
+            "https://example.invalid/stream1.m3u8",
+            "channel1",
+            settings=FakeSettings("overlay"),
+            chat_overlay_cls=FakeChatOverlay,
+            chat_client_cls=FakeChatClient,
+        )
+        first_overlay = FakeChatOverlay.instances[0]
+        assert first_overlay.closed is False
+
+        player.play_stream(
+            "https://example.invalid/stream2.m3u8",
+            "channel2",
+            settings=FakeSettings("overlay"),
+            chat_overlay_cls=FakeChatOverlay,
+            chat_client_cls=FakeChatClient,
+        )
+
+    assert first_overlay.closed is True
+    assert len(FakeChatOverlay.instances) == 2
+    second_overlay = FakeChatOverlay.instances[1]
+    assert second_overlay.closed is False

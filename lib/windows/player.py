@@ -23,7 +23,6 @@ class _ChatAwarePlayer(xbmc.Player):
         self._teardown()
 
     def _teardown(self):
-        self._chat_client.disconnect()
         self._overlay.close()
 
 
@@ -66,6 +65,8 @@ def play_stream(url, channel, settings=None, chat_overlay_cls=None, chat_client_
             chat_client_cls=chat_client_cls,
         )
         overlay.show()
+        if _current_chat_watcher is not None:
+            _current_chat_watcher._teardown()
         _current_chat_watcher = _ChatAwarePlayer(overlay, overlay._client)
 
     return True
