@@ -4,7 +4,7 @@ import socket as socket_module
 import ssl
 import threading
 import time
-from queue import Empty, Queue
+from queue import Empty, Full, Queue
 
 
 def _parse_tags(tag_str):
@@ -87,6 +87,8 @@ _BACKOFF_START = 1
 _BACKOFF_MAX = 30
 _BACKOFF_RESET_AFTER = 30  # seconds a connection must stay up to reset backoff
 
+_QUEUE_MAXSIZE = 1000
+
 
 def _default_socket_factory():
     raw = socket_module.create_connection((IRC_HOST, IRC_PORT), timeout=10)
@@ -100,7 +102,7 @@ class ChatClient:
         self.channel = channel
         self._socket_factory = socket_factory or _default_socket_factory
         self._sleep_fn = sleep_fn or time.sleep
-        self._queue = Queue()
+        self._queue = Queue(maxsize=_QUEUE_MAXSIZE)
         self._cancel_event = threading.Event()
         self._thread = None
         self._sock = None
@@ -125,6 +127,16 @@ class ChatClient:
             except Empty:
                 continue
 
+    def _enqueue(self, event):
+        try:
+            self._queue.put_nowait(event)
+        except Full:
+            try:
+                self._queue.get_nowait()
+            except Empty:
+                pass
+            self._queue.put_nowait(event)
+
     def disconnect(self):
         """Close the IRC socket connection."""
         self._cancel_event.set()
@@ -145,7 +157,7 @@ class ChatClient:
                 self._sock = self._socket_factory()
                 self._handshake()
                 connected_at = time.time()
-                self._queue.put({"type": "status", "state": "connected"})
+                self._enqueue({"type": "status", "state": "connected"})
                 self._read_loop()
             except Exception:
                 pass
@@ -164,7 +176,7 @@ class ChatClient:
             if self._cancel_event.wait(0.05):
                 break
 
-            self._queue.put({"type": "status", "state": "disconnected"})
+            self._enqueue({"type": "status", "state": "disconnected"})
             if connected_at is not None and (time.time() - connected_at) > _BACKOFF_RESET_AFTER:
                 backoff = _BACKOFF_START
             self._sleep_fn(backoff)
@@ -186,7 +198,7 @@ class ChatClient:
         if line.startswith("PING"):
             self._send("PONG :tmi.twitch.tv")
             return
-        self._queue.put(parse_line(line))
+        self._enqueue(parse_line(line))
 
     def _handshake(self):
         nick = "justinfan%d" % random.randint(10000, 99999)
