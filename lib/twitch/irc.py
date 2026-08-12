@@ -89,6 +89,9 @@ _BACKOFF_RESET_AFTER = 30  # seconds a connection must stay up to reset backoff
 
 _QUEUE_MAXSIZE = 1000
 
+_DISCONNECT_GRACE = 0.05  # brief window for a concurrent disconnect() to land before
+                            # treating a just-closed connection as a failure needing backoff
+
 
 def _default_socket_factory():
     raw = socket_module.create_connection((IRC_HOST, IRC_PORT), timeout=10)
@@ -173,7 +176,7 @@ class ChatClient:
             # cancel event before we treat this as a failure needing a
             # backoff/retry cycle - closes the race between a just-closed
             # connection and an in-flight disconnect() call.
-            if self._cancel_event.wait(0.05):
+            if self._cancel_event.wait(_DISCONNECT_GRACE):
                 break
 
             self._enqueue({"type": "status", "state": "disconnected"})
