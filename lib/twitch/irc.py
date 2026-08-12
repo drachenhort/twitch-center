@@ -142,7 +142,7 @@ class ChatClient:
                 connected_at = time.time()
                 self._queue.put({"type": "status", "state": "connected"})
                 self._read_loop()
-            except (OSError, ConnectionError):
+            except Exception:
                 pass
             finally:
                 if self._sock is not None:
