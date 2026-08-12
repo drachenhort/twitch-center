@@ -128,6 +128,8 @@ class ChatClient:
         try:
             self._sock = self._socket_factory()
             self._handshake()
+            self._queue.put({"type": "status", "state": "connected"})
+            self._read_loop()
         except (OSError, ConnectionError):
             pass
         finally:
@@ -136,6 +138,24 @@ class ChatClient:
                     self._sock.close()
                 except OSError:
                     pass
+
+    def _read_loop(self):
+        buffer = ""
+        while not self._cancel_event.is_set():
+            data = self._sock.recv(4096)
+            if not data:
+                raise ConnectionError("connection closed by server")
+            buffer += data.decode("utf-8", errors="replace")
+            while "\r\n" in buffer:
+                line, buffer = buffer.split("\r\n", 1)
+                if line:
+                    self._handle_line(line)
+
+    def _handle_line(self, line):
+        if line.startswith("PING"):
+            self._send("PONG :tmi.twitch.tv")
+            return
+        self._queue.put(parse_line(line))
 
     def _handshake(self):
         nick = "justinfan%d" % random.randint(10000, 99999)

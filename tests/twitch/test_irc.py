@@ -122,3 +122,45 @@ def test_parse_line_raid_with_non_numeric_viewer_count_defaults_to_zero():
     assert event["type"] == "raid"
     assert event["viewer_count"] == 0
     assert event["timestamp"] == 9000
+
+
+def test_read_messages_yields_connected_status_then_privmsg():
+    line = "@display-name=Bob;tmi-sent-ts=1000 :bob!bob@bob.tmi.twitch.tv PRIVMSG #chan :hello\r\n"
+    fake = FakeSocket(recv_queue=[line.encode("utf-8")])
+    client = ChatClient("chan", socket_factory=lambda: fake, sleep_fn=lambda s: None)
+    client.connect()
+
+    events = []
+    for event in client.read_messages():
+        events.append(event)
+        if event["type"] == "message":
+            break
+    client.disconnect()
+
+    assert events[0] == {"type": "status", "state": "connected"}
+    assert events[1] == {
+        "type": "message",
+        "username": "bob",
+        "display_name": "Bob",
+        "text": "hello",
+        "timestamp": 1000,
+    }
+
+
+def test_ping_is_answered_with_pong_and_not_queued():
+    # Follow the PING with a real PRIVMSG so the test has a deterministic
+    # stopping point after confirming PING was handled.
+    privmsg = ":a!a@a PRIVMSG #chan :after ping\r\n"
+    fake = FakeSocket(recv_queue=[b"PING :tmi.twitch.tv\r\n", privmsg.encode("utf-8")])
+    client = ChatClient("chan", socket_factory=lambda: fake, sleep_fn=lambda s: None)
+    client.connect()
+
+    events = []
+    for event in client.read_messages():
+        events.append(event)
+        if event["type"] == "message":
+            break
+    client.disconnect()
+
+    assert [e["type"] for e in events] == ["status", "message"]
+    assert "PONG :tmi.twitch.tv\r\n" in fake.sent
