@@ -209,6 +209,19 @@ def test_chat_aware_player_teardown_closes_overlay_and_disconnects_client_on_end
     assert overlay._client.disconnected is True
 
 
+def test_chat_aware_player_teardown_closes_overlay_and_disconnects_client_on_error():
+    FakeChatOverlay.instances.clear()
+    overlay = FakeChatOverlay(
+        "x.xml", "/tmp", "Default", "1080i", channel="c", chat_client_cls=FakeChatClient
+    )
+    watcher = player._ChatAwarePlayer(overlay)
+
+    watcher.onPlaybackError()
+
+    assert overlay.closed is True
+    assert overlay._client.disconnected is True
+
+
 def test_chat_aware_player_teardown_works_even_if_overlay_client_not_yet_set():
     FakeChatOverlay.instances.clear()
     overlay = FakeChatOverlay(

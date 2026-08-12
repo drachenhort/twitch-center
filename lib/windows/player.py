@@ -21,6 +21,9 @@ class _ChatAwarePlayer(xbmc.Player):
     def onPlaybackEnded(self):
         self._teardown()
 
+    def onPlaybackError(self):
+        self._teardown()
+
     def _teardown(self):
         self._overlay.close()
 
