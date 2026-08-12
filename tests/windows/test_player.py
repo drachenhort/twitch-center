@@ -3,6 +3,44 @@ from unittest.mock import patch
 from lib.windows import player
 
 
+class FakeSettings:
+    def __init__(self, chat_display_mode):
+        self.chat_display_mode = chat_display_mode
+
+
+class FakeChatClient:
+    instances = []
+
+    def __init__(self, channel):
+        self.channel = channel
+        self.disconnected = False
+        FakeChatClient.instances.append(self)
+
+    def disconnect(self):
+        self.disconnected = True
+
+
+class FakeChatOverlay:
+    instances = []
+
+    def __init__(self, xml_filename, script_path, default_skin, default_res, channel=None, chat_client_cls=None):
+        self.channel = channel
+        self._client = (chat_client_cls or FakeChatClient)(channel)
+        self.shown = False
+        self.closed = False
+        FakeChatOverlay.instances.append(self)
+
+    def show(self):
+        self.shown = True
+
+    def close(self):
+        self.closed = True
+
+
+def _patch_playable():
+    return patch("lib.windows.player.Helper"), patch("lib.windows.player.xbmc.Player")
+
+
 def test_play_stream_returns_true_and_plays_when_inputstream_available():
     with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
         "lib.windows.player.xbmc.Player"
@@ -10,7 +48,9 @@ def test_play_stream_returns_true_and_plays_when_inputstream_available():
         mock_helper_cls.return_value.check_inputstream.return_value = True
         mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
 
-        result = player.play_stream("https://example.invalid/stream.m3u8", "somechannel")
+        result = player.play_stream(
+            "https://example.invalid/stream.m3u8", "somechannel", settings=FakeSettings("standalone")
+        )
 
     assert result is True
     mock_helper_cls.assert_called_once_with("hls")
@@ -31,7 +71,115 @@ def test_play_stream_returns_false_when_inputstream_declined():
     ) as mock_player_cls:
         mock_helper_cls.return_value.check_inputstream.return_value = False
 
-        result = player.play_stream("https://example.invalid/stream.m3u8", "somechannel")
+        result = player.play_stream(
+            "https://example.invalid/stream.m3u8", "somechannel", settings=FakeSettings("standalone")
+        )
 
     assert result is False
     mock_player_cls.return_value.play.assert_not_called()
+
+
+def test_play_stream_creates_and_shows_overlay_when_mode_is_overlay():
+    FakeChatOverlay.instances.clear()
+    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
+        "lib.windows.player.xbmc.Player"
+    ) as mock_player_cls:
+        mock_helper_cls.return_value.check_inputstream.return_value = True
+        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
+
+        result = player.play_stream(
+            "https://example.invalid/stream.m3u8",
+            "somechannel",
+            settings=FakeSettings("overlay"),
+            chat_overlay_cls=FakeChatOverlay,
+            chat_client_cls=FakeChatClient,
+        )
+
+    assert result is True
+    assert len(FakeChatOverlay.instances) == 1
+    overlay = FakeChatOverlay.instances[0]
+    assert overlay.channel == "somechannel"
+    assert overlay.shown is True
+
+
+def test_play_stream_creates_overlay_when_mode_is_both():
+    FakeChatOverlay.instances.clear()
+    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
+        "lib.windows.player.xbmc.Player"
+    ) as mock_player_cls:
+        mock_helper_cls.return_value.check_inputstream.return_value = True
+        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
+
+        player.play_stream(
+            "https://example.invalid/stream.m3u8",
+            "somechannel",
+            settings=FakeSettings("both"),
+            chat_overlay_cls=FakeChatOverlay,
+            chat_client_cls=FakeChatClient,
+        )
+
+    assert len(FakeChatOverlay.instances) == 1
+
+
+def test_play_stream_skips_overlay_when_mode_is_standalone():
+    FakeChatOverlay.instances.clear()
+    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
+        "lib.windows.player.xbmc.Player"
+    ) as mock_player_cls:
+        mock_helper_cls.return_value.check_inputstream.return_value = True
+        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
+
+        player.play_stream(
+            "https://example.invalid/stream.m3u8",
+            "somechannel",
+            settings=FakeSettings("standalone"),
+            chat_overlay_cls=FakeChatOverlay,
+            chat_client_cls=FakeChatClient,
+        )
+
+    assert len(FakeChatOverlay.instances) == 0
+
+
+def test_play_stream_skips_overlay_when_inputstream_declined():
+    FakeChatOverlay.instances.clear()
+    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
+        "lib.windows.player.xbmc.Player"
+    ) as mock_player_cls:
+        mock_helper_cls.return_value.check_inputstream.return_value = False
+
+        result = player.play_stream(
+            "https://example.invalid/stream.m3u8",
+            "somechannel",
+            settings=FakeSettings("overlay"),
+            chat_overlay_cls=FakeChatOverlay,
+            chat_client_cls=FakeChatClient,
+        )
+
+    assert result is False
+    assert len(FakeChatOverlay.instances) == 0
+
+
+def test_chat_aware_player_teardown_closes_overlay_and_disconnects_client_on_stop():
+    FakeChatOverlay.instances.clear()
+    overlay = FakeChatOverlay(
+        "x.xml", "/tmp", "Default", "1080i", channel="c", chat_client_cls=FakeChatClient
+    )
+    watcher = player._ChatAwarePlayer(overlay, overlay._client)
+
+    watcher.onPlaybackStopped()
+
+    assert overlay.closed is True
+    assert overlay._client.disconnected is True
+
+
+def test_chat_aware_player_teardown_closes_overlay_and_disconnects_client_on_end():
+    FakeChatOverlay.instances.clear()
+    overlay = FakeChatOverlay(
+        "x.xml", "/tmp", "Default", "1080i", channel="c", chat_client_cls=FakeChatClient
+    )
+    watcher = player._ChatAwarePlayer(overlay, overlay._client)
+
+    watcher.onPlaybackEnded()
+
+    assert overlay.closed is True
+    assert overlay._client.disconnected is True
