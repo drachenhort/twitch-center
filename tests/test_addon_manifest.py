@@ -60,6 +60,16 @@ def test_addon_xml_declares_script_extension():
     assert "xbmc.python.script" in points
 
 
+def test_settings_xml_declares_show_offline_channels_defaulting_to_false():
+    tree = ET.parse(SETTINGS_XML)
+    root = tree.getroot()
+    setting_ids = {s.attrib["id"]: s for s in root.iter("setting")}
+    assert "show_offline_channels" in setting_ids
+    default = setting_ids["show_offline_channels"].find("default")
+    assert default is not None
+    assert default.text == "false"
+
+
 def test_settings_xml_declares_client_id_with_default():
     tree = ET.parse(SETTINGS_XML)
     root = tree.getroot()

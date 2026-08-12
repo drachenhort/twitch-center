@@ -15,6 +15,11 @@
           </constraints>
           <control type="list" format="string"/>
         </setting>
+        <setting id="show_offline_channels" type="boolean" label="30009">
+          <level>0</level>
+          <default>false</default>
+          <control type="toggle"/>
+        </setting>
         <setting id="client_id" type="string" label="30005" help="">
           <level>2</level>
           <default>f6exkvelsf4gmy83b8zat5i10t3gy6</default>

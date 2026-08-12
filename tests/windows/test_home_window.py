@@ -107,6 +107,56 @@ def test_oninit_populates_list_on_success():
     assert all(item.getProperty("is_live") == "true" for item in control._items)
 
 
+def test_oninit_still_hides_offline_channels_when_setting_is_off():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+    control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
+    assert control.size() == 2
+
+
+def test_oninit_shows_offline_channels_after_live_ones_when_setting_is_on():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    addon.setSetting("show_offline_channels", True)
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+    control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
+    # LIVE-first per _merge_channels: Carol (200 viewers) then Bob (50), then
+    # offline Alice appended alphabetically.
+    assert [item.getLabel() for item in control._items] == ["Carol", "Bob", "Alice"]
+    assert control._items[-1].getProperty("is_live") == "false"
+    assert control._items[-1].getLabel2() == "Offline"
+
+
+def test_oninit_excludes_offline_channels_when_game_filter_is_set_even_with_setting_on():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    addon.setSetting("show_offline_channels", True)
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=GAMES
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+        games_control = win.getControl(HomeWindow.GAMES_LIST_ID)
+        games_control.selectItem(1)  # "Just Chatting" - Bob is live playing it
+        win.setFocusId(HomeWindow.GAMES_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
+    assert [item.getLabel() for item in control._items] == ["Bob"]
+
+
 def test_oninit_shows_no_live_message_when_all_followed_channels_are_offline():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(

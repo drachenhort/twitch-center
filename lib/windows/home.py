@@ -5,6 +5,7 @@ import xbmc
 import xbmcaddon
 import xbmcgui
 
+from lib.settings import Settings
 from lib.twitch import api, auth, gql, stream
 from lib.windows import player
 from lib.windows.login import LoginWindow
@@ -51,13 +52,17 @@ def _merge_channels(followed, live_list):
     return live, offline
 
 
-def _build_list_item(channel, stream_data):
+def _build_list_item(channel, stream_data=None):
     item = xbmcgui.ListItem(channel["broadcaster_name"])
-    item.setLabel2(
-        stream_data["game_name"] + " - " + str(stream_data["viewer_count"]) + " viewers"
-    )
-    item.setArt({"thumb": _thumbnail_url(stream_data["thumbnail_url"])})
-    item.setProperty("is_live", "true")
+    if stream_data:
+        item.setLabel2(
+            stream_data["game_name"] + " - " + str(stream_data["viewer_count"]) + " viewers"
+        )
+        item.setArt({"thumb": _thumbnail_url(stream_data["thumbnail_url"])})
+        item.setProperty("is_live", "true")
+    else:
+        item.setLabel2("Offline")
+        item.setProperty("is_live", "false")
     item.setProperty("broadcaster_id", channel["broadcaster_id"])
     item.setProperty("broadcaster_login", channel["broadcaster_login"])
     return item
@@ -73,10 +78,11 @@ class HomeWindow(xbmcgui.WindowXML):
     TITLE_LABEL_ID = TITLE_LABEL_ID
     SETTINGS_BUTTON_ID = SETTINGS_BUTTON_ID
 
-    def __init__(self, *args, closed_event=None, **kwargs):
+    def __init__(self, *args, closed_event=None, settings=None, **kwargs):
         super().__init__(*args, **kwargs)
         # Shared across the whole window-navigation chain - see LoginWindow.
         self.closed_event = closed_event or threading.Event()
+        self._settings = settings or Settings()
         self._followed = []
         self._live = []
         self._games = []
@@ -223,14 +229,18 @@ class HomeWindow(xbmcgui.WindowXML):
                 if empty_label:
                     empty_label.setLabel(_EMPTY_FOLLOWED_MESSAGE)
                 return
-            live, _offline = _merge_channels(followed, live_list)
+            live, offline = _merge_channels(followed, live_list)
             if game_filter is not None:
                 live = [
                     (channel, stream_data)
                     for channel, stream_data in live
                     if stream_data["game_name"] == game_filter
                 ]
+                offline = []
+            elif not self._settings.show_offline_channels:
+                offline = []
             items = [_build_list_item(channel, stream_data) for channel, stream_data in live]
+            items += [_build_list_item(channel) for channel in offline]
             if not items:
                 if empty_label:
                     empty_label.setLabel(_NO_MATCHES_MESSAGE if game_filter else _NO_LIVE_MESSAGE)

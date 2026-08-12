@@ -15,3 +15,7 @@ class Settings:
         if value in VALID_CHAT_DISPLAY_MODES:
             return value
         return DEFAULT_CHAT_DISPLAY_MODE
+
+    @property
+    def show_offline_channels(self):
+        return self._addon.getSettingBool("show_offline_channels")
