@@ -6,7 +6,7 @@ import xbmcgui
 from lib.twitch import api, gql
 from lib.twitch.auth import save_token
 from lib.windows.discover import DiscoverWindow
-from lib.windows.home import HomeWindow, _build_list_item, _merge_channels
+from lib.windows.home import HomeWindow, _NO_LIVE_MESSAGE, _build_list_item, _merge_channels
 from lib.windows.login import LoginWindow
 from lib.twitch import stream
 
@@ -60,14 +60,6 @@ def test_build_list_item_live_sets_label2_and_thumbnail():
     assert item.getProperty("broadcaster_id") == "2"
 
 
-def test_build_list_item_offline_has_no_thumbnail():
-    channel = FOLLOWED[0]
-    item = _build_list_item(channel, None)
-    assert item.getLabel() == "Alice"
-    assert item.getLabel2() == "Offline"
-    assert item.getArt("thumb") == ""
-
-
 def test_back_closes_window_when_nothing_is_playing():
     win = HomeWindow("script-twitch-center-home.xml", "/tmp")
     with patch("lib.windows.home.xbmc.Player") as mock_player_cls:
@@ -110,8 +102,22 @@ def test_oninit_populates_list_on_success():
         win = HomeWindow("script-twitch-center-home.xml", "/tmp")
         win.onInit()
     control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
-    assert control.size() == 3
+    assert control.size() == 2
     assert win.getFocusId() == HomeWindow.CHANNEL_LIST_ID
+    assert all(item.getProperty("is_live") == "true" for item in control._items)
+
+
+def test_oninit_shows_no_live_message_when_all_followed_channels_are_offline():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=[]), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 0
+    assert win.getControl(HomeWindow.EMPTY_LABEL_ID).getLabel() == _NO_LIVE_MESSAGE
 
 
 def test_oninit_passes_website_token_setting_to_followed_live_games():
@@ -183,7 +189,7 @@ def test_oninit_refreshes_token_and_retries_on_expiry():
         win.onInit()
 
     assert call_count["n"] == 2
-    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 3
+    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 0
     from lib.twitch.auth import load_token
 
     saved = load_token(addon)
@@ -367,7 +373,7 @@ def test_selecting_settings_button_opens_addon_settings_and_reloads():
     # Reloaded (not just left showing stale data) - the channel list is still
     # populated, proving onInit ran again rather than the window silently
     # doing nothing after openSettings() returned.
-    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 3
+    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 2
 
 
 def test_selecting_settings_button_does_not_reload_if_window_already_closed():
@@ -432,7 +438,7 @@ def test_oninit_games_row_empty_when_gql_fails():
     assert games_control.size() == 1
     assert games_control._items[0].getLabel() == "All"
     channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
-    assert channel_control.size() == 3
+    assert channel_control.size() == 2
 
 
 def test_selecting_a_game_filters_channel_list_to_matching_live_channels():
@@ -476,7 +482,7 @@ def test_selecting_all_clears_the_filter():
         win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
     channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
-    assert channel_control.size() == 3
+    assert channel_control.size() == 2
     assert win.getControl(HomeWindow.EMPTY_LABEL_ID).getLabel() == ""
 
 
@@ -494,7 +500,7 @@ def test_show_error_resets_stale_channel_list_and_empty_label():
         win = HomeWindow("script-twitch-center-home.xml", "/tmp")
         win.onInit()
 
-    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 3
+    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 2
 
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
         api, "get_followed_channels", side_effect=api.TokenExpiredError()
@@ -581,13 +587,6 @@ def test_build_list_item_live_sets_broadcaster_login_and_is_live_true():
     assert item.getProperty("is_live") == "true"
 
 
-def test_build_list_item_offline_sets_is_live_false():
-    channel = FOLLOWED[0]  # Alice
-    item = _build_list_item(channel, None)
-    assert item.getProperty("broadcaster_login") == "alice"
-    assert item.getProperty("is_live") == "false"
-
-
 def test_selecting_a_live_channel_plays_it():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
@@ -603,31 +602,13 @@ def test_selecting_a_live_channel_plays_it():
         win = HomeWindow("script-twitch-center-home.xml", "/tmp")
         win.onInit()
         channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
-        # LIVE-first order per _merge_channels: Carol (200 viewers) then Bob (50), then offline Alice.
+        # LIVE-first order per _merge_channels: Carol (200 viewers) then Bob (50).
         channel_control.selectItem(0)  # Carol, live
         win.setFocusId(HomeWindow.CHANNEL_LIST_ID)
         win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
     mock_resolve.assert_called_once_with("carol", "")
     mock_play.assert_called_once_with("https://example.invalid/stream.m3u8", "carol")
-
-
-def test_selecting_an_offline_channel_does_nothing():
-    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_followed_channels", return_value=FOLLOWED
-    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
-        gql, "get_followed_live_games", return_value=[]
-    ):
-        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
-        win.onInit()
-        channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
-        channel_control.selectItem(2)  # Carol, Bob, then offline Alice at index 2
-        win.setFocusId(HomeWindow.CHANNEL_LIST_ID)
-        with patch("lib.windows.home.stream.resolve_stream_url") as mock_resolve:
-            win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
-
-    mock_resolve.assert_not_called()
 
 
 def test_selecting_a_live_channel_shows_error_when_resolution_fails():
@@ -648,7 +629,7 @@ def test_selecting_a_live_channel_shows_error_when_resolution_fails():
         win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
     assert win.getControl(HomeWindow.ERROR_LABEL_ID).getLabel() != ""
-    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 3
+    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 2
 
 
 def test_selecting_a_live_channel_shows_error_when_playback_declined():
@@ -748,7 +729,7 @@ def test_selecting_a_live_channel_shows_error_on_unexpected_exception():
         win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
     assert win.getControl(HomeWindow.ERROR_LABEL_ID).getLabel() != ""
-    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 3
+    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 2
 
 
 def test_missing_token_at_click_time_shows_an_error_instead_of_no_op():
@@ -770,4 +751,4 @@ def test_missing_token_at_click_time_shows_an_error_instead_of_no_op():
         win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
     assert win.getControl(HomeWindow.ERROR_LABEL_ID).getLabel() != ""
-    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 3
+    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 2

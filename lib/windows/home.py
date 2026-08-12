@@ -21,6 +21,7 @@ SETTINGS_BUTTON_ID = 108
 
 _MISSING_TOKEN_MESSAGE = "You're not logged in. Reopen the addon to log in."
 _EMPTY_FOLLOWED_MESSAGE = "You're not following anyone yet."
+_NO_LIVE_MESSAGE = "None of your followed channels are live right now."
 _NETWORK_ERROR_MESSAGE = "Couldn't reach Twitch. Check your connection and reopen the addon."
 _RELOGIN_MESSAGE = "Your session expired. Log in again to continue."
 _ALL_GAMES_LABEL = "All"
@@ -50,17 +51,13 @@ def _merge_channels(followed, live_list):
     return live, offline
 
 
-def _build_list_item(channel, stream_data=None):
+def _build_list_item(channel, stream_data):
     item = xbmcgui.ListItem(channel["broadcaster_name"])
-    if stream_data:
-        item.setLabel2(
-            stream_data["game_name"] + " - " + str(stream_data["viewer_count"]) + " viewers"
-        )
-        item.setArt({"thumb": _thumbnail_url(stream_data["thumbnail_url"])})
-        item.setProperty("is_live", "true")
-    else:
-        item.setLabel2("Offline")
-        item.setProperty("is_live", "false")
+    item.setLabel2(
+        stream_data["game_name"] + " - " + str(stream_data["viewer_count"]) + " viewers"
+    )
+    item.setArt({"thumb": _thumbnail_url(stream_data["thumbnail_url"])})
+    item.setProperty("is_live", "true")
     item.setProperty("broadcaster_id", channel["broadcaster_id"])
     item.setProperty("broadcaster_login", channel["broadcaster_login"])
     return item
@@ -226,19 +223,17 @@ class HomeWindow(xbmcgui.WindowXML):
                 if empty_label:
                     empty_label.setLabel(_EMPTY_FOLLOWED_MESSAGE)
                 return
-            live, offline = _merge_channels(followed, live_list)
+            live, _offline = _merge_channels(followed, live_list)
             if game_filter is not None:
                 live = [
                     (channel, stream_data)
                     for channel, stream_data in live
                     if stream_data["game_name"] == game_filter
                 ]
-                offline = []
             items = [_build_list_item(channel, stream_data) for channel, stream_data in live]
-            items += [_build_list_item(channel) for channel in offline]
             if not items:
                 if empty_label:
-                    empty_label.setLabel(_NO_MATCHES_MESSAGE)
+                    empty_label.setLabel(_NO_MATCHES_MESSAGE if game_filter else _NO_LIVE_MESSAGE)
                 return
             control.addItems(items)
 
