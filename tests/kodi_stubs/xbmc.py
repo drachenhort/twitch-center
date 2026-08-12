@@ -11,6 +11,10 @@ def log(msg, level=LOGINFO):
     pass
 
 
+def sleep(milliseconds):
+    pass
+
+
 class Monitor:
     """Minimal stand-in for xbmc.Monitor; real Kodi blocks until abort or timeout."""
 
