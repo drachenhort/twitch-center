@@ -1,4 +1,5 @@
-"""Discover screen: browse live channels by any game, or search any channel by name."""
+"""Discover screen: browse live channels by any game, or search by channel name or
+by game/category name (toggle via SEARCH_MODE_TOGGLE_ID)."""
 import threading
 
 import xbmc
@@ -9,20 +10,29 @@ from lib.twitch import api, auth, stream
 from lib.windows import player
 from lib.windows.login import LoginWindow
 
-RESULTS_LIST_ID = 101
-EMPTY_LABEL_ID = 102
-ERROR_LABEL_ID = 103
-RELOGIN_BUTTON_ID = 104
-GAMES_LIST_ID = 105
-SEARCH_EDIT_ID = 106
-SEARCH_BUTTON_ID = 107
+RESULTS_LIST_ID = 201
+EMPTY_LABEL_ID = 202
+ERROR_LABEL_ID = 203
+RELOGIN_BUTTON_ID = 204
+GAMES_LIST_ID = 205
+SEARCH_EDIT_ID = 206
+SEARCH_BUTTON_ID = 207
+SEARCH_MODE_TOGGLE_ID = 208
+# Deliberately non-overlapping with HomeWindow's 101-108 control IDs, since
+# both windows can be simultaneously resident in Kodi's window manager - not
+# actually the cause of the window-revert bug (that was <defaultcontrol>
+# targeting an empty list, see script-twitch-center-discover.xml and
+# script-twitch-center-home.xml), but good practice to keep regardless.
 
 _MISSING_TOKEN_MESSAGE = "You're not logged in. Reopen the addon to log in."
 _EMPTY_RESULTS_MESSAGE = "Nothing found."
+_EMPTY_GAME_SEARCH_MESSAGE = "No matching game found."
 _EMPTY_GAMES_MESSAGE = "No games to browse right now."
 _NETWORK_ERROR_MESSAGE = "Couldn't reach Twitch. Check your connection and reopen the addon."
 _RELOGIN_MESSAGE = "Your session expired. Log in again to continue."
 _PLAYBACK_ERROR_MESSAGE = "Couldn't start playback. Try again."
+_SEARCH_MODES = ("channels", "games")
+_SEARCH_MODE_LABELS = {"channels": "Searching: Channels", "games": "Searching: Games"}
 
 
 def _thumbnail_url(raw_url, width=320, height=180):
@@ -62,11 +72,13 @@ class DiscoverWindow(xbmcgui.WindowXML):
     GAMES_LIST_ID = GAMES_LIST_ID
     SEARCH_EDIT_ID = SEARCH_EDIT_ID
     SEARCH_BUTTON_ID = SEARCH_BUTTON_ID
+    SEARCH_MODE_TOGGLE_ID = SEARCH_MODE_TOGGLE_ID
 
     def __init__(self, *args, closed_event=None, **kwargs):
         super().__init__(*args, **kwargs)
         # Shared across the whole window-navigation chain - see LoginWindow.
         self.closed_event = closed_event or threading.Event()
+        self._search_mode = "channels"
 
     def onInit(self):
         addon = xbmcaddon.Addon()
@@ -94,6 +106,13 @@ class DiscoverWindow(xbmcgui.WindowXML):
     def _load_games(self, addon, client_id, token):
         games = api.get_top_games(token["access_token"], client_id)
         self._populate_games(games)
+        # The skin's <defaultcontrol> targets the search box (always
+        # focusable, unlike the games list which is empty at skin-parse
+        # time - see script-twitch-center-discover.xml) - claim focus on the
+        # now-populated games list explicitly, same race-avoidance as
+        # HomeWindow._load_and_populate.
+        if self.getControl(self.GAMES_LIST_ID).size():
+            self.setFocusId(self.GAMES_LIST_ID)
 
     def _handle_expired_token(self, addon, client_id, token, on_success=None, on_error=None):
         """Refresh the access token, then redo whatever the user was doing.
@@ -166,6 +185,19 @@ class DiscoverWindow(xbmcgui.WindowXML):
         channels = api.search_channels(token["access_token"], client_id, query)
         self._populate_results([_build_channel_item(channel) for channel in channels])
 
+    def _load_game_search_results(self, addon, client_id, token, query):
+        # Twitch's category search is fuzzy/free-text, not exact - take its
+        # best (first) match rather than requiring the query to be the exact
+        # game name, same convention as typing "warships" to find "World of
+        # Warships".
+        matches = api.search_categories(token["access_token"], client_id, query, first=1)
+        if not matches:
+            self._populate_results([])
+            self.getControl(self.EMPTY_LABEL_ID).setLabel(_EMPTY_GAME_SEARCH_MESSAGE)
+            return
+        streams = api.get_live_streams_by_game(token["access_token"], client_id, matches[0]["id"])
+        self._populate_results([_build_stream_item(stream_data) for stream_data in streams])
+
     def _on_game_selected(self):
         selected = self.getControl(self.GAMES_LIST_ID).getSelectedItem()
         if selected is None:
@@ -201,22 +233,13 @@ class DiscoverWindow(xbmcgui.WindowXML):
         if selected is None or selected.getProperty("is_live") != "true":
             return
         addon = xbmcaddon.Addon()
-        client_id = addon.getSetting("client_id")
         token = auth.load_token(addon)
         if token is None:
             self._show_results_error(_MISSING_TOKEN_MESSAGE)
             return
         broadcaster_login = selected.getProperty("broadcaster_login")
         try:
-            self._play_channel(token, broadcaster_login)
-        except api.TokenExpiredError:
-            self._handle_expired_token(
-                addon,
-                client_id,
-                token,
-                on_success=lambda a, c, t: self._play_channel(t, broadcaster_login),
-                on_error=self._show_results_error,
-            )
+            self._play_channel(broadcaster_login)
         except stream.StreamUnavailableError:
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
         except Exception as exc:
@@ -226,8 +249,9 @@ class DiscoverWindow(xbmcgui.WindowXML):
             )
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
 
-    def _play_channel(self, token, broadcaster_login):
-        url = stream.resolve_stream_url(token["access_token"], broadcaster_login)
+    def _play_channel(self, broadcaster_login):
+        website_token = xbmcaddon.Addon().getSetting("website_token")
+        url = stream.resolve_stream_url(broadcaster_login, website_token)
         if player.play_stream(url):
             self.getControl(self.ERROR_LABEL_ID).setLabel("")
         else:
@@ -243,19 +267,36 @@ class DiscoverWindow(xbmcgui.WindowXML):
         if token is None:
             self._show_results_error(_MISSING_TOKEN_MESSAGE)
             return
+        load = (
+            self._load_game_search_results
+            if self._search_mode == "games"
+            else self._load_search_results
+        )
         try:
-            self._load_search_results(addon, client_id, token, query)
+            load(addon, client_id, token, query)
         except api.TokenExpiredError:
             self._handle_expired_token(
                 addon,
                 client_id,
                 token,
-                on_success=lambda a, c, t: self._load_search_results(a, c, t, query),
+                on_success=lambda a, c, t: load(a, c, t, query),
                 on_error=self._show_results_error,
             )
         except Exception as exc:
             xbmc.log("script.twitch.center: Discover search failed: " + repr(exc), xbmc.LOGERROR)
             self._show_results_error(_NETWORK_ERROR_MESSAGE)
+
+    def _toggle_search_mode(self):
+        # Deliberately doesn't touch SEARCH_EDIT_ID's label: Kodi's edit
+        # control label is a heading separate from the typed value, but
+        # changing it here isn't worth the risk of ever clobbering
+        # in-progress user input for a cosmetic placeholder update - the
+        # toggle button's own label is signal enough for which mode is active.
+        current_index = _SEARCH_MODES.index(self._search_mode)
+        self._search_mode = _SEARCH_MODES[(current_index + 1) % len(_SEARCH_MODES)]
+        self.getControl(self.SEARCH_MODE_TOGGLE_ID).setLabel(
+            _SEARCH_MODE_LABELS[self._search_mode]
+        )
 
     def _show_error(self, message):
         """Fatal failure (onInit / expired session): the whole screen is
@@ -265,6 +306,7 @@ class DiscoverWindow(xbmcgui.WindowXML):
         self.getControl(self.EMPTY_LABEL_ID).setLabel("")
         self.getControl(self.ERROR_LABEL_ID).setLabel(message)
         self.getControl(self.RELOGIN_BUTTON_ID).setVisible(True)
+        self.setFocusId(self.RELOGIN_BUTTON_ID)
 
     def _show_results_error(self, message):
         """Transient failure of one browse/search: keep the top-games row
@@ -275,6 +317,12 @@ class DiscoverWindow(xbmcgui.WindowXML):
 
     def onAction(self, action):
         if action.getId() in (xbmcgui.ACTION_PREVIOUS_MENU, xbmcgui.ACTION_NAV_BACK):
+            # See HomeWindow.onAction: Kodi's fullscreen-video Back only exits
+            # the fullscreen view, it doesn't stop playback - stop it here
+            # instead of closing the whole addon out from under a live stream.
+            if xbmc.Player().isPlaying():
+                xbmc.Player().stop()
+                return
             self.close()
             self.closed_event.set()
         elif action.getId() == xbmcgui.ACTION_SELECT_ITEM:
@@ -285,6 +333,8 @@ class DiscoverWindow(xbmcgui.WindowXML):
                 self._on_game_selected()
             elif focus == self.SEARCH_BUTTON_ID:
                 self._on_search()
+            elif focus == self.SEARCH_MODE_TOGGLE_ID:
+                self._toggle_search_mode()
             elif focus == self.RESULTS_LIST_ID:
                 self._on_channel_selected()
 
