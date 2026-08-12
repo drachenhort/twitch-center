@@ -35,7 +35,7 @@ msgid "Website Token (optional, for ads-free/subscriber perks)"
 msgstr ""
 
 msgctxt "#30008"
-msgid "Log into twitch.tv in a browser, open Developer Tools > Application > Cookies > https://www.twitch.tv, and paste the value of the 'auth-token' cookie here. Grants ad-free/subscriber-perk playback if your account has them. Optional - playback works without it. Expires when you log out of Twitch in that browser, at which point you'll need to paste a fresh value."
+msgid "Optional. Paste your twitch.tv 'auth-token' cookie (browser DevTools > Application > Cookies) for ad-free/subscriber playback."
 msgstr ""
 
 msgctxt "#30009"
