@@ -58,6 +58,9 @@ def play_stream(url, channel, settings=None, chat_overlay_cls=None, chat_client_
     settings = settings or Settings()
     if settings.chat_display_mode in ("overlay", "both"):
         try:
+            if _current_chat_watcher is not None:
+                _current_chat_watcher._teardown()
+                _current_chat_watcher = None
             overlay_cls = chat_overlay_cls or ChatOverlay
             overlay = overlay_cls(
                 "script-twitch-center-chat-overlay.xml",
@@ -68,8 +71,6 @@ def play_stream(url, channel, settings=None, chat_overlay_cls=None, chat_client_
                 chat_client_cls=chat_client_cls,
             )
             overlay.show()
-            if _current_chat_watcher is not None:
-                _current_chat_watcher._teardown()
             _current_chat_watcher = _ChatAwarePlayer(overlay)
         except Exception as exc:
             xbmc.log(
