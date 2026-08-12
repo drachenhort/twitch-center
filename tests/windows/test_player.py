@@ -34,7 +34,8 @@ class FakeChatOverlay:
         self.shown = True
 
     def close(self):
-        self._client.disconnect()
+        if self._client is not None:
+            self._client.disconnect()
         self.closed = True
 
 
@@ -187,7 +188,7 @@ def test_chat_aware_player_teardown_closes_overlay_and_disconnects_client_on_sto
     overlay = FakeChatOverlay(
         "x.xml", "/tmp", "Default", "1080i", channel="c", chat_client_cls=FakeChatClient
     )
-    watcher = player._ChatAwarePlayer(overlay, overlay._client)
+    watcher = player._ChatAwarePlayer(overlay)
 
     watcher.onPlaybackStopped()
 
@@ -200,12 +201,25 @@ def test_chat_aware_player_teardown_closes_overlay_and_disconnects_client_on_end
     overlay = FakeChatOverlay(
         "x.xml", "/tmp", "Default", "1080i", channel="c", chat_client_cls=FakeChatClient
     )
-    watcher = player._ChatAwarePlayer(overlay, overlay._client)
+    watcher = player._ChatAwarePlayer(overlay)
 
     watcher.onPlaybackEnded()
 
     assert overlay.closed is True
     assert overlay._client.disconnected is True
+
+
+def test_chat_aware_player_teardown_works_even_if_overlay_client_not_yet_set():
+    FakeChatOverlay.instances.clear()
+    overlay = FakeChatOverlay(
+        "x.xml", "/tmp", "Default", "1080i", channel="c", chat_client_cls=FakeChatClient
+    )
+    overlay._client = None  # simulates onInit not having run yet when show() returned
+    watcher = player._ChatAwarePlayer(overlay)
+
+    watcher.onPlaybackStopped()  # must not raise
+
+    assert overlay.closed is True
 
 
 def test_play_stream_tears_down_previous_watcher_when_called_again():

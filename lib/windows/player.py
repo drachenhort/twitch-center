@@ -11,10 +11,9 @@ _current_chat_watcher = None
 
 
 class _ChatAwarePlayer(xbmc.Player):
-    def __init__(self, overlay, chat_client):
+    def __init__(self, overlay):
         super().__init__()
         self._overlay = overlay
-        self._chat_client = chat_client
 
     def onPlaybackStopped(self):
         self._teardown()
@@ -68,7 +67,7 @@ def play_stream(url, channel, settings=None, chat_overlay_cls=None, chat_client_
             overlay.show()
             if _current_chat_watcher is not None:
                 _current_chat_watcher._teardown()
-            _current_chat_watcher = _ChatAwarePlayer(overlay, overlay._client)
+            _current_chat_watcher = _ChatAwarePlayer(overlay)
         except Exception as exc:
             xbmc.log(
                 "script.twitch.center: chat overlay failed to start: " + repr(exc),
