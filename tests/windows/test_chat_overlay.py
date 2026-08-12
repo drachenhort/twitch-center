@@ -111,6 +111,29 @@ def test_pump_caps_message_list_at_fifty_dropping_oldest():
     assert control._items[-1].getLabel2() == "msg59"
 
 
+def test_pump_selects_last_item_so_new_messages_are_visible_past_the_fold():
+    FakeChatClient.instances.clear()
+
+    class ClientWithManyMessages(FakeChatClient):
+        def __init__(self, channel):
+            super().__init__(channel)
+            self._events = [_message_event("user", "msg%d" % i, i) for i in range(20)]
+
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=ClientWithManyMessages,
+    )
+    win.onInit()
+    win._thread.join(timeout=1)
+
+    control = win.getControl(ChatOverlay.MESSAGE_LIST_ID)
+    assert control.getSelectedItem().getLabel2() == "msg19"
+
+
 def test_close_disconnects_client_and_is_idempotent():
     FakeChatClient.instances.clear()
     win = ChatOverlay(

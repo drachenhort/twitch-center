@@ -46,6 +46,8 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
         if control:
             control.reset()
             control.addItems([_build_message_item(event) for event in self._messages])
+            if self._messages:
+                control.selectItem(len(self._messages) - 1)
 
     def _safe_control(self, control_id):
         try:
