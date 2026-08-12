@@ -5,7 +5,8 @@ import xbmc
 import xbmcaddon
 import xbmcgui
 
-from lib.twitch import api, auth
+from lib.twitch import api, auth, stream
+from lib.windows import player
 from lib.windows.login import LoginWindow
 
 RESULTS_LIST_ID = 101
@@ -21,17 +22,22 @@ _EMPTY_RESULTS_MESSAGE = "Nothing found."
 _EMPTY_GAMES_MESSAGE = "No games to browse right now."
 _NETWORK_ERROR_MESSAGE = "Couldn't reach Twitch. Check your connection and reopen the addon."
 _RELOGIN_MESSAGE = "Your session expired. Log in again to continue."
+_PLAYBACK_ERROR_MESSAGE = "Couldn't start playback. Try again."
 
 
 def _thumbnail_url(raw_url, width=320, height=180):
     return raw_url.replace("{width}", str(width)).replace("{height}", str(height))
 
 
-def _build_stream_item(stream):
-    item = xbmcgui.ListItem(stream["user_name"])
-    item.setLabel2(stream["game_name"] + " - " + str(stream["viewer_count"]) + " viewers")
-    item.setArt({"thumb": _thumbnail_url(stream["thumbnail_url"])})
-    item.setProperty("broadcaster_id", stream["user_id"])
+def _build_stream_item(stream_data):
+    item = xbmcgui.ListItem(stream_data["user_name"])
+    item.setLabel2(
+        stream_data["game_name"] + " - " + str(stream_data["viewer_count"]) + " viewers"
+    )
+    item.setArt({"thumb": _thumbnail_url(stream_data["thumbnail_url"])})
+    item.setProperty("broadcaster_id", stream_data["user_id"])
+    item.setProperty("broadcaster_login", stream_data["user_login"])
+    item.setProperty("is_live", "true")
     return item
 
 
@@ -43,6 +49,8 @@ def _build_channel_item(channel):
         item.setLabel2("Offline")
     item.setArt({"thumb": channel.get("thumbnail_url", "")})
     item.setProperty("broadcaster_id", channel.get("id", ""))
+    item.setProperty("broadcaster_login", channel.get("broadcaster_login", ""))
+    item.setProperty("is_live", "true" if channel.get("is_live") else "false")
     return item
 
 
@@ -151,7 +159,7 @@ class DiscoverWindow(xbmcgui.WindowXML):
 
     def _load_streams_for_game(self, addon, client_id, token, game_id):
         streams = api.get_live_streams_by_game(token["access_token"], client_id, game_id)
-        self._populate_results([_build_stream_item(stream) for stream in streams])
+        self._populate_results([_build_stream_item(stream_data) for stream_data in streams])
 
     def _load_search_results(self, addon, client_id, token, query):
         channels = api.search_channels(token["access_token"], client_id, query)
@@ -186,6 +194,35 @@ class DiscoverWindow(xbmcgui.WindowXML):
                 xbmc.LOGERROR,
             )
             self._show_results_error(_NETWORK_ERROR_MESSAGE)
+
+    def _on_channel_selected(self):
+        selected = self.getControl(self.RESULTS_LIST_ID).getSelectedItem()
+        if selected is None or selected.getProperty("is_live") != "true":
+            return
+        addon = xbmcaddon.Addon()
+        client_id = addon.getSetting("client_id")
+        token = auth.load_token(addon)
+        if token is None:
+            self._show_results_error(_MISSING_TOKEN_MESSAGE)
+            return
+        broadcaster_login = selected.getProperty("broadcaster_login")
+        try:
+            self._play_channel(token, broadcaster_login)
+        except api.TokenExpiredError:
+            self._handle_expired_token(
+                addon,
+                client_id,
+                token,
+                on_success=lambda a, c, t: self._play_channel(t, broadcaster_login),
+                on_error=self._show_results_error,
+            )
+        except stream.StreamUnavailableError:
+            self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
+
+    def _play_channel(self, token, broadcaster_login):
+        url = stream.resolve_stream_url(token["access_token"], broadcaster_login)
+        if not player.play_stream(url):
+            self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
 
     def _on_search(self):
         query = self.getControl(self.SEARCH_EDIT_ID).getText()
@@ -239,6 +276,8 @@ class DiscoverWindow(xbmcgui.WindowXML):
                 self._on_game_selected()
             elif focus == self.SEARCH_BUTTON_ID:
                 self._on_search()
+            elif focus == self.RESULTS_LIST_ID:
+                self._on_channel_selected()
 
     def _open_login_window(self):
         addon = xbmcaddon.Addon()

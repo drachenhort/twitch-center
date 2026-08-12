@@ -1,6 +1,8 @@
 import threading
 from unittest.mock import patch
 
+from lib.twitch import stream
+
 import xbmcaddon
 import xbmcgui
 
@@ -23,6 +25,7 @@ TOP_GAMES = [
 STREAMS = [
     {
         "user_id": "1",
+        "user_login": "alice",
         "user_name": "Alice",
         "game_name": "Just Chatting",
         "viewer_count": 500,
@@ -33,6 +36,7 @@ STREAMS = [
 SEARCH_RESULTS = [
     {
         "id": "2",
+        "broadcaster_login": "bob",
         "display_name": "Bob",
         "game_name": "League of Legends",
         "is_live": True,
@@ -40,6 +44,7 @@ SEARCH_RESULTS = [
     },
     {
         "id": "3",
+        "broadcaster_login": "carol",
         "display_name": "Carol",
         "game_name": "",
         "is_live": False,
@@ -349,3 +354,132 @@ def test_missing_token_at_click_time_shows_an_error_instead_of_no_op():
 
     assert win.getControl(DiscoverWindow.ERROR_LABEL_ID).getLabel() != ""
     assert win.getControl(DiscoverWindow.GAMES_LIST_ID).size() == 2
+
+
+def test_build_stream_item_sets_broadcaster_login_and_is_live_true():
+    item = _build_stream_item(STREAMS[0])
+    assert item.getProperty("broadcaster_login") == STREAMS[0]["user_login"]
+    assert item.getProperty("is_live") == "true"
+
+
+def test_build_channel_item_sets_broadcaster_login_and_is_live_from_data():
+    live_item = _build_channel_item(SEARCH_RESULTS[0])
+    assert live_item.getProperty("broadcaster_login") == SEARCH_RESULTS[0]["broadcaster_login"]
+    assert live_item.getProperty("is_live") == "true"
+    offline_item = _build_channel_item(SEARCH_RESULTS[1])
+    assert offline_item.getProperty("is_live") == "false"
+
+
+def test_selecting_a_live_result_plays_it():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(api, "get_live_streams_by_game", return_value=STREAMS), patch(
+        "lib.windows.discover.stream.resolve_stream_url",
+        return_value="https://example.invalid/stream.m3u8",
+    ) as mock_resolve, patch(
+        "lib.windows.discover.player.play_stream", return_value=True
+    ) as mock_play:
+        win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
+        win.onInit()
+        games_control = win.getControl(DiscoverWindow.GAMES_LIST_ID)
+        games_control.selectItem(0)
+        win.setFocusId(DiscoverWindow.GAMES_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        results_control = win.getControl(DiscoverWindow.RESULTS_LIST_ID)
+        results_control.selectItem(0)
+        win.setFocusId(DiscoverWindow.RESULTS_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    mock_resolve.assert_called_once_with("tok", STREAMS[0]["user_login"])
+    mock_play.assert_called_once_with("https://example.invalid/stream.m3u8")
+
+
+def test_selecting_an_offline_search_result_does_nothing():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(api, "search_channels", return_value=SEARCH_RESULTS):
+        win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
+        win.onInit()
+        win.getControl(DiscoverWindow.SEARCH_EDIT_ID).setText("bob")
+        win.setFocusId(DiscoverWindow.SEARCH_BUTTON_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        results_control = win.getControl(DiscoverWindow.RESULTS_LIST_ID)
+        results_control.selectItem(1)  # Carol, offline per SEARCH_RESULTS[1]
+        win.setFocusId(DiscoverWindow.RESULTS_LIST_ID)
+        with patch("lib.windows.discover.stream.resolve_stream_url") as mock_resolve:
+            win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    mock_resolve.assert_not_called()
+
+
+def test_selecting_a_live_result_shows_results_error_when_resolution_fails():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(api, "get_live_streams_by_game", return_value=STREAMS), patch(
+        "lib.windows.discover.stream.resolve_stream_url",
+        side_effect=stream.StreamUnavailableError("alice"),
+    ):
+        win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
+        win.onInit()
+        games_control = win.getControl(DiscoverWindow.GAMES_LIST_ID)
+        games_control.selectItem(0)
+        win.setFocusId(DiscoverWindow.GAMES_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        results_control = win.getControl(DiscoverWindow.RESULTS_LIST_ID)
+        results_control.selectItem(0)
+        win.setFocusId(DiscoverWindow.RESULTS_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    assert win.getControl(DiscoverWindow.ERROR_LABEL_ID).getLabel() != ""
+    # Games row must survive a transient playback failure, same as a transient
+    # search/browse failure already does.
+    assert games_control.size() == 2
+
+
+def test_expired_token_during_channel_select_retries_playback_after_refresh():
+    old_token = {
+        "access_token": "old",
+        "refresh_token": "ref",
+        "user_id": "u1",
+        "login": "x",
+        "display_name": "X",
+    }
+    new_token = {"access_token": "new", "refresh_token": "ref2"}
+    addon = _addon_with_token(old_token)
+
+    resolve_calls = []
+
+    def fake_resolve(access_token, broadcaster_login):
+        resolve_calls.append((access_token, broadcaster_login))
+        if access_token == "old":
+            raise api.TokenExpiredError()
+        return "https://example.invalid/stream.m3u8"
+
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(api, "get_live_streams_by_game", return_value=STREAMS), patch(
+        "lib.windows.discover.stream.resolve_stream_url", side_effect=fake_resolve
+    ), patch(
+        "lib.windows.discover.player.play_stream", return_value=True
+    ) as mock_play, patch(
+        "lib.windows.discover.auth.refresh_access_token", return_value=new_token
+    ):
+        win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
+        win.onInit()
+        games_control = win.getControl(DiscoverWindow.GAMES_LIST_ID)
+        games_control.selectItem(0)
+        win.setFocusId(DiscoverWindow.GAMES_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        results_control = win.getControl(DiscoverWindow.RESULTS_LIST_ID)
+        results_control.selectItem(0)
+        win.setFocusId(DiscoverWindow.RESULTS_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    assert resolve_calls == [
+        ("old", STREAMS[0]["user_login"]),
+        ("new", STREAMS[0]["user_login"]),
+    ]
+    mock_play.assert_called_once_with("https://example.invalid/stream.m3u8")
