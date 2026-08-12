@@ -1,5 +1,6 @@
 """Home screen: the user's followed channels, live ones surfaced first."""
 import threading
+import time
 
 import xbmc
 import xbmcaddon
@@ -85,10 +86,19 @@ class HomeWindow(xbmcgui.WindowXML):
         self._games = []
         self._selected_game = None
 
+    def _safe_control(self, control_id):
+        """Safely retrieve a control, returning None if it doesn't exist."""
+        try:
+            return self.getControl(control_id)
+        except Exception:
+            return None
+
     def onInit(self):
         addon = xbmcaddon.Addon()
         version = addon.getAddonInfo("version")
-        self.getControl(self.TITLE_LABEL_ID).setLabel("Twitch Center v" + version)
+        title_label = self._safe_control(self.TITLE_LABEL_ID)
+        if title_label:
+            title_label.setLabel("Twitch Center v" + version)
         client_id = addon.getSetting("client_id")
         token = auth.load_token(addon)
         if token is None:
@@ -130,7 +140,8 @@ class HomeWindow(xbmcgui.WindowXML):
         # focus now that the list is actually populated (or route to
         # Discover if it stayed empty), so a leftover keypress can't
         # trigger an unintended button while focus is still up for grabs.
-        if self.getControl(self.CHANNEL_LIST_ID).size():
+        channel_list = self._safe_control(self.CHANNEL_LIST_ID)
+        if channel_list and channel_list.size():
             self.setFocusId(self.CHANNEL_LIST_ID)
         else:
             self.setFocusId(self.DISCOVER_BUTTON_ID)
@@ -185,58 +196,80 @@ class HomeWindow(xbmcgui.WindowXML):
             on_error(_NETWORK_ERROR_MESSAGE)
 
     def _populate_games(self, games):
-        control = self.getControl(self.GAMES_LIST_ID)
-        control.reset()
-        all_item = xbmcgui.ListItem(_ALL_GAMES_LABEL)
-        items = [all_item]
-        for game in games:
-            item = xbmcgui.ListItem(game["displayName"])
-            # Use displayName, not the GQL "name" slug: the filter below
-            # compares against Helix's live-status game_name field, which is
-            # the human-readable form (e.g. "Just Chatting"), not a slug.
-            item.setProperty("game_name", game["displayName"])
-            items.append(item)
-        control.addItems(items)
+        control = self._safe_control(self.GAMES_LIST_ID)
+        if control:
+            control.reset()
+            all_item = xbmcgui.ListItem(_ALL_GAMES_LABEL)
+            items = [all_item]
+            for game in games:
+                item = xbmcgui.ListItem(game["displayName"])
+                # Use displayName, not the GQL "name" slug: the filter below
+                # compares against Helix's live-status game_name field, which is
+                # the human-readable form (e.g. "Just Chatting"), not a slug.
+                item.setProperty("game_name", game["displayName"])
+                items.append(item)
+            control.addItems(items)
 
     def _populate(self, followed, live_list, game_filter=None):
-        self.getControl(self.RELOGIN_BUTTON_ID).setVisible(False)
-        self.getControl(self.EMPTY_LABEL_ID).setLabel("")
-        self.getControl(self.ERROR_LABEL_ID).setLabel("")
-        control = self.getControl(self.CHANNEL_LIST_ID)
-        control.reset()
-        if not followed:
-            self.getControl(self.EMPTY_LABEL_ID).setLabel(_EMPTY_FOLLOWED_MESSAGE)
-            return
-        live, offline = _merge_channels(followed, live_list)
-        if game_filter is not None:
-            live = [
-                (channel, stream_data)
-                for channel, stream_data in live
-                if stream_data["game_name"] == game_filter
-            ]
-            offline = []
-        items = [_build_list_item(channel, stream_data) for channel, stream_data in live]
-        items += [_build_list_item(channel) for channel in offline]
-        if not items:
-            self.getControl(self.EMPTY_LABEL_ID).setLabel(_NO_MATCHES_MESSAGE)
-            return
-        control.addItems(items)
+        relogin_btn = self._safe_control(self.RELOGIN_BUTTON_ID)
+        if relogin_btn:
+            relogin_btn.setVisible(False)
+        empty_label = self._safe_control(self.EMPTY_LABEL_ID)
+        if empty_label:
+            empty_label.setLabel("")
+        error_label = self._safe_control(self.ERROR_LABEL_ID)
+        if error_label:
+            error_label.setLabel("")
+        control = self._safe_control(self.CHANNEL_LIST_ID)
+        if control:
+            control.reset()
+            if not followed:
+                if empty_label:
+                    empty_label.setLabel(_EMPTY_FOLLOWED_MESSAGE)
+                return
+            live, offline = _merge_channels(followed, live_list)
+            if game_filter is not None:
+                live = [
+                    (channel, stream_data)
+                    for channel, stream_data in live
+                    if stream_data["game_name"] == game_filter
+                ]
+                offline = []
+            items = [_build_list_item(channel, stream_data) for channel, stream_data in live]
+            items += [_build_list_item(channel) for channel in offline]
+            if not items:
+                if empty_label:
+                    empty_label.setLabel(_NO_MATCHES_MESSAGE)
+                return
+            control.addItems(items)
 
     def _show_error(self, message):
-        self.getControl(self.GAMES_LIST_ID).reset()
-        self.getControl(self.CHANNEL_LIST_ID).reset()
-        self.getControl(self.EMPTY_LABEL_ID).setLabel("")
-        self.getControl(self.ERROR_LABEL_ID).setLabel(message)
-        self.getControl(self.RELOGIN_BUTTON_ID).setVisible(True)
-        # See _load_and_populate: claim focus explicitly rather than leaving
-        # it to Kodi's fallback search over an empty defaultcontrol list.
-        self.setFocusId(self.RELOGIN_BUTTON_ID)
+        games_list = self._safe_control(self.GAMES_LIST_ID)
+        if games_list:
+            games_list.reset()
+        channel_list = self._safe_control(self.CHANNEL_LIST_ID)
+        if channel_list:
+            channel_list.reset()
+        empty_label = self._safe_control(self.EMPTY_LABEL_ID)
+        if empty_label:
+            empty_label.setLabel("")
+        error_label = self._safe_control(self.ERROR_LABEL_ID)
+        if error_label:
+            error_label.setLabel(message)
+        relogin_btn = self._safe_control(self.RELOGIN_BUTTON_ID)
+        if relogin_btn:
+            relogin_btn.setVisible(True)
+            # See _load_and_populate: claim focus explicitly rather than leaving
+            # it to Kodi's fallback search over an empty defaultcontrol list.
+            self.setFocusId(self.RELOGIN_BUTTON_ID)
 
     def _show_results_error(self, message):
         """Transient failure (e.g. one playback attempt): keep the channel
         list and games row intact so a single failure doesn't force an
         addon restart - mirrors DiscoverWindow's _show_results_error."""
-        self.getControl(self.ERROR_LABEL_ID).setLabel(message)
+        error_label = self._safe_control(self.ERROR_LABEL_ID)
+        if error_label:
+            error_label.setLabel(message)
 
     def onAction(self, action):
         if action.getId() in (xbmcgui.ACTION_PREVIOUS_MENU, xbmcgui.ACTION_NAV_BACK):
@@ -263,7 +296,10 @@ class HomeWindow(xbmcgui.WindowXML):
                 self._on_channel_selected()
 
     def _on_game_selected(self):
-        selected = self.getControl(self.GAMES_LIST_ID).getSelectedItem()
+        control = self._safe_control(self.GAMES_LIST_ID)
+        if not control:
+            return
+        selected = control.getSelectedItem()
         if selected is None:
             return
         game_name = selected.getProperty("game_name")
@@ -271,7 +307,10 @@ class HomeWindow(xbmcgui.WindowXML):
         self._populate(self._followed, self._live, game_filter=self._selected_game)
 
     def _on_channel_selected(self):
-        selected = self.getControl(self.CHANNEL_LIST_ID).getSelectedItem()
+        control = self._safe_control(self.CHANNEL_LIST_ID)
+        if not control:
+            return
+        selected = control.getSelectedItem()
         if selected is None or selected.getProperty("is_live") != "true":
             return
         addon = xbmcaddon.Addon()
@@ -295,7 +334,9 @@ class HomeWindow(xbmcgui.WindowXML):
         website_token = xbmcaddon.Addon().getSetting("website_token")
         url = stream.resolve_stream_url(broadcaster_login, website_token)
         if player.play_stream(url):
-            self.getControl(self.ERROR_LABEL_ID).setLabel("")
+            error_label = self._safe_control(self.ERROR_LABEL_ID)
+            if error_label:
+                error_label.setLabel("")
         else:
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
 
@@ -324,6 +365,9 @@ class HomeWindow(xbmcgui.WindowXML):
         )
         discover_window.show()
         # Handing off, not ending the chain - see _open_login_window.
+        # Small delay ensures the child window has time to initialize and
+        # render before the parent closes, preventing the "flicker & revert" bug.
+        time.sleep(0.1)
         self.close()
 
     def _open_addon_settings(self):
