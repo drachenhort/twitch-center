@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="script.twitch.center" name="Twitch Center" version="0.9.0" provider-name="drachenhort">
+<addon id="script.twitch.center" name="Twitch Center" version="0.10.0" provider-name="drachenhort">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
     <import addon="script.module.requests" version="2.22.0"/>
@@ -18,6 +18,7 @@
     <license>MIT</license>
     <source>https://github.com/drachenhort/twitch-center</source>
     <news>
+      v0.10.0: Chat now shows automatically as a right-side overlay while a stream plays (Settings > General > Chat display mode, "overlay" or "both"). Connects anonymously to Twitch IRC, auto-reconnects on drops, and closes itself when the stream stops, ends, or errors out. Standalone full-screen chat and the picture-in-picture windowed-video layout are still to come.
       v0.9.0: Fixed window flicker and revert bug when opening Discover screen by adding a safe control delay and using xbmc.sleep(). Improved error handling for missing UI controls across Home and Discover windows.
       v0.8.1: Fixed the real cause of "stuck on login/gets a new code every time" - Home's skin
       defaultcontrol targeted the (empty until data loads) channel list, which made Kodi's window

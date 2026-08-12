@@ -4,6 +4,25 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.10.0] - 2026-08-12
+
+### Added
+- Chat overlay: while a stream plays, incoming Twitch chat now renders automatically as a
+  scrolling list along the right edge of the screen (controlled by the existing "Chat display
+  mode" setting - shows for "overlay" and "both", not "standalone"). Connects to Twitch IRC
+  anonymously (no login needed for reading), auto-reconnects with backoff on drops, and closes
+  itself and disconnects cleanly when the stream stops, ends, or fails to start. Foundation IRC
+  client work landed separately in the same session; this wires it to a real window for the first
+  time.
+- A chat overlay failure (bad channel, network blip, anything) never surfaces as a playback
+  failure - the stream keeps playing either way, with the problem only logged.
+
+### Known gaps (tracked for follow-up, see `TODO.md`)
+- No standalone full-screen chat view yet (`chat_display_mode: "standalone"` still does nothing).
+- No picture-in-picture windowed-video layout (video stays fullscreen; chat is a transparent
+  overlay on top, not video-in-a-box with chat beside it).
+- Not yet verified against a live Kodi session - built and reviewed against the test suite only.
+
 ## [0.8.1] - 2026-08-12
 
 ### Fixed
