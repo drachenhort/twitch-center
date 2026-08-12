@@ -98,10 +98,11 @@ class DiscoverWindow(xbmcgui.WindowXML):
     def _handle_expired_token(self, addon, client_id, token, on_success=None, on_error=None):
         """Refresh the access token, then redo whatever the user was doing.
 
-        on_success is a callable taking the refreshed token; it defaults to
-        reloading the top-games row (onInit's behaviour). Callers that were
-        mid-action (browse-by-game, search) pass a closure that retries THAT
-        action, so an expiry doesn't silently discard the user's click."""
+        on_success is a callable taking (addon, client_id, refreshed_token); it
+        defaults to reloading the top-games row (onInit's behaviour). Callers
+        that were mid-action (browse-by-game, search) pass a closure that
+        retries THAT action, so an expiry doesn't silently discard the user's
+        click."""
         new_token = auth.refresh_access_token(client_id, token["refresh_token"])
         if new_token is None:
             auth.clear_token(addon)
@@ -218,10 +219,18 @@ class DiscoverWindow(xbmcgui.WindowXML):
             )
         except stream.StreamUnavailableError:
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
+        except Exception as exc:
+            xbmc.log(
+                "script.twitch.center: Discover channel selection failed: " + repr(exc),
+                xbmc.LOGERROR,
+            )
+            self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
 
     def _play_channel(self, token, broadcaster_login):
         url = stream.resolve_stream_url(token["access_token"], broadcaster_login)
-        if not player.play_stream(url):
+        if player.play_stream(url):
+            self.getControl(self.ERROR_LABEL_ID).setLabel("")
+        else:
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
 
     def _on_search(self):

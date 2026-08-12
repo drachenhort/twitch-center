@@ -183,6 +183,7 @@ class HomeWindow(xbmcgui.WindowXML):
     def _populate(self, followed, live_list, game_filter=None):
         self.getControl(self.RELOGIN_BUTTON_ID).setVisible(False)
         self.getControl(self.EMPTY_LABEL_ID).setLabel("")
+        self.getControl(self.ERROR_LABEL_ID).setLabel("")
         control = self.getControl(self.CHANNEL_LIST_ID)
         control.reset()
         if not followed:
@@ -261,10 +262,18 @@ class HomeWindow(xbmcgui.WindowXML):
             )
         except stream.StreamUnavailableError:
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
+        except Exception as exc:
+            xbmc.log(
+                "script.twitch.center: Home channel selection failed: " + repr(exc),
+                xbmc.LOGERROR,
+            )
+            self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
 
     def _play_channel(self, token, broadcaster_login):
         url = stream.resolve_stream_url(token["access_token"], broadcaster_login)
-        if not player.play_stream(url):
+        if player.play_stream(url):
+            self.getControl(self.ERROR_LABEL_ID).setLabel("")
+        else:
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
 
     def _open_login_window(self):

@@ -606,3 +606,105 @@ def test_expired_token_during_channel_select_retries_playback_after_refresh():
 
     assert resolve_calls == [("old", "carol"), ("new", "carol")]
     mock_play.assert_called_once_with("https://example.invalid/stream.m3u8")
+
+
+def test_populate_clears_stale_playback_error_on_next_populate():
+    # A playback failure sets the error label; the next time the channel list
+    # is rebuilt (e.g. re-selecting "All" in the games filter), the stale
+    # error must be cleared rather than sticking around for the rest of the
+    # session.
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=GAMES
+    ), patch(
+        "lib.windows.home.stream.resolve_stream_url",
+        side_effect=stream.StreamUnavailableError("carol"),
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+        channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
+        channel_control.selectItem(0)
+        win.setFocusId(HomeWindow.CHANNEL_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    assert win.getControl(HomeWindow.ERROR_LABEL_ID).getLabel() != ""
+
+    games_control = win.getControl(HomeWindow.GAMES_LIST_ID)
+    games_control.selectItem(0)  # "All"
+    win.setFocusId(HomeWindow.GAMES_LIST_ID)
+    win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    assert win.getControl(HomeWindow.ERROR_LABEL_ID).getLabel() == ""
+
+
+def test_selecting_a_live_channel_clears_stale_error_on_successful_retry():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch(
+        "lib.windows.home.stream.resolve_stream_url",
+        side_effect=stream.StreamUnavailableError("carol"),
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+        channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
+        channel_control.selectItem(0)
+        win.setFocusId(HomeWindow.CHANNEL_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    assert win.getControl(HomeWindow.ERROR_LABEL_ID).getLabel() != ""
+
+    with patch("xbmcaddon.Addon", return_value=addon), patch(
+        "lib.windows.home.stream.resolve_stream_url",
+        return_value="https://example.invalid/stream.m3u8",
+    ), patch("lib.windows.home.player.play_stream", return_value=True):
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    assert win.getControl(HomeWindow.ERROR_LABEL_ID).getLabel() == ""
+
+
+def test_selecting_a_live_channel_shows_error_on_unexpected_exception():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch(
+        "lib.windows.home.stream.resolve_stream_url",
+        side_effect=RuntimeError("boom"),
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+        channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
+        channel_control.selectItem(0)
+        win.setFocusId(HomeWindow.CHANNEL_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    assert win.getControl(HomeWindow.ERROR_LABEL_ID).getLabel() != ""
+    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 3
+
+
+def test_missing_token_at_click_time_shows_an_error_instead_of_no_op():
+    from lib.twitch.auth import clear_token
+
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+        # Another window cleared the token between onInit and the click.
+        clear_token(addon)
+        channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
+        channel_control.selectItem(0)
+        win.setFocusId(HomeWindow.CHANNEL_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    assert win.getControl(HomeWindow.ERROR_LABEL_ID).getLabel() != ""
+    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 3

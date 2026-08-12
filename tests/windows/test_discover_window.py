@@ -483,3 +483,26 @@ def test_expired_token_during_channel_select_retries_playback_after_refresh():
         ("new", STREAMS[0]["user_login"]),
     ]
     mock_play.assert_called_once_with("https://example.invalid/stream.m3u8")
+
+
+def test_selecting_a_live_result_shows_error_on_unexpected_exception():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(api, "get_live_streams_by_game", return_value=STREAMS), patch(
+        "lib.windows.discover.stream.resolve_stream_url",
+        side_effect=RuntimeError("boom"),
+    ):
+        win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
+        win.onInit()
+        games_control = win.getControl(DiscoverWindow.GAMES_LIST_ID)
+        games_control.selectItem(0)
+        win.setFocusId(DiscoverWindow.GAMES_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        results_control = win.getControl(DiscoverWindow.RESULTS_LIST_ID)
+        results_control.selectItem(0)
+        win.setFocusId(DiscoverWindow.RESULTS_LIST_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    assert win.getControl(DiscoverWindow.ERROR_LABEL_ID).getLabel() != ""
+    assert games_control.size() == 2
