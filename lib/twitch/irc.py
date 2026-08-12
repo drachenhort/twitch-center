@@ -107,7 +107,12 @@ class ChatClient:
 
     def connect(self):
         """Opens the IRC socket connection and authenticates, on a
-        background thread. Returns immediately."""
+        background thread. Returns immediately. If a previous connection's
+        background thread is still shutting down (e.g. mid-backoff-sleep
+        after a recent disconnect()), this is a no-op rather than starting
+        a second thread that could duplicate messages onto the queue."""
+        if self._thread is not None and self._thread.is_alive():
+            return
         self._cancel_event.clear()
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()

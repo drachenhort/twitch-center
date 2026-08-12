@@ -208,6 +208,41 @@ def test_backoff_doubles_on_consecutive_failures():
     assert sleeps == [1, 2]
 
 
+def test_connect_is_a_noop_while_a_previous_thread_is_still_alive():
+    fake = FakeSocket(recv_queue=[ConnectionError("boom")])
+    stuck = threading.Event()
+    sleep_calls = []
+
+    def sleep_fn(seconds):
+        # Records the call, then blocks "mid-backoff" until the test
+        # releases it, simulating a thread that hasn't yet noticed
+        # disconnect()'s cancel event.
+        sleep_calls.append(seconds)
+        stuck.wait()
+
+    client = ChatClient("chan", socket_factory=lambda: fake, sleep_fn=sleep_fn)
+    client.connect()
+
+    # Wait until the background thread has failed once and is now blocked
+    # inside sleep_fn (i.e. mid-backoff-sleep).
+    for _ in range(200):
+        if sleep_calls:
+            break
+        threading.Event().wait(0.01)
+    assert sleep_calls, "background thread never reached the backoff sleep"
+
+    first_thread = client._thread
+    assert first_thread.is_alive()
+
+    client.connect()  # should be a no-op: first_thread is still alive
+
+    assert client._thread is first_thread
+    assert client._thread.is_alive()
+
+    stuck.set()
+    client.disconnect()
+
+
 def test_ping_is_answered_with_pong_and_not_queued():
     # Follow the PING with a real PRIVMSG so the test has a deterministic
     # stopping point after confirming PING was handled.
