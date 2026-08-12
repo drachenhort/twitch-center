@@ -140,6 +140,55 @@ def test_pump_selects_last_item_so_new_messages_are_visible_past_the_fold():
     assert control.getSelectedItem().getLabel2() == "msg19"
 
 
+def test_pump_throttles_rendering_under_rapid_messages_but_flushes_final_state():
+    # A busy channel (thousands of chatters) can deliver several messages a
+    # second - rendering (control.reset()+addItems()) on every single one
+    # floods the GUI thread. This proves the throttle actually skips
+    # mid-burst renders while still ending up with the fully correct final
+    # state (nothing lost, just coalesced).
+    FakeChatClient.instances.clear()
+
+    class ClientWithManyMessages(FakeChatClient):
+        def __init__(self, channel):
+            super().__init__(channel)
+            self._events = [_message_event("user", "msg%d" % i, i) for i in range(5)]
+
+    # All 5 messages arrive well within one throttle window (0.25s apart is
+    # the real threshold; these are all 0.01s apart), so only the first
+    # should render immediately - the rest should be coalesced into the
+    # final flush after the loop ends.
+    fake_times = iter([0.00, 0.01, 0.02, 0.03, 0.04])
+
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=ClientWithManyMessages,
+        time_fn=lambda: next(fake_times),
+    )
+    render_call_sizes = []
+    real_render = win._render
+
+    def counting_render():
+        render_call_sizes.append(len(win._messages))
+        real_render()
+
+    win._render = counting_render
+    win.onInit()
+    win._thread.join(timeout=1)
+    assert not win._thread.is_alive()
+
+    # Only the first message's immediate render, plus the final flush -
+    # not one render per message.
+    assert render_call_sizes == [1, 5]
+
+    control = win.getControl(ChatOverlay.MESSAGE_LIST_ID)
+    assert control.size() == 5
+    assert control._items[-1].getLabel2() == "msg4"
+
+
 def test_pump_thread_logs_and_exits_cleanly_on_unexpected_exception():
     FakeChatClient.instances.clear()
 
