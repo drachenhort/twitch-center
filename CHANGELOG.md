@@ -4,6 +4,14 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.11.0] - 2026-08-12
+
+### Added
+- "Show offline channels on Home" setting (Settings > General, off by default). Turning it on
+  restores the pre-v0.10.0 behavior of listing offline followed channels after the live ones,
+  sorted alphabetically. Excluded when a game filter is active (an offline channel has no
+  `game_name` to filter on) and unaffected by Discover, which never showed offline channels.
+
 ## [0.10.0] - 2026-08-12
 
 ### Added
