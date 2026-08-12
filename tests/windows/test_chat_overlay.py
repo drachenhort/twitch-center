@@ -49,6 +49,7 @@ def test_oninit_constructs_client_lazily_and_connects_it():
 
     win.onInit()
     win._thread.join(timeout=1)
+    assert not win._thread.is_alive()
 
     assert len(FakeChatClient.instances) == 1
     client = FakeChatClient.instances[0]
@@ -79,6 +80,7 @@ def test_pump_renders_messages_and_ignores_status_and_raid_events():
     )
     win.onInit()
     win._thread.join(timeout=1)
+    assert not win._thread.is_alive()
 
     control = win.getControl(ChatOverlay.MESSAGE_LIST_ID)
     assert control.size() == 2
@@ -106,6 +108,7 @@ def test_pump_caps_message_list_at_fifty_dropping_oldest():
     )
     win.onInit()
     win._thread.join(timeout=1)
+    assert not win._thread.is_alive()
 
     control = win.getControl(ChatOverlay.MESSAGE_LIST_ID)
     assert control.size() == 50
@@ -131,6 +134,7 @@ def test_pump_selects_last_item_so_new_messages_are_visible_past_the_fold():
     )
     win.onInit()
     win._thread.join(timeout=1)
+    assert not win._thread.is_alive()
 
     control = win.getControl(ChatOverlay.MESSAGE_LIST_ID)
     assert control.getSelectedItem().getLabel2() == "msg19"
@@ -174,6 +178,7 @@ def test_close_disconnects_client_and_is_idempotent():
     )
     win.onInit()
     win._thread.join(timeout=1)
+    assert not win._thread.is_alive()
 
     win.close()
     win.close()  # must not raise
