@@ -4,7 +4,7 @@ import xbmcgui
 from inputstreamhelper import Helper
 
 
-def play_stream(url):
+def play_stream(url, channel):
     """Hand the resolved HLS URL to Kodi's player via inputstream.adaptive,
     which handles proper adaptive-bitrate switching for live multi-quality
     HLS (unlike Kodi's native demuxer playing the URL directly). Returns

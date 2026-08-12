@@ -281,7 +281,7 @@ class DiscoverWindow(xbmcgui.WindowXML):
     def _play_channel(self, broadcaster_login):
         website_token = xbmcaddon.Addon().getSetting("website_token")
         url = stream.resolve_stream_url(broadcaster_login, website_token)
-        if player.play_stream(url):
+        if player.play_stream(url, broadcaster_login):
             error_label = self._safe_control(self.ERROR_LABEL_ID)
             if error_label:
                 error_label.setLabel("")

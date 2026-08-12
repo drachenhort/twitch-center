@@ -10,7 +10,7 @@ def test_play_stream_returns_true_and_plays_when_inputstream_available():
         mock_helper_cls.return_value.check_inputstream.return_value = True
         mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
 
-        result = player.play_stream("https://example.invalid/stream.m3u8")
+        result = player.play_stream("https://example.invalid/stream.m3u8", "somechannel")
 
     assert result is True
     mock_helper_cls.assert_called_once_with("hls")
@@ -31,7 +31,7 @@ def test_play_stream_returns_false_when_inputstream_declined():
     ) as mock_player_cls:
         mock_helper_cls.return_value.check_inputstream.return_value = False
 
-        result = player.play_stream("https://example.invalid/stream.m3u8")
+        result = player.play_stream("https://example.invalid/stream.m3u8", "somechannel")
 
     assert result is False
     mock_player_cls.return_value.play.assert_not_called()

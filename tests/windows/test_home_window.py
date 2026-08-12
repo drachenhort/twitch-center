@@ -609,7 +609,7 @@ def test_selecting_a_live_channel_plays_it():
         win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
     mock_resolve.assert_called_once_with("carol", "")
-    mock_play.assert_called_once_with("https://example.invalid/stream.m3u8")
+    mock_play.assert_called_once_with("https://example.invalid/stream.m3u8", "carol")
 
 
 def test_selecting_an_offline_channel_does_nothing():
