@@ -4,6 +4,28 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.12.0] - 2026-08-12
+
+### Added
+- Home's "Log in again" button is now always visible, not just shown on error - lets you
+  voluntarily re-authorize or switch Twitch accounts on demand (e.g. after using the same account
+  on two devices, since Twitch's device-code refresh tokens are single-use and one device
+  refreshing can invalidate the other's session).
+
+### Changed
+- `website_token` is no longer masked in the settings dialog (was rendered as dots).
+
+### Fixed
+- Shortened the `website_token` setting's help text - the full paragraph wasn't rendering fully on
+  a TV display (confirmed not overscan-related), likely wrapping past the settings dialog's
+  fixed help-text height at that resolution/font size.
+
+### Known issues
+- Re-login from Home can hit a pre-existing, already-tracked Kodi window-activation bug (see
+  project history) where a second custom addon window silently reverts to the previous screen
+  instead of showing - confirmed live on this transition too. Not new in this release, and not
+  specific to this feature; affects any second custom-window activation in this addon's process.
+
 ## [0.11.1] - 2026-08-12
 
 ### Fixed
