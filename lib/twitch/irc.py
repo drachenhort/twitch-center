@@ -54,6 +54,19 @@ def parse_line(line, now_ms=None):
             "timestamp": timestamp,
         }
 
+    if command == "USERNOTICE" and tags.get("msg-id") == "raid":
+        try:
+            viewer_count = int(tags.get("msg-param-viewerCount", "0"))
+        except ValueError:
+            viewer_count = 0
+        return {
+            "type": "raid",
+            "from_channel": tags.get("msg-param-login", ""),
+            "display_name": tags.get("msg-param-displayName", ""),
+            "viewer_count": viewer_count,
+            "timestamp": timestamp,
+        }
+
     return {"type": "raw", "line": line}
 
 

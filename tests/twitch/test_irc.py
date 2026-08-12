@@ -54,3 +54,37 @@ def test_parse_line_join_is_raw_passthrough():
     line = ":justinfan12345!justinfan12345@justinfan12345.tmi.twitch.tv JOIN #somechannel"
     event = parse_line(line)
     assert event == {"type": "raw", "line": line}
+
+
+def test_parse_line_usernotice_raid():
+    line = (
+        "@msg-id=raid;msg-param-displayName=CoolRaider;msg-param-login=coolraider;"
+        "msg-param-viewerCount=42;tmi-sent-ts=2000 "
+        ":tmi.twitch.tv USERNOTICE #somechannel :CoolRaider is raiding with 42 viewers!"
+    )
+    event = parse_line(line)
+    assert event == {
+        "type": "raid",
+        "from_channel": "coolraider",
+        "display_name": "CoolRaider",
+        "viewer_count": 42,
+        "timestamp": 2000,
+    }
+
+
+def test_parse_line_usernotice_non_raid_is_raw_passthrough():
+    line = "@msg-id=sub;tmi-sent-ts=3000 :tmi.twitch.tv USERNOTICE #somechannel :Dave subscribed!"
+    event = parse_line(line)
+    assert event == {"type": "raw", "line": line}
+
+
+def test_parse_line_raid_with_non_numeric_viewer_count_defaults_to_zero():
+    line = (
+        "@msg-id=raid;msg-param-displayName=CoolRaider;msg-param-login=coolraider;"
+        "msg-param-viewerCount=not-a-number "
+        ":tmi.twitch.tv USERNOTICE #somechannel :raiding!"
+    )
+    event = parse_line(line, now_ms=9000)
+    assert event["type"] == "raid"
+    assert event["viewer_count"] == 0
+    assert event["timestamp"] == 9000
