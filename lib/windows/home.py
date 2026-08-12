@@ -1,6 +1,5 @@
 """Home screen: the user's followed channels, live ones surfaced first."""
 import threading
-import time
 
 import xbmc
 import xbmcaddon
@@ -367,7 +366,9 @@ class HomeWindow(xbmcgui.WindowXML):
         # Handing off, not ending the chain - see _open_login_window.
         # Small delay ensures the child window has time to initialize and
         # render before the parent closes, preventing the "flicker & revert" bug.
-        time.sleep(0.1)
+        # Using xbmc.sleep() instead of time.sleep() to avoid blocking the
+        # Python GIL and Kodi's event loop aggressively.
+        xbmc.sleep(100)
         self.close()
 
     def _open_addon_settings(self):
