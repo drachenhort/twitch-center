@@ -14,9 +14,24 @@ def test_discover_window_constructs():
     win.onInit()
 
 
+class _FakeChatClient:
+    def __init__(self, channel):
+        self.channel = channel
+
+    def connect(self):
+        pass
+
+    def read_messages(self):
+        return iter([])
+
+    def disconnect(self):
+        pass
+
+
 def test_chat_overlay_constructs():
-    overlay = ChatOverlay("chat_overlay.xml", "/tmp")
+    overlay = ChatOverlay("chat_overlay.xml", "/tmp", channel="somechannel", chat_client_cls=_FakeChatClient)
     overlay.onInit()
+    overlay._thread.join(timeout=1)
 
 
 def test_chat_window_constructs():
