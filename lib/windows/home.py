@@ -17,6 +17,7 @@ RELOGIN_BUTTON_ID = 104
 GAMES_LIST_ID = 105
 DISCOVER_BUTTON_ID = 106
 TITLE_LABEL_ID = 107
+SETTINGS_BUTTON_ID = 108
 
 _MISSING_TOKEN_MESSAGE = "You're not logged in. Reopen the addon to log in."
 _EMPTY_FOLLOWED_MESSAGE = "You're not following anyone yet."
@@ -73,6 +74,7 @@ class HomeWindow(xbmcgui.WindowXML):
     GAMES_LIST_ID = GAMES_LIST_ID
     DISCOVER_BUTTON_ID = DISCOVER_BUTTON_ID
     TITLE_LABEL_ID = TITLE_LABEL_ID
+    SETTINGS_BUTTON_ID = SETTINGS_BUTTON_ID
 
     def __init__(self, *args, closed_event=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -115,13 +117,23 @@ class HomeWindow(xbmcgui.WindowXML):
         followed = api.get_followed_channels(token["access_token"], client_id, token["user_id"])
         broadcaster_ids = [c["broadcaster_id"] for c in followed]
         live_list = api.get_live_status(token["access_token"], client_id, broadcaster_ids)
-        games = gql.get_followed_live_games(token["access_token"])
+        games = gql.get_followed_live_games(addon.getSetting("website_token"))
         self._followed = followed
         self._live = live_list
         self._games = games
         self._selected_game = None
         self._populate_games(games)
         self._populate(followed, live_list)
+        # The skin's <defaultcontrol> targets the (still empty at skin-parse
+        # time) channel list, so Kodi's initial focus lands wherever its
+        # fallback search finds first - often a button. Explicitly claim
+        # focus now that the list is actually populated (or route to
+        # Discover if it stayed empty), so a leftover keypress can't
+        # trigger an unintended button while focus is still up for grabs.
+        if self.getControl(self.CHANNEL_LIST_ID).size():
+            self.setFocusId(self.CHANNEL_LIST_ID)
+        else:
+            self.setFocusId(self.DISCOVER_BUTTON_ID)
 
     def _handle_expired_token(self, addon, client_id, token, on_success=None, on_error=None):
         """Refresh the access token, then redo whatever the user was doing.
@@ -131,7 +143,13 @@ class HomeWindow(xbmcgui.WindowXML):
         Callers that were mid-action (e.g. playback) pass a closure that
         retries THAT action, so an expiry doesn't silently discard the
         user's click."""
-        new_token = auth.refresh_access_token(client_id, token["refresh_token"])
+        new_token = auth.refresh_access_token(
+            client_id,
+            token["refresh_token"],
+            on_error=lambda reason: xbmc.log(
+                "script.twitch.center: token refresh failed: " + reason, xbmc.LOGERROR
+            ),
+        )
         if new_token is None:
             auth.clear_token(addon)
             self._show_error(_RELOGIN_MESSAGE)
@@ -210,6 +228,9 @@ class HomeWindow(xbmcgui.WindowXML):
         self.getControl(self.EMPTY_LABEL_ID).setLabel("")
         self.getControl(self.ERROR_LABEL_ID).setLabel(message)
         self.getControl(self.RELOGIN_BUTTON_ID).setVisible(True)
+        # See _load_and_populate: claim focus explicitly rather than leaving
+        # it to Kodi's fallback search over an empty defaultcontrol list.
+        self.setFocusId(self.RELOGIN_BUTTON_ID)
 
     def _show_results_error(self, message):
         """Transient failure (e.g. one playback attempt): keep the channel
@@ -219,6 +240,14 @@ class HomeWindow(xbmcgui.WindowXML):
 
     def onAction(self, action):
         if action.getId() in (xbmcgui.ACTION_PREVIOUS_MENU, xbmcgui.ACTION_NAV_BACK):
+            # Kodi's own fullscreen-video Back only exits the fullscreen view -
+            # it does NOT stop playback, so a stream keeps running in the
+            # background and this window regains focus with it still going.
+            # Stop it here rather than closing the whole addon out from under
+            # a live stream.
+            if xbmc.Player().isPlaying():
+                xbmc.Player().stop()
+                return
             self.close()
             self.closed_event.set()
         elif action.getId() == xbmcgui.ACTION_SELECT_ITEM:
@@ -228,6 +257,8 @@ class HomeWindow(xbmcgui.WindowXML):
                 self._on_game_selected()
             elif self.getFocusId() == self.DISCOVER_BUTTON_ID:
                 self._open_discover_window()
+            elif self.getFocusId() == self.SETTINGS_BUTTON_ID:
+                self._open_addon_settings()
             elif self.getFocusId() == self.CHANNEL_LIST_ID:
                 self._on_channel_selected()
 
@@ -244,22 +275,13 @@ class HomeWindow(xbmcgui.WindowXML):
         if selected is None or selected.getProperty("is_live") != "true":
             return
         addon = xbmcaddon.Addon()
-        client_id = addon.getSetting("client_id")
         token = auth.load_token(addon)
         if token is None:
             self._show_results_error(_MISSING_TOKEN_MESSAGE)
             return
         broadcaster_login = selected.getProperty("broadcaster_login")
         try:
-            self._play_channel(token, broadcaster_login)
-        except api.TokenExpiredError:
-            self._handle_expired_token(
-                addon,
-                client_id,
-                token,
-                on_success=lambda a, c, t: self._play_channel(t, broadcaster_login),
-                on_error=self._show_results_error,
-            )
+            self._play_channel(broadcaster_login)
         except stream.StreamUnavailableError:
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
         except Exception as exc:
@@ -269,8 +291,9 @@ class HomeWindow(xbmcgui.WindowXML):
             )
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
 
-    def _play_channel(self, token, broadcaster_login):
-        url = stream.resolve_stream_url(token["access_token"], broadcaster_login)
+    def _play_channel(self, broadcaster_login):
+        website_token = xbmcaddon.Addon().getSetting("website_token")
+        url = stream.resolve_stream_url(broadcaster_login, website_token)
         if player.play_stream(url):
             self.getControl(self.ERROR_LABEL_ID).setLabel("")
         else:
@@ -302,3 +325,13 @@ class HomeWindow(xbmcgui.WindowXML):
         discover_window.show()
         # Handing off, not ending the chain - see _open_login_window.
         self.close()
+
+    def _open_addon_settings(self):
+        # openSettings() blocks (shows Kodi's native addon settings dialog)
+        # until the user closes it - reload afterwards so a freshly pasted
+        # website_token immediately reflects in the games row (a stale
+        # empty list otherwise sits there until the addon is reopened).
+        xbmcaddon.Addon().openSettings()
+        if self.closed_event.is_set():
+            return
+        self.onInit()
