@@ -80,6 +80,13 @@ class DiscoverWindow(xbmcgui.WindowXML):
         self.closed_event = closed_event or threading.Event()
         self._search_mode = "channels"
 
+    def _safe_control(self, control_id):
+        """Safely retrieve a control, returning None if it doesn't exist."""
+        try:
+            return self.getControl(control_id)
+        except Exception:
+            return None
+
     def onInit(self):
         addon = xbmcaddon.Addon()
         client_id = addon.getSetting("client_id")
@@ -111,7 +118,8 @@ class DiscoverWindow(xbmcgui.WindowXML):
         # time - see script-twitch-center-discover.xml) - claim focus on the
         # now-populated games list explicitly, same race-avoidance as
         # HomeWindow._load_and_populate.
-        if self.getControl(self.GAMES_LIST_ID).size():
+        games_list = self._safe_control(self.GAMES_LIST_ID)
+        if games_list and games_list.size():
             self.setFocusId(self.GAMES_LIST_ID)
 
     def _handle_expired_token(self, addon, client_id, token, on_success=None, on_error=None):
@@ -152,30 +160,43 @@ class DiscoverWindow(xbmcgui.WindowXML):
             on_error(_NETWORK_ERROR_MESSAGE)
 
     def _populate_games(self, games):
-        self.getControl(self.RELOGIN_BUTTON_ID).setVisible(False)
-        control = self.getControl(self.GAMES_LIST_ID)
-        control.reset()
-        if not games:
-            # Without this the row would just render blank with no
-            # explanation, unlike the results list which already says so.
-            self.getControl(self.EMPTY_LABEL_ID).setLabel(_EMPTY_GAMES_MESSAGE)
-            return
-        items = []
-        for game in games:
-            item = xbmcgui.ListItem(game["name"])
-            item.setProperty("game_id", game["id"])
-            items.append(item)
-        control.addItems(items)
+        relogin_btn = self._safe_control(self.RELOGIN_BUTTON_ID)
+        if relogin_btn:
+            relogin_btn.setVisible(False)
+        
+        control = self._safe_control(self.GAMES_LIST_ID)
+        if control:
+            control.reset()
+            if not games:
+                # Without this the row would just render blank with no
+                # explanation, unlike the results list which already says so.
+                empty_label = self._safe_control(self.EMPTY_LABEL_ID)
+                if empty_label:
+                    empty_label.setLabel(_EMPTY_GAMES_MESSAGE)
+                return
+            items = []
+            for game in games:
+                item = xbmcgui.ListItem(game["name"])
+                item.setProperty("game_id", game["id"])
+                items.append(item)
+            control.addItems(items)
 
     def _populate_results(self, items):
-        self.getControl(self.EMPTY_LABEL_ID).setLabel("")
-        self.getControl(self.ERROR_LABEL_ID).setLabel("")
-        control = self.getControl(self.RESULTS_LIST_ID)
-        control.reset()
-        if not items:
-            self.getControl(self.EMPTY_LABEL_ID).setLabel(_EMPTY_RESULTS_MESSAGE)
-            return
-        control.addItems(items)
+        empty_label = self._safe_control(self.EMPTY_LABEL_ID)
+        if empty_label:
+            empty_label.setLabel("")
+        error_label = self._safe_control(self.ERROR_LABEL_ID)
+        if error_label:
+            error_label.setLabel("")
+            
+        control = self._safe_control(self.RESULTS_LIST_ID)
+        if control:
+            control.reset()
+            if not items:
+                if empty_label:
+                    empty_label.setLabel(_EMPTY_RESULTS_MESSAGE)
+                return
+            control.addItems(items)
 
     def _load_streams_for_game(self, addon, client_id, token, game_id):
         streams = api.get_live_streams_by_game(token["access_token"], client_id, game_id)
@@ -193,13 +214,18 @@ class DiscoverWindow(xbmcgui.WindowXML):
         matches = api.search_categories(token["access_token"], client_id, query, first=1)
         if not matches:
             self._populate_results([])
-            self.getControl(self.EMPTY_LABEL_ID).setLabel(_EMPTY_GAME_SEARCH_MESSAGE)
+            empty_label = self._safe_control(self.EMPTY_LABEL_ID)
+            if empty_label:
+                empty_label.setLabel(_EMPTY_GAME_SEARCH_MESSAGE)
             return
         streams = api.get_live_streams_by_game(token["access_token"], client_id, matches[0]["id"])
         self._populate_results([_build_stream_item(stream_data) for stream_data in streams])
 
     def _on_game_selected(self):
-        selected = self.getControl(self.GAMES_LIST_ID).getSelectedItem()
+        control = self._safe_control(self.GAMES_LIST_ID)
+        if not control:
+            return
+        selected = control.getSelectedItem()
         if selected is None:
             return
         addon = xbmcaddon.Addon()
@@ -229,7 +255,10 @@ class DiscoverWindow(xbmcgui.WindowXML):
             self._show_results_error(_NETWORK_ERROR_MESSAGE)
 
     def _on_channel_selected(self):
-        selected = self.getControl(self.RESULTS_LIST_ID).getSelectedItem()
+        control = self._safe_control(self.RESULTS_LIST_ID)
+        if not control:
+            return
+        selected = control.getSelectedItem()
         if selected is None or selected.getProperty("is_live") != "true":
             return
         addon = xbmcaddon.Addon()
@@ -253,12 +282,17 @@ class DiscoverWindow(xbmcgui.WindowXML):
         website_token = xbmcaddon.Addon().getSetting("website_token")
         url = stream.resolve_stream_url(broadcaster_login, website_token)
         if player.play_stream(url):
-            self.getControl(self.ERROR_LABEL_ID).setLabel("")
+            error_label = self._safe_control(self.ERROR_LABEL_ID)
+            if error_label:
+                error_label.setLabel("")
         else:
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
 
     def _on_search(self):
-        query = self.getControl(self.SEARCH_EDIT_ID).getText()
+        control = self._safe_control(self.SEARCH_EDIT_ID)
+        if not control:
+            return
+        query = control.getText()
         if not query:
             return
         addon = xbmcaddon.Addon()
@@ -294,26 +328,44 @@ class DiscoverWindow(xbmcgui.WindowXML):
         # toggle button's own label is signal enough for which mode is active.
         current_index = _SEARCH_MODES.index(self._search_mode)
         self._search_mode = _SEARCH_MODES[(current_index + 1) % len(_SEARCH_MODES)]
-        self.getControl(self.SEARCH_MODE_TOGGLE_ID).setLabel(
-            _SEARCH_MODE_LABELS[self._search_mode]
-        )
+        toggle_btn = self._safe_control(self.SEARCH_MODE_TOGGLE_ID)
+        if toggle_btn:
+            toggle_btn.setLabel(
+                _SEARCH_MODE_LABELS[self._search_mode]
+            )
 
     def _show_error(self, message):
         """Fatal failure (onInit / expired session): the whole screen is
         unusable, so wipe everything and offer the re-login button."""
-        self.getControl(self.GAMES_LIST_ID).reset()
-        self.getControl(self.RESULTS_LIST_ID).reset()
-        self.getControl(self.EMPTY_LABEL_ID).setLabel("")
-        self.getControl(self.ERROR_LABEL_ID).setLabel(message)
-        self.getControl(self.RELOGIN_BUTTON_ID).setVisible(True)
-        self.setFocusId(self.RELOGIN_BUTTON_ID)
+        games_list = self._safe_control(self.GAMES_LIST_ID)
+        if games_list:
+            games_list.reset()
+        results_list = self._safe_control(self.RESULTS_LIST_ID)
+        if results_list:
+            results_list.reset()
+        empty_label = self._safe_control(self.EMPTY_LABEL_ID)
+        if empty_label:
+            empty_label.setLabel("")
+        error_label = self._safe_control(self.ERROR_LABEL_ID)
+        if error_label:
+            error_label.setLabel(message)
+        relogin_btn = self._safe_control(self.RELOGIN_BUTTON_ID)
+        if relogin_btn:
+            relogin_btn.setVisible(True)
+            self.setFocusId(self.RELOGIN_BUTTON_ID)
 
     def _show_results_error(self, message):
         """Transient failure of one browse/search: keep the top-games row
         intact so a single network blip doesn't force an addon restart."""
-        self.getControl(self.RESULTS_LIST_ID).reset()
-        self.getControl(self.EMPTY_LABEL_ID).setLabel("")
-        self.getControl(self.ERROR_LABEL_ID).setLabel(message)
+        results_list = self._safe_control(self.RESULTS_LIST_ID)
+        if results_list:
+            results_list.reset()
+        empty_label = self._safe_control(self.EMPTY_LABEL_ID)
+        if empty_label:
+            empty_label.setLabel("")
+        error_label = self._safe_control(self.ERROR_LABEL_ID)
+        if error_label:
+            error_label.setLabel(message)
 
     def onAction(self, action):
         if action.getId() in (xbmcgui.ACTION_PREVIOUS_MENU, xbmcgui.ACTION_NAV_BACK):
