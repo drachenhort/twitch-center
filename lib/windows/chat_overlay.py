@@ -1,6 +1,7 @@
 """Non-modal chat overlay shown during playback."""
 import threading
 
+import xbmc
 import xbmcgui
 
 from lib.twitch.irc import ChatClient
@@ -32,14 +33,20 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
         self._thread.start()
 
     def _pump_messages(self):
-        for event in self._client.read_messages():
-            if self._cancel_event.is_set():
-                break
-            if event["type"] != "message":
-                continue
-            self._messages.append(event)
-            del self._messages[:-self._MAX_MESSAGES]
-            self._render()
+        try:
+            for event in self._client.read_messages():
+                if self._cancel_event.is_set():
+                    break
+                if event["type"] != "message":
+                    continue
+                self._messages.append(event)
+                del self._messages[:-self._MAX_MESSAGES]
+                self._render()
+        except Exception as exc:
+            xbmc.log(
+                "script.twitch.center: chat overlay pump thread failed: " + repr(exc),
+                xbmc.LOGERROR,
+            )
 
     def _render(self):
         control = self._safe_control(self.MESSAGE_LIST_ID)

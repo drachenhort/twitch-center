@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from lib.windows.chat_overlay import ChatOverlay
 
 
@@ -132,6 +134,32 @@ def test_pump_selects_last_item_so_new_messages_are_visible_past_the_fold():
 
     control = win.getControl(ChatOverlay.MESSAGE_LIST_ID)
     assert control.getSelectedItem().getLabel2() == "msg19"
+
+
+def test_pump_thread_logs_and_exits_cleanly_on_unexpected_exception():
+    FakeChatClient.instances.clear()
+
+    class ExplodingClient(FakeChatClient):
+        def read_messages(self):
+            def _gen():
+                yield _message_event("bob", "hi", 1)
+                raise RuntimeError("boom")
+            return _gen()
+
+    with patch("lib.windows.chat_overlay.xbmc.log") as mock_log:
+        win = ChatOverlay(
+            "script-twitch-center-chat-overlay.xml",
+            "/tmp",
+            "Default",
+            "1080i",
+            channel="somechannel",
+            chat_client_cls=ExplodingClient,
+        )
+        win.onInit()
+        win._thread.join(timeout=1)
+
+    assert not win._thread.is_alive()
+    mock_log.assert_called_once()
 
 
 def test_close_disconnects_client_and_is_idempotent():
