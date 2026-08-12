@@ -4,6 +4,14 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.6.0] - 2026-08-12
+
+### Added
+- Real stream playback via inputstream.adaptive: clicking a live channel in Home or Discover now
+  plays it in Kodi's own player instead of being a no-op.
+- New `script.module.inputstreamhelper` addon dependency, used to ensure inputstream.adaptive is
+  installed and enabled before playback starts.
+
 ## [0.5.0] - 2026-08-11
 
 ### Added
