@@ -20,6 +20,14 @@ DISCOVER_SKIN_XML = (
     / "1080i"
     / "script-twitch-center-discover.xml"
 )
+CHAT_OVERLAY_SKIN_XML = (
+    Path(__file__).resolve().parent.parent
+    / "resources"
+    / "skins"
+    / "Default"
+    / "1080i"
+    / "script-twitch-center-chat-overlay.xml"
+)
 
 _NAV_TAGS = ("onup", "ondown", "onleft", "onright")
 
@@ -192,3 +200,14 @@ def test_addon_xml_requires_inputstreamhelper_module():
     imports = requires.findall("import")
     addon_ids = [imp.attrib.get("addon") for imp in imports]
     assert "script.module.inputstreamhelper" in addon_ids
+
+
+def test_chat_overlay_skin_xml_declares_message_list_control_id():
+    tree = ET.parse(CHAT_OVERLAY_SKIN_XML)
+    root = tree.getroot()
+    control_ids = {
+        int(control.attrib["id"])
+        for control in root.iter("control")
+        if "id" in control.attrib
+    }
+    assert 101 in control_ids
