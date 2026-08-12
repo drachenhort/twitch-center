@@ -213,9 +213,11 @@ class HomeWindow(xbmcgui.WindowXML):
             control.addItems(items)
 
     def _populate(self, followed, live_list, game_filter=None):
+        # Always visible, not just on error - doubles as a voluntary
+        # "switch account / re-authorize" affordance, not only recovery.
         relogin_btn = self._safe_control(self.RELOGIN_BUTTON_ID)
         if relogin_btn:
-            relogin_btn.setVisible(False)
+            relogin_btn.setVisible(True)
         empty_label = self._safe_control(self.EMPTY_LABEL_ID)
         if empty_label:
             empty_label.setLabel("")
@@ -383,12 +385,5 @@ class HomeWindow(xbmcgui.WindowXML):
         # empty list otherwise sits there until the addon is reopened).
         xbmcaddon.Addon().openSettings()
         if self.closed_event.is_set():
-            return
-        if self._settings.relogin_requested:
-            # The settings dialog's "Re-login to Twitch" button just sets a
-            # flag (SetAddonSetting) rather than spawning a second addon
-            # instance - see _open_login_window for the actual transition.
-            self._settings.clear_relogin_requested()
-            self._open_login_window()
             return
         self.onInit()

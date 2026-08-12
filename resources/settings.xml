@@ -33,6 +33,7 @@
             <allowempty>true</allowempty>
           </constraints>
           <control type="edit" format="string"/>
+          <visible>false</visible>
         </setting>
         <setting id="website_token" type="string" label="30007" help="30008">
           <level>0</level>
@@ -41,18 +42,6 @@
             <allowempty>true</allowempty>
           </constraints>
           <control type="edit" format="string"/>
-        </setting>
-        <setting id="relogin_requested" type="boolean" label="">
-          <level>0</level>
-          <default>false</default>
-          <control type="toggle"/>
-          <visible>false</visible>
-        </setting>
-        <setting id="relogin_action" type="action" label="30010" help="30011">
-          <level>0</level>
-          <control type="button" format="action">
-            <data>SetAddonSetting(script.twitch.center,relogin_requested,true)</data>
-          </control>
         </setting>
       </group>
     </category>

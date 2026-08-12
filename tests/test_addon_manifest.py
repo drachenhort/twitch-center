@@ -120,34 +120,23 @@ def test_addon_xml_requires_requests_module():
     assert "script.module.requests" in addon_ids
 
 
-def test_settings_xml_hides_client_id():
+def test_settings_xml_hides_client_id_and_twitch_token():
     tree = ET.parse(SETTINGS_XML)
     root = tree.getroot()
     setting_ids = {s.attrib["id"]: s for s in root.iter("setting")}
-    visible = setting_ids["client_id"].find("visible")
-    assert visible is not None, "client_id should have a <visible> element"
-    assert visible.text == "false"
+    for setting_id in ("client_id", "twitch_token"):
+        visible = setting_ids[setting_id].find("visible")
+        assert visible is not None, f"{setting_id} should have a <visible> element"
+        assert visible.text == "false"
 
 
-def test_settings_xml_twitch_token_and_website_token_are_visible_and_unmasked():
+def test_settings_xml_website_token_is_visible_and_unmasked():
     tree = ET.parse(SETTINGS_XML)
     root = tree.getroot()
     setting_ids = {s.attrib["id"]: s for s in root.iter("setting")}
-    for setting_id in ("twitch_token", "website_token"):
-        setting = setting_ids[setting_id]
-        assert setting.find("visible") is None, f"{setting_id} should not be hidden"
-        assert setting.find("control/hidden") is None, f"{setting_id} should not be masked"
-
-
-def test_settings_xml_declares_relogin_action_button():
-    tree = ET.parse(SETTINGS_XML)
-    root = tree.getroot()
-    setting_ids = {s.attrib["id"]: s for s in root.iter("setting")}
-    assert "relogin_requested" in setting_ids
-    assert "relogin_action" in setting_ids
-    data = setting_ids["relogin_action"].find("control/data")
-    assert data is not None
-    assert data.text == "SetAddonSetting(script.twitch.center,relogin_requested,true)"
+    setting = setting_ids["website_token"]
+    assert setting.find("visible") is None, "website_token should not be hidden"
+    assert setting.find("control/hidden") is None, "website_token should not be masked"
 
 
 def test_home_skin_xml_declares_all_expected_control_ids():

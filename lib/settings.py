@@ -19,10 +19,3 @@ class Settings:
     @property
     def show_offline_channels(self):
         return self._addon.getSettingBool("show_offline_channels")
-
-    @property
-    def relogin_requested(self):
-        return self._addon.getSettingBool("relogin_requested")
-
-    def clear_relogin_requested(self):
-        self._addon.setSettingBool("relogin_requested", False)

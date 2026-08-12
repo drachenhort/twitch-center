@@ -107,6 +107,20 @@ def test_oninit_populates_list_on_success():
     assert all(item.getProperty("is_live") == "true" for item in control._items)
 
 
+def test_oninit_keeps_relogin_button_visible_even_without_an_error():
+    # Doubles as a voluntary "switch account / re-authorize" affordance, not
+    # just an error-recovery button - always reachable, not just on failure.
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+    assert win.getControl(HomeWindow.RELOGIN_BUTTON_ID).isVisible() is True
+
+
 def test_oninit_still_hides_offline_channels_when_setting_is_off():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
@@ -335,18 +349,6 @@ def test_oninit_saves_refreshed_token_even_if_retry_hits_network_error():
     assert saved["refresh_token"] == "ref2"
 
 
-def test_populate_hides_relogin_button_on_success():
-    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_followed_channels", return_value=FOLLOWED
-    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
-        gql, "get_followed_live_games", return_value=[]
-    ):
-        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
-        win.onInit()
-    assert win.getControl(HomeWindow.RELOGIN_BUTTON_ID).isVisible() is False
-
-
 def test_relogin_button_visible_when_relogin_prompt_shown():
     old_token = {"access_token": "old", "refresh_token": "ref", "user_id": "u1"}
     addon = _addon_with_token(old_token)
@@ -423,45 +425,6 @@ def test_selecting_settings_button_opens_addon_settings_and_reloads():
     # Reloaded (not just left showing stale data) - the channel list is still
     # populated, proving onInit ran again rather than the window silently
     # doing nothing after openSettings() returned.
-    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 2
-
-
-def test_settings_button_opens_login_window_when_relogin_was_requested():
-    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    addon.setSetting("relogin_requested", True)
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_followed_channels", return_value=FOLLOWED
-    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
-        gql, "get_followed_live_games", return_value=[]
-    ), patch.object(addon, "openSettings"), patch(
-        "lib.windows.home.LoginWindow"
-    ) as mock_login_window_cls:
-        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
-        win.onInit()
-        win.setFocusId(HomeWindow.SETTINGS_BUTTON_ID)
-        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
-
-    mock_login_window_cls.assert_called_once()
-    assert mock_login_window_cls.call_args.kwargs["closed_event"] is win.closed_event
-    mock_login_window_cls.return_value.show.assert_called_once()
-    assert addon.getSettingBool("relogin_requested") is False
-
-
-def test_settings_button_reloads_normally_when_relogin_was_not_requested():
-    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_followed_channels", return_value=FOLLOWED
-    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
-        gql, "get_followed_live_games", return_value=[]
-    ), patch.object(addon, "openSettings"), patch(
-        "lib.windows.home.LoginWindow"
-    ) as mock_login_window_cls:
-        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
-        win.onInit()
-        win.setFocusId(HomeWindow.SETTINGS_BUTTON_ID)
-        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
-
-    mock_login_window_cls.assert_not_called()
     assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 2
 
 
