@@ -160,6 +160,28 @@ def test_play_stream_skips_overlay_when_inputstream_declined():
     assert len(FakeChatOverlay.instances) == 0
 
 
+def test_play_stream_returns_true_even_if_chat_overlay_construction_raises():
+    def _raising_overlay_cls(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
+        "lib.windows.player.xbmc.Player"
+    ) as mock_player_cls, patch("lib.windows.player.xbmc.log") as mock_log:
+        mock_helper_cls.return_value.check_inputstream.return_value = True
+        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
+
+        result = player.play_stream(
+            "https://example.invalid/stream.m3u8",
+            "somechannel",
+            settings=FakeSettings("overlay"),
+            chat_overlay_cls=_raising_overlay_cls,
+            chat_client_cls=FakeChatClient,
+        )
+
+    assert result is True
+    mock_log.assert_called_once()
+
+
 def test_chat_aware_player_teardown_closes_overlay_and_disconnects_client_on_stop():
     FakeChatOverlay.instances.clear()
     overlay = FakeChatOverlay(

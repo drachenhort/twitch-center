@@ -55,18 +55,24 @@ def play_stream(url, channel, settings=None, chat_overlay_cls=None, chat_client_
 
     settings = settings or Settings()
     if settings.chat_display_mode in ("overlay", "both"):
-        overlay_cls = chat_overlay_cls or ChatOverlay
-        overlay = overlay_cls(
-            "script-twitch-center-chat-overlay.xml",
-            xbmcaddon.Addon().getAddonInfo("path"),
-            "Default",
-            "1080i",
-            channel=channel,
-            chat_client_cls=chat_client_cls,
-        )
-        overlay.show()
-        if _current_chat_watcher is not None:
-            _current_chat_watcher._teardown()
-        _current_chat_watcher = _ChatAwarePlayer(overlay, overlay._client)
+        try:
+            overlay_cls = chat_overlay_cls or ChatOverlay
+            overlay = overlay_cls(
+                "script-twitch-center-chat-overlay.xml",
+                xbmcaddon.Addon().getAddonInfo("path"),
+                "Default",
+                "1080i",
+                channel=channel,
+                chat_client_cls=chat_client_cls,
+            )
+            overlay.show()
+            if _current_chat_watcher is not None:
+                _current_chat_watcher._teardown()
+            _current_chat_watcher = _ChatAwarePlayer(overlay, overlay._client)
+        except Exception as exc:
+            xbmc.log(
+                "script.twitch.center: chat overlay failed to start: " + repr(exc),
+                xbmc.LOGERROR,
+            )
 
     return True
