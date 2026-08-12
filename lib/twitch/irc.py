@@ -47,7 +47,10 @@ def parse_line(line, now_ms=None):
         head, trailing = rest, ""
 
     command = head.split()[0] if head.split() else ""
-    timestamp = int(tags["tmi-sent-ts"]) if "tmi-sent-ts" in tags else now_ms
+    try:
+        timestamp = int(tags["tmi-sent-ts"])
+    except (KeyError, ValueError):
+        timestamp = now_ms
 
     if command == "PRIVMSG":
         username = prefix.split("!")[0] if "!" in prefix else prefix

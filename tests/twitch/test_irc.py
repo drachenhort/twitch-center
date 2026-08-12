@@ -124,6 +124,16 @@ def test_parse_line_raid_with_non_numeric_viewer_count_defaults_to_zero():
     assert event["timestamp"] == 9000
 
 
+def test_parse_line_privmsg_with_non_numeric_timestamp_tag_falls_back_to_now_ms():
+    line = (
+        "@display-name=Bob;tmi-sent-ts=not-a-number "
+        ":bob!bob@bob.tmi.twitch.tv PRIVMSG #somechannel :hello there"
+    )
+    event = parse_line(line, now_ms=7000)
+    assert event["type"] == "message"
+    assert event["timestamp"] == 7000
+
+
 def test_read_messages_yields_connected_status_then_privmsg():
     line = "@display-name=Bob;tmi-sent-ts=1000 :bob!bob@bob.tmi.twitch.tv PRIVMSG #chan :hello\r\n"
     fake = FakeSocket(recv_queue=[line.encode("utf-8")])
