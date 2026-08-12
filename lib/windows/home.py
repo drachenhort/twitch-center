@@ -384,4 +384,11 @@ class HomeWindow(xbmcgui.WindowXML):
         xbmcaddon.Addon().openSettings()
         if self.closed_event.is_set():
             return
+        if self._settings.relogin_requested:
+            # The settings dialog's "Re-login to Twitch" button just sets a
+            # flag (SetAddonSetting) rather than spawning a second addon
+            # instance - see _open_login_window for the actual transition.
+            self._settings.clear_relogin_requested()
+            self._open_login_window()
+            return
         self.onInit()

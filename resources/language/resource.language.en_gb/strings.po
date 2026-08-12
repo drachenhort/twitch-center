@@ -41,3 +41,11 @@ msgstr ""
 msgctxt "#30009"
 msgid "Show offline channels on Home"
 msgstr ""
+
+msgctxt "#30010"
+msgid "Re-login to Twitch"
+msgstr ""
+
+msgctxt "#30011"
+msgid "Opens the device-code login screen again, without affecting your current session unless you actually complete a new login. Useful if you're using the same account on another device and your session here stops refreshing."
+msgstr ""

@@ -426,6 +426,45 @@ def test_selecting_settings_button_opens_addon_settings_and_reloads():
     assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 2
 
 
+def test_settings_button_opens_login_window_when_relogin_was_requested():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    addon.setSetting("relogin_requested", True)
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch.object(addon, "openSettings"), patch(
+        "lib.windows.home.LoginWindow"
+    ) as mock_login_window_cls:
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+        win.setFocusId(HomeWindow.SETTINGS_BUTTON_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    mock_login_window_cls.assert_called_once()
+    assert mock_login_window_cls.call_args.kwargs["closed_event"] is win.closed_event
+    mock_login_window_cls.return_value.show.assert_called_once()
+    assert addon.getSettingBool("relogin_requested") is False
+
+
+def test_settings_button_reloads_normally_when_relogin_was_not_requested():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch.object(addon, "openSettings"), patch(
+        "lib.windows.home.LoginWindow"
+    ) as mock_login_window_cls:
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+        win.setFocusId(HomeWindow.SETTINGS_BUTTON_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    mock_login_window_cls.assert_not_called()
+    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 2
+
+
 def test_selecting_settings_button_does_not_reload_if_window_already_closed():
     # openSettings() blocks; if the shared closed_event got set while it was
     # open (e.g. the whole script is shutting down), reloading afterwards

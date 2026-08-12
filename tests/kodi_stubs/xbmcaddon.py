@@ -20,6 +20,9 @@ class Addon:
     def setSetting(self, id, value):
         self._settings[id] = value
 
+    def setSettingBool(self, id, value):
+        self._settings[id] = value
+
     def getAddonInfo(self, key):
         return _ADDON_INFO.get(key, "")
 
