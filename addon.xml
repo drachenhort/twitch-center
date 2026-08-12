@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="script.twitch.center" name="Twitch Center" version="0.6.0" provider-name="drachenhort">
+<addon id="script.twitch.center" name="Twitch Center" version="0.8.1" provider-name="drachenhort">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
     <import addon="script.module.requests" version="2.22.0"/>
@@ -18,6 +18,38 @@
     <license>MIT</license>
     <source>https://github.com/drachenhort/twitch-center</source>
     <news>
+      v0.8.1: Fixed the real cause of "stuck on login/gets a new code every time" - Home's skin
+      defaultcontrol targeted the (empty until data loads) channel list, which made Kodi's window
+      manager silently abort activating Home and revert to Login whenever Home wasn't the very
+      first window shown in a session. No script-side fix could catch this since it happens before
+      Python even runs. Same root cause and fix as Discover's earlier "flashes then reverts" bug.
+      v0.8.0: Discover's search can now search by game/category, not just channel name - a toggle
+      button next to the search box switches modes ("Searching: Channels" / "Searching: Games").
+      Searching a game (e.g. "warships") finds the best-matching category and lists its live
+      streams.
+      v0.7.2: Fixed streams continuing to play in the background after pressing Back - Kodi's own
+      fullscreen-video Back only exits the fullscreen view, it doesn't stop playback. Home and
+      Discover's Back now stop an active stream instead of closing the whole addon out from under it.
+      v0.7.1: Added a Settings button on Home - opens Kodi's native addon settings dialog directly
+      (no more digging through Add-ons browser context menus), and reloads Home afterward so a
+      newly pasted Website Token takes effect immediately.
+      v0.7.0: New optional "Website Token" setting (Settings > General) - paste your twitch.tv
+      browser session's auth-token cookie to unlock ad-free/subscriber-perk playback and get the
+      followed-games filter row actually working (it silently 401'd before, same root cause as the
+      playback bug). Leave it empty to keep the default anonymous/public behavior.
+      v0.6.5: Fixed playback always failing with "session expired": Twitch's internal GraphQL API
+      permanently rejects any real user OAuth token from a non-Twitch client_id, so no refresh
+      could ever fix it. Playback token requests are now made anonymously, which Twitch serves
+      fine for public live streams.
+      v0.6.4: Fixed Login screen restarting the device-code flow (new code shown) after a
+      successful login, when Kodi re-fires the window's init on an already-completed login.
+      v0.6.3: Token refresh failures are now logged with the actual reason (network error, HTTP
+      status, bad response body) instead of silently forcing a re-login with no diagnostic trail.
+      v0.6.2: Fixed Home's focus landing on a random button (Relogin/Discover) right after load - the
+      skin's defaultcontrol targeted the channel list before it had items, so Kodi's focus fallback
+      could pick a button; a stray keypress there would silently trigger unwanted navigation.
+      v0.6.1: Fixed login screen ending the whole script on successful login instead of continuing
+      to Home - required reopening the addon manually every time the session expired.
       v0.6.0: Real stream playback via inputstream.adaptive; clicking a live channel in Home or
       Discover now plays it.
       v0.5.0: Discover screen (browse by game, channel search); fixed window navigation killing
