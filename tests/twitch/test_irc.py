@@ -157,6 +157,33 @@ def test_read_messages_yields_connected_status_then_privmsg():
     }
 
 
+def test_read_messages_yields_raid_event_through_full_read_loop():
+    raid_line = (
+        "@msg-id=raid;msg-param-displayName=CoolRaider;msg-param-login=coolraider;"
+        "msg-param-viewerCount=42;tmi-sent-ts=2000 "
+        ":tmi.twitch.tv USERNOTICE #chan :CoolRaider is raiding with 42 viewers!\r\n"
+    )
+    fake = FakeSocket(recv_queue=[raid_line.encode("utf-8")])
+    client = ChatClient("chan", socket_factory=lambda: fake, sleep_fn=lambda s: None)
+    client.connect()
+
+    events = []
+    for event in client.read_messages():
+        events.append(event)
+        if event["type"] == "raid":
+            break
+    client.disconnect()
+
+    assert events[0] == {"type": "status", "state": "connected"}
+    assert events[1] == {
+        "type": "raid",
+        "from_channel": "coolraider",
+        "display_name": "CoolRaider",
+        "viewer_count": 42,
+        "timestamp": 2000,
+    }
+
+
 def test_reconnects_with_backoff_after_socket_error():
     good_line = ":a!a@a PRIVMSG #chan :hi\r\n".encode("utf-8")
     sockets = [
