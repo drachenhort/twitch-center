@@ -4,6 +4,19 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.11.1] - 2026-08-12
+
+### Fixed
+- The "Website Token" setting (Settings > General, for ad-free/subscriber-perk playback) never
+  actually appeared in the settings dialog, despite being fully implemented and wired into
+  playback since it was added. Root cause: a string setting with an empty `<default></default>`
+  fails to parse in Kodi (`CSettingString` errors reading the default value), and the setting is
+  then silently dropped from the settings dialog entirely - no error visible to the user. Fixed
+  with `<constraints><allowempty>true</allowempty></constraints>`, which tells Kodi's settings
+  framework the empty default is intentional. Same fix applied to the internal `twitch_token`
+  setting, which had the identical bug. Also corrected `settings.xml`'s declared schema version
+  (1 → 2) to match its actual structure.
+
 ## [0.11.0] - 2026-08-12
 
 ### Added
