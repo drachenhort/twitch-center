@@ -87,6 +87,29 @@ def test_settings_xml_declares_twitch_token_setting():
     assert "twitch_token" in setting_ids
 
 
+def test_settings_xml_empty_default_string_settings_allow_empty():
+    # A string setting with an empty <default></default> and no
+    # <constraints><allowempty>true</allowempty></constraints> fails to
+    # parse in real Kodi (CSettingString errors reading the default value,
+    # and CSettingGroup then drops the setting entirely - it silently never
+    # appears in the settings dialog, with no error visible to the user).
+    # Confirmed live: twitch_token and website_token both hit this before
+    # allowempty was added, verified fixed after.
+    tree = ET.parse(SETTINGS_XML)
+    root = tree.getroot()
+    for setting in root.iter("setting"):
+        if setting.attrib.get("type") != "string":
+            continue
+        default = setting.find("default")
+        if default is None or not (default.text or "").strip():
+            allowempty = setting.find("constraints/allowempty")
+            assert allowempty is not None and allowempty.text == "true", (
+                f"{setting.attrib['id']}: empty <default> needs "
+                "<constraints><allowempty>true</allowempty></constraints> or Kodi "
+                "silently drops this setting from the settings dialog"
+            )
+
+
 def test_addon_xml_requires_requests_module():
     tree = ET.parse(ADDON_XML)
     root = tree.getroot()

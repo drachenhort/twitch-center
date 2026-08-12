@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<settings version="1">
+<settings version="2">
   <section id="script.twitch.center">
     <category id="general" label="30000">
       <group id="1">
@@ -29,12 +29,18 @@
         <setting id="twitch_token" type="string" label="30006" help="">
           <level>2</level>
           <default></default>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
           <control type="edit" format="string"/>
           <visible>false</visible>
         </setting>
         <setting id="website_token" type="string" label="30007" help="30008">
           <level>0</level>
           <default></default>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
           <control type="edit" format="string">
             <hidden>true</hidden>
           </control>
