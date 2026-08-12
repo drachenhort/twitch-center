@@ -26,3 +26,9 @@ class Player:
 
     def play(self, item=None, listitem=None, windowed=False, startpos=-1):
         pass
+
+    def isPlaying(self):
+        return False
+
+    def stop(self):
+        pass

@@ -32,6 +32,7 @@ class FakeWindow:
         self.xml_filename = xml_filename
         self.script_path = script_path
         self.shown = False
+        self.received_closed_event = kwargs.get("closed_event")
         # Already-closed, so main.run's wait loop exits immediately without
         # sleeping or blocking real test time.
         self.closed_event = threading.Event()
@@ -39,6 +40,9 @@ class FakeWindow:
 
     def show(self):
         self.shown = True
+
+    def close(self):
+        pass
 
 
 class FakeLoginWindow(FakeWindow):
@@ -126,6 +130,44 @@ def test_run_opens_home_window_when_token_saved():
     assert len(FakeHomeWindow.instances) == 1
     assert FakeHomeWindow.instances[0].shown is True
     assert len(FakeLoginWindow.instances) == 0
+
+
+def test_run_opens_home_window_on_main_thread_when_login_succeeded_flag_is_set():
+    """LoginWindow can't open Home itself (its success callback runs on a
+    background thread), so it just sets login_succeeded and main.run()'s
+    (main-thread) wait loop performs the actual handoff."""
+    FakeLoginWindow.instances.clear()
+    FakeHomeWindow.instances.clear()
+
+    class FlaggingLoginWindow(FakeLoginWindow):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.closed_event = threading.Event()
+            self.login_succeeded = False
+
+    class TickingMonitor:
+        def __init__(self):
+            self.calls = 0
+
+        def waitForAbort(self, timeout=None):
+            self.calls += 1
+            if self.calls == 1:
+                FakeLoginWindow.instances[-1].login_succeeded = True
+            elif self.calls >= 2:
+                FakeHomeWindow.instances[-1].closed_event.set()
+            return False
+
+    main.run(
+        [],
+        addon=FakeAddon(token=None),
+        login_window_cls=FlaggingLoginWindow,
+        home_window_cls=FakeHomeWindow,
+        monitor_cls=TickingMonitor,
+    )
+
+    assert len(FakeHomeWindow.instances) == 1
+    assert FakeHomeWindow.instances[0].shown is True
+    assert FakeHomeWindow.instances[0].received_closed_event is FakeLoginWindow.instances[0].closed_event
 
 
 def test_run_keeps_waiting_while_a_child_window_owns_the_shared_event():

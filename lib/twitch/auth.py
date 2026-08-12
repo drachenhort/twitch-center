@@ -85,10 +85,14 @@ def load_token(addon):
         return None
 
 
-def refresh_access_token(client_id, refresh_token):
+def refresh_access_token(client_id, refresh_token, on_error=None):
     """Exchange a refresh_token for a new token dict. Returns None on any failure
     (network error, non-200 response, unparseable body) rather than raising -
-    "refresh didn't work" is an expected outcome the caller must handle either way."""
+    "refresh didn't work" is an expected outcome the caller must handle either way.
+
+    on_error, if given, is called with a short diagnostic string describing why -
+    this module stays free of xbmc imports (pytest-testable, per this repo's
+    architecture split), so the caller is responsible for logging it."""
     try:
         response = requests.post(
             TOKEN_URL,
@@ -99,13 +103,19 @@ def refresh_access_token(client_id, refresh_token):
             },
             timeout=10,
         )
-    except requests.RequestException:
+    except requests.RequestException as exc:
+        if on_error:
+            on_error("network error: " + repr(exc))
         return None
     if response.status_code != 200:
+        if on_error:
+            on_error("HTTP " + str(response.status_code) + ": " + response.text[:200])
         return None
     try:
         return response.json()
-    except ValueError:
+    except ValueError as exc:
+        if on_error:
+            on_error("unparseable response body: " + repr(exc))
         return None
 
 

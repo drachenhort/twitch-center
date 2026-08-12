@@ -68,6 +68,31 @@ def test_build_list_item_offline_has_no_thumbnail():
     assert item.getArt("thumb") == ""
 
 
+def test_back_closes_window_when_nothing_is_playing():
+    win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+    with patch("lib.windows.home.xbmc.Player") as mock_player_cls:
+        mock_player_cls.return_value.isPlaying.return_value = False
+        with patch.object(win, "close") as mock_close:
+            win.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
+    mock_close.assert_called_once()
+    assert win.closed_event.is_set()
+
+
+def test_back_stops_playback_instead_of_closing_window_when_stream_is_playing():
+    # Kodi's own fullscreen-video Back only exits the fullscreen view, it
+    # doesn't stop playback - Home regains focus with the stream still
+    # running behind it. A Back press here must stop that stream rather
+    # than closing the whole addon out from under it.
+    win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+    with patch("lib.windows.home.xbmc.Player") as mock_player_cls:
+        mock_player_cls.return_value.isPlaying.return_value = True
+        with patch.object(win, "close") as mock_close:
+            win.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
+        mock_player_cls.return_value.stop.assert_called_once()
+    mock_close.assert_not_called()
+    assert not win.closed_event.is_set()
+
+
 def _addon_with_token(token):
     addon = FakeAddon()
     if token is not None:
@@ -86,6 +111,20 @@ def test_oninit_populates_list_on_success():
         win.onInit()
     control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
     assert control.size() == 3
+    assert win.getFocusId() == HomeWindow.CHANNEL_LIST_ID
+
+
+def test_oninit_passes_website_token_setting_to_followed_live_games():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    addon.setSetting("website_token", "my-website-token")
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ) as mock_games:
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+    mock_games.assert_called_once_with("my-website-token")
 
 
 def test_oninit_sets_title_with_addon_version():
@@ -113,6 +152,11 @@ def test_oninit_shows_empty_state_when_no_followed_channels():
         win.onInit()
     assert win.getControl(HomeWindow.EMPTY_LABEL_ID).getLabel() != ""
     assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 0
+    # The channel list can't take focus while empty (the skin's
+    # <defaultcontrol> targets it unconditionally) - Discover is the
+    # explicit fallback rather than leaving Kodi's own fallback search to
+    # land on an arbitrary button.
+    assert win.getFocusId() == HomeWindow.DISCOVER_BUTTON_ID
 
 
 def test_oninit_refreshes_token_and_retries_on_expiry():
@@ -153,9 +197,19 @@ def test_oninit_shows_relogin_prompt_when_refresh_fails():
 
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
         api, "get_followed_channels", side_effect=api.TokenExpiredError()
-    ), patch("lib.windows.home.auth.refresh_access_token", return_value=None):
+    ), patch(
+        "lib.windows.home.auth.refresh_access_token", return_value=None
+    ) as mock_refresh, patch("lib.windows.home.xbmc.log") as mock_log:
         win = HomeWindow("script-twitch-center-home.xml", "/tmp")
         win.onInit()
+        # refresh_access_token's on_error callback is home.py's only way to
+        # surface *why* the refresh failed, since auth.py stays free of xbmc
+        # imports - confirm the wiring is actually connected.
+        assert mock_refresh.call_args.kwargs["on_error"] is not None
+        mock_refresh.call_args.kwargs["on_error"]("HTTP 401: invalid_grant")
+        assert any(
+            "invalid_grant" in call.args[0] for call in mock_log.call_args_list
+        )
 
     from lib.twitch.auth import load_token
 
@@ -173,6 +227,9 @@ def test_oninit_shows_error_state_on_network_failure():
         win = HomeWindow("script-twitch-center-home.xml", "/tmp")
         win.onInit()
     assert win.getControl(HomeWindow.ERROR_LABEL_ID).getLabel() != ""
+    # See test_oninit_shows_empty_state_when_no_followed_channels: same
+    # explicit-focus race, this time the fallback is the Relogin button.
+    assert win.getFocusId() == HomeWindow.RELOGIN_BUTTON_ID
 
 
 def test_oninit_shows_relogin_when_token_has_no_user_id():
@@ -292,6 +349,53 @@ def test_relogin_chain_sets_the_shared_event_only_when_login_window_closes():
         login_window.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
 
     assert shared_event.is_set()
+
+
+def test_selecting_settings_button_opens_addon_settings_and_reloads():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch.object(addon, "openSettings") as mock_open_settings:
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+        win.setFocusId(HomeWindow.SETTINGS_BUTTON_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    mock_open_settings.assert_called_once()
+    # Reloaded (not just left showing stale data) - the channel list is still
+    # populated, proving onInit ran again rather than the window silently
+    # doing nothing after openSettings() returned.
+    assert win.getControl(HomeWindow.CHANNEL_LIST_ID).size() == 3
+
+
+def test_selecting_settings_button_does_not_reload_if_window_already_closed():
+    # openSettings() blocks; if the shared closed_event got set while it was
+    # open (e.g. the whole script is shutting down), reloading afterwards
+    # would resurrect a window nothing is waiting on anymore.
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ):
+        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
+        win.onInit()
+
+        def _close_during_settings():
+            win.closed_event.set()
+
+        with patch.object(
+            addon, "openSettings", side_effect=_close_during_settings
+        ) as mock_open_settings, patch.object(
+            win, "onInit", wraps=win.onInit
+        ) as mock_oninit:
+            win.setFocusId(HomeWindow.SETTINGS_BUTTON_ID)
+            win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    mock_open_settings.assert_called_once()
+    mock_oninit.assert_not_called()
 
 
 GAMES = [
@@ -504,7 +608,7 @@ def test_selecting_a_live_channel_plays_it():
         win.setFocusId(HomeWindow.CHANNEL_LIST_ID)
         win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
-    mock_resolve.assert_called_once_with("tok", "carol")
+    mock_resolve.assert_called_once_with("carol", "")
     mock_play.assert_called_once_with("https://example.invalid/stream.m3u8")
 
 
@@ -565,47 +669,6 @@ def test_selecting_a_live_channel_shows_error_when_playback_declined():
         win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
     assert win.getControl(HomeWindow.ERROR_LABEL_ID).getLabel() != ""
-
-
-def test_expired_token_during_channel_select_retries_playback_after_refresh():
-    old_token = {
-        "access_token": "old",
-        "refresh_token": "ref",
-        "user_id": "u1",
-        "login": "x",
-        "display_name": "X",
-    }
-    new_token = {"access_token": "new", "refresh_token": "ref2"}
-    addon = _addon_with_token(old_token)
-
-    resolve_calls = []
-
-    def fake_resolve(access_token, broadcaster_login):
-        resolve_calls.append((access_token, broadcaster_login))
-        if access_token == "old":
-            raise api.TokenExpiredError()
-        return "https://example.invalid/stream.m3u8"
-
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_followed_channels", return_value=FOLLOWED
-    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
-        gql, "get_followed_live_games", return_value=[]
-    ), patch(
-        "lib.windows.home.stream.resolve_stream_url", side_effect=fake_resolve
-    ), patch(
-        "lib.windows.home.player.play_stream", return_value=True
-    ) as mock_play, patch(
-        "lib.windows.home.auth.refresh_access_token", return_value=new_token
-    ):
-        win = HomeWindow("script-twitch-center-home.xml", "/tmp")
-        win.onInit()
-        channel_control = win.getControl(HomeWindow.CHANNEL_LIST_ID)
-        channel_control.selectItem(0)
-        win.setFocusId(HomeWindow.CHANNEL_LIST_ID)
-        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
-
-    assert resolve_calls == [("old", "carol"), ("new", "carol")]
-    mock_play.assert_called_once_with("https://example.invalid/stream.m3u8")
 
 
 def test_populate_clears_stale_playback_error_on_next_populate():

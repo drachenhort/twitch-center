@@ -45,6 +45,21 @@ def run(argv, addon=None, login_window_cls=None, home_window_cls=None, monitor_c
     while not window.closed_event.is_set():
         if monitor.waitForAbort(1):
             break
+        if getattr(window, "login_succeeded", False):
+            # LoginWindow can't open Home itself: _on_status runs on its
+            # background polling thread, and xbmcgui window creation must
+            # happen on the main thread (unlike Home/Discover's own
+            # transitions, which fire from onAction on the main thread).
+            closed_event = window.closed_event
+            window.close()
+            window = home_window_cls(
+                "script-twitch-center-home.xml",
+                addon.getAddonInfo("path"),
+                "Default",
+                "1080i",
+                closed_event=closed_event,
+            )
+            window.show()
 
 
 if __name__ == "__main__":

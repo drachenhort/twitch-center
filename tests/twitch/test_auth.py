@@ -405,6 +405,28 @@ def test_refresh_access_token_returns_none_on_network_error():
     assert result is None
 
 
+def test_refresh_access_token_reports_http_error_reason_via_on_error():
+    response = _fake_response({}, status_code=401)
+    response.text = "invalid refresh token"
+    reasons = []
+    with patch.object(auth.requests, "post", return_value=response):
+        result = auth.refresh_access_token("client-id", "old-ref", on_error=reasons.append)
+    assert result is None
+    assert len(reasons) == 1
+    assert "401" in reasons[0]
+    assert "invalid refresh token" in reasons[0]
+
+
+def test_refresh_access_token_reports_network_error_reason_via_on_error():
+    reasons = []
+    with patch.object(auth.requests, "post", side_effect=requests.ConnectionError("boom")):
+        result = auth.refresh_access_token("client-id", "old-ref", on_error=reasons.append)
+    assert result is None
+    assert len(reasons) == 1
+    assert "network error" in reasons[0]
+    assert "boom" in reasons[0]
+
+
 def test_clear_token_removes_saved_token():
     addon = FakeAddon()
     auth.save_token({"access_token": "tok"}, addon)

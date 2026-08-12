@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <window>
-  <defaultcontrol always="true">105</defaultcontrol>
+  <defaultcontrol always="true">206</defaultcontrol>
   <controls>
     <control type="label">
       <description>Title</description>
@@ -11,18 +11,18 @@
       <font>font32</font>
       <label>Discover</label>
     </control>
-    <control type="edit" id="106">
+    <control type="edit" id="206">
       <description>Search query</description>
       <posx>60</posx>
       <posy>130</posy>
       <width>1200</width>
       <height>60</height>
       <font>font13</font>
-      <onright>107</onright>
-      <ondown>105</ondown>
+      <onright>207</onright>
+      <ondown>205</ondown>
       <label>Search channels...</label>
     </control>
-    <control type="button" id="107">
+    <control type="button" id="207">
       <description>Search</description>
       <posx>1280</posx>
       <posy>130</posy>
@@ -30,22 +30,35 @@
       <height>60</height>
       <font>font13</font>
       <align>center</align>
-      <onleft>106</onleft>
-      <onright>104</onright>
-      <ondown>105</ondown>
+      <onleft>206</onleft>
+      <onright>208</onright>
+      <ondown>205</ondown>
       <label>Search</label>
     </control>
-    <control type="list" id="105">
+    <control type="button" id="208">
+      <description>Search mode toggle (channels/games)</description>
+      <posx>1500</posx>
+      <posy>130</posy>
+      <width>360</width>
+      <height>60</height>
+      <font>font13</font>
+      <align>center</align>
+      <onleft>207</onleft>
+      <onright>204</onright>
+      <ondown>205</ondown>
+      <label>Searching: Channels</label>
+    </control>
+    <control type="list" id="205">
       <description>Top games</description>
       <posx>60</posx>
       <posy>220</posy>
       <width>1800</width>
       <height>90</height>
       <orientation>horizontal</orientation>
-      <onup>106</onup>
-      <ondown>101</ondown>
-      <onleft>105</onleft>
-      <onright>105</onright>
+      <onup>206</onup>
+      <ondown>201</ondown>
+      <onleft>205</onleft>
+      <onright>205</onright>
       <itemlayout width="220" height="80">
         <control type="label">
           <width>220</width>
@@ -68,14 +81,14 @@
         </control>
       </focusedlayout>
     </control>
-    <control type="list" id="101">
+    <control type="list" id="201">
       <description>Results</description>
       <posx>60</posx>
       <posy>330</posy>
       <width>1800</width>
       <height>670</height>
-      <onup>105</onup>
-      <ondown>101</ondown>
+      <onup>205</onup>
+      <ondown>201</ondown>
       <itemlayout width="1800" height="120">
         <control type="image">
           <posx>10</posx>
@@ -128,7 +141,7 @@
         </control>
       </focusedlayout>
     </control>
-    <control type="label" id="102">
+    <control type="label" id="202">
       <description>Empty results message</description>
       <posx>560</posx>
       <posy>600</posy>
@@ -138,7 +151,7 @@
       <align>center</align>
       <label></label>
     </control>
-    <control type="label" id="103">
+    <control type="label" id="203">
       <description>Error / re-login message</description>
       <posx>560</posx>
       <posy>600</posy>
@@ -148,7 +161,7 @@
       <align>center</align>
       <label></label>
     </control>
-    <control type="button" id="104">
+    <control type="button" id="204">
       <description>Log in again</description>
       <posx>760</posx>
       <posy>680</posy>
@@ -156,8 +169,8 @@
       <height>60</height>
       <font>font13</font>
       <align>center</align>
-      <onleft>107</onleft>
-      <ondown>105</ondown>
+      <onleft>208</onleft>
+      <ondown>205</ondown>
       <label>Log in again</label>
     </control>
   </controls>

@@ -6,10 +6,17 @@ client_id, and can break without notice if Twitch changes its persisted-query
 hash or response shape. Every function here is best-effort: failures return
 an empty result rather than raising, since this data is decoration
 (a filter convenience) on top of the official-Helix-backed channel list, not
-something the rest of Home should ever fail over."""
-import requests
+something the rest of Home should ever fail over.
 
-from lib.twitch import api
+Every function here takes an optional website_token: gql.twitch.tv rejects
+any Authorization token issued to a non-Twitch client_id (verified directly
+against the live API - see get_playback_access_token's docstring), so our own
+Helix-issued access_token is useless here regardless of which query is being
+made. website_token is instead the user's own twitch.tv browser session
+token (the "auth-token" cookie, manually copied in by the user via Settings)
+- optional everywhere, since every query here also has a working anonymous
+fallback (public data only, no subscriber-only perks)."""
+import requests
 
 GQL_URL = "https://gql.twitch.tv/gql"
 WEB_CLIENT_ID = "kimne78kx3ncx6brgo4mv6wki5h1ko"
@@ -18,7 +25,14 @@ _FOLLOWING_GAMES_QUERY_HASH = "f3c5d45175d623ed3d5ff4ca4c7de379ea6a1a4852236087d
 _PLAYBACK_ACCESS_TOKEN_QUERY_HASH = "ed230aa1e33e07eebb8928504583da78a5173989fadfb1ac94be06a04f3cdbe9"
 
 
-def get_followed_live_games(access_token, limit=100):
+def _headers(website_token=None):
+    headers = {"Client-Id": WEB_CLIENT_ID}
+    if website_token:
+        headers["Authorization"] = "OAuth " + website_token
+    return headers
+
+
+def get_followed_live_games(website_token=None, limit=100):
     """Return the user's followed games that currently have live viewers, as
     a list of {"id", "name", "displayName"} dicts. Best-effort: returns []
     on any failure (network error, non-200, unexpected response shape) -
@@ -29,7 +43,12 @@ def get_followed_live_games(access_token, limit=100):
     Twitch's own web client; the response shape was not, per
     docs/superpowers/specs/2026-08-11-followed-games-filter-design.md's
     "Known limitation" section). Defensive parsing means a wrong guess about
-    field names degrades to an empty list rather than crashing."""
+    field names degrades to an empty list rather than crashing.
+
+    This query is inherently user-specific (the *current* user's follows), so
+    unlike get_playback_access_token, it has no meaningful anonymous mode -
+    without a valid website_token it always returns [] (a 401, same as any
+    other non-200 response)."""
     try:
         response = requests.post(
             GQL_URL,
@@ -45,10 +64,7 @@ def get_followed_live_games(access_token, limit=100):
                     },
                 }
             ],
-            headers={
-                "Client-Id": WEB_CLIENT_ID,
-                "Authorization": "OAuth " + access_token,
-            },
+            headers=_headers(website_token),
             timeout=10,
         )
     except requests.RequestException:
@@ -76,14 +92,21 @@ def get_followed_live_games(access_token, limit=100):
     return games
 
 
-def get_playback_access_token(access_token, channel_login):
+def get_playback_access_token(channel_login, website_token=None):
     """Return a {"value", "signature"} playback access token for the given
-    live channel login, or None on any non-401 failure (network error,
-    non-200, unexpected response shape) - never raises for those. Raises
-    api.TokenExpiredError on HTTP 401, unlike get_followed_live_games's pure
-    best-effort convention: playback is not decoration, so an expired token
-    here must be distinguishable from genuine unavailability, to let the
-    caller retry after a refresh rather than just failing silently.
+    live channel login, or None on any failure (network error, non-200,
+    unexpected response shape) - never raises.
+
+    website_token is optional: our own Helix-issued access_token is USELESS
+    here regardless - gql.twitch.tv rejects Authorization tokens issued to
+    any client_id it doesn't recognize as one of Twitch's own first-party
+    surfaces (verified directly against the live API - a freshly issued,
+    Helix-valid user token still got a 401 "Authorization token is invalid"
+    here, regardless of which Client-Id header accompanied it; refreshing
+    such a token can't fix that rejection). Anonymous requests (no
+    website_token) work fine for public live streams - that's this addon's
+    default. Passing the user's own twitch.tv website_token additionally
+    unlocks ad-free/subscriber-perk playback where the account has it.
 
     "value" is an opaque JSON string Twitch issues - never parse it, just
     pass it through unchanged to usher.ttvnw.net."""
@@ -107,17 +130,12 @@ def get_playback_access_token(access_token, channel_login):
                     }
                 },
             },
-            headers={
-                "Client-Id": WEB_CLIENT_ID,
-                "Authorization": "OAuth " + access_token,
-            },
+            headers=_headers(website_token),
             timeout=10,
         )
     except requests.RequestException:
         return None
 
-    if response.status_code == 401:
-        raise api.TokenExpiredError()
     if response.status_code != 200:
         return None
 

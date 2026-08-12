@@ -112,7 +112,61 @@ def test_discover_skin_xml_declares_all_expected_control_ids():
         for control in root.iter("control")
         if "id" in control.attrib
     }
-    assert {101, 102, 103, 104, 105, 106, 107} <= control_ids
+    assert {201, 202, 203, 204, 205, 206, 207, 208} <= control_ids
+
+
+def test_discover_skin_control_ids_do_not_overlap_home():
+    # Two non-modal script windows can be "resident" in Kodi's window manager
+    # at once (Home stays alive, non-destroyed, while Discover is shown on
+    # top of it). Non-overlapping IDs turned out NOT to be the fix for the
+    # window-revert bug (that was <defaultcontrol> targeting an empty list -
+    # see test_..._defaultcontrol_is_not_a_data_dependent_list below) but
+    # distinct ID ranges between simultaneously-resident windows remains good
+    # practice regardless, so this stays as a guard.
+    home_ids = {
+        int(control.attrib["id"])
+        for control in ET.parse(HOME_SKIN_XML).getroot().iter("control")
+        if "id" in control.attrib
+    }
+    discover_ids = {
+        int(control.attrib["id"])
+        for control in ET.parse(DISCOVER_SKIN_XML).getroot().iter("control")
+        if "id" in control.attrib
+    }
+    assert not (home_ids & discover_ids)
+
+
+def _defaultcontrol_id(skin_path):
+    tree = ET.parse(skin_path)
+    return int(tree.getroot().find("defaultcontrol").text)
+
+
+def _control_type(skin_path, control_id):
+    tree = ET.parse(skin_path)
+    for control in tree.getroot().iter("control"):
+        if control.attrib.get("id") == str(control_id):
+            return control.attrib.get("type")
+    return None
+
+
+def test_home_and_discover_defaultcontrol_is_not_a_data_dependent_list():
+    # <defaultcontrol always="true"> forces Kodi to focus that control the
+    # moment the window activates - natively, before Python's onInit ever
+    # runs. If that control is a "list" that's still empty at skin-parse
+    # time (populated later, by onInit), the focus attempt fails and Kodi's
+    # window manager reverts the whole activation back to the previous
+    # window (CGUIWindowManager::PreviousWindow) - confirmed live, on both
+    # Home and Discover, with zero error logged and onInit never called.
+    # No amount of Python-side setFocusId() can fix this, since it happens
+    # before Python gets a chance to run at all - the skin must target an
+    # always-valid control (a button, not a data-populated list).
+    for skin_path in (HOME_SKIN_XML, DISCOVER_SKIN_XML):
+        control_id = _defaultcontrol_id(skin_path)
+        control_type = _control_type(skin_path, control_id)
+        assert control_type != "list", (
+            f"{skin_path}: defaultcontrol {control_id} is a list, which is "
+            "empty at skin-parse time and will abort window activation"
+        )
 
 
 def test_home_skin_focusable_controls_are_reachable_by_navigation():
@@ -126,7 +180,7 @@ def test_home_skin_focusable_controls_are_reachable_by_navigation():
 
 def test_discover_skin_focusable_controls_are_reachable_by_navigation():
     targets = _nav_targets(DISCOVER_SKIN_XML)
-    for control_id in (104, 105, 106, 107):
+    for control_id in (204, 205, 206, 207):
         assert control_id in targets, f"control {control_id} is not a navigation target"
 
 

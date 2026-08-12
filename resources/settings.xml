@@ -27,6 +27,13 @@
           <control type="edit" format="string"/>
           <visible>false</visible>
         </setting>
+        <setting id="website_token" type="string" label="30007" help="30008">
+          <level>0</level>
+          <default></default>
+          <control type="edit" format="string">
+            <hidden>true</hidden>
+          </control>
+        </setting>
       </group>
     </category>
   </section>

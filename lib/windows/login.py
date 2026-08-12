@@ -24,6 +24,16 @@ class LoginWindow(xbmcgui.WindowXML):
         super().__init__(*args, **kwargs)
         self._cancel_event = threading.Event()
         self._thread = None
+        # Set once _on_status("success") reports success. Kodi can re-fire
+        # onInit on this window afterward (the same "window re-activation"
+        # behaviour noted below) - by then self._thread has finished, so the
+        # is_alive() check alone wouldn't stop a second device-code request
+        # from starting on an already-completed login. Also read by
+        # lib.main.run() to know when to open Home - _on_status runs on the
+        # background polling thread, and xbmcgui window creation must happen
+        # on the main thread, so this window can't just open Home itself the
+        # way Home/Discover do from their (main-thread) onAction handlers.
+        self.login_succeeded = False
         # The whole navigation chain (Login -> Home -> Discover -> Login ...)
         # shares ONE closed_event: main.run() blocks on the FIRST window's
         # event, so a window handing off to another must pass its own event
@@ -33,6 +43,8 @@ class LoginWindow(xbmcgui.WindowXML):
         self.closed_event = closed_event or threading.Event()
 
     def onInit(self):
+        if self.login_succeeded:
+            return
         if self._thread is not None and self._thread.is_alive():
             # Kodi can re-fire onInit (e.g. window re-activation); avoid
             # spawning a second polling thread.
@@ -69,8 +81,11 @@ class LoginWindow(xbmcgui.WindowXML):
         message = STATUS_MESSAGES.get(status, "")
         self.getControl(self.STATUS_LABEL_ID).setLabel(message)
         if status == "success":
-            self.close()
-            self.closed_event.set()
+            # Don't open Home here: this callback runs on the background
+            # polling thread, and creating/showing an xbmcgui window must
+            # happen on the main thread. lib.main.run()'s wait loop picks
+            # this flag up and does the actual handoff.
+            self.login_succeeded = True
 
     def onAction(self, action):
         if action.getId() in (xbmcgui.ACTION_PREVIOUS_MENU, xbmcgui.ACTION_NAV_BACK):

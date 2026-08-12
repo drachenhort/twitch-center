@@ -1,9 +1,8 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
 import requests
 
-from lib.twitch import api, gql
+from lib.twitch import gql
 
 
 def _response(json_body, status_code=200):
@@ -37,6 +36,15 @@ def test_get_followed_live_games_returns_parsed_list_on_success():
     headers = mock_post.call_args.kwargs["headers"]
     assert headers["Client-Id"] == gql.WEB_CLIENT_ID
     assert headers["Authorization"] == "OAuth access-token"
+
+
+def test_get_followed_live_games_omits_authorization_header_without_website_token():
+    body = [{"data": {"currentUser": {"followedGames": {"nodes": []}}}}]
+    with patch.object(gql.requests, "post", return_value=_response(body)) as mock_post:
+        gql.get_followed_live_games()
+    headers = mock_post.call_args.kwargs["headers"]
+    assert headers["Client-Id"] == gql.WEB_CLIENT_ID
+    assert "Authorization" not in headers
 
 
 def test_get_followed_live_games_sends_expected_query_and_variables():
@@ -138,7 +146,7 @@ def test_get_playback_access_token_returns_value_and_signature_on_success():
         }
     }
     with patch.object(gql.requests, "post", return_value=_response(body)) as mock_post:
-        result = gql.get_playback_access_token("access-token", "somechannel")
+        result = gql.get_playback_access_token("somechannel")
     assert result == {"value": "opaque-token-json", "signature": "abc123"}
     payload = mock_post.call_args.kwargs["json"]
     assert payload["operationName"] == "PlaybackAccessToken"
@@ -156,31 +164,46 @@ def test_get_playback_access_token_returns_value_and_signature_on_success():
     )
     headers = mock_post.call_args.kwargs["headers"]
     assert headers["Client-Id"] == gql.WEB_CLIENT_ID
-    assert headers["Authorization"] == "OAuth access-token"
+    # Deliberately no Authorization header - see the function's docstring:
+    # gql.twitch.tv rejects any user token from a non-Twitch client_id here,
+    # regardless of the Client-Id header sent, and anonymous access works
+    # fine for public live streams.
+    assert "Authorization" not in headers
 
 
-def test_get_playback_access_token_raises_token_expired_on_401():
+def test_get_playback_access_token_sends_authorization_when_website_token_given():
+    body = {
+        "data": {
+            "streamPlaybackAccessToken": {"value": "opaque-token-json", "signature": "abc123"}
+        }
+    }
+    with patch.object(gql.requests, "post", return_value=_response(body)) as mock_post:
+        gql.get_playback_access_token("somechannel", "my-website-token")
+    headers = mock_post.call_args.kwargs["headers"]
+    assert headers["Authorization"] == "OAuth my-website-token"
+
+
+def test_get_playback_access_token_returns_none_on_401():
     with patch.object(gql.requests, "post", return_value=_response({}, status_code=401)):
-        with pytest.raises(api.TokenExpiredError):
-            gql.get_playback_access_token("access-token", "somechannel")
+        assert gql.get_playback_access_token("somechannel") is None
 
 
 def test_get_playback_access_token_returns_none_on_network_error():
     with patch.object(gql.requests, "post", side_effect=requests.ConnectionError("boom")):
-        assert gql.get_playback_access_token("access-token", "somechannel") is None
+        assert gql.get_playback_access_token("somechannel") is None
 
 
 def test_get_playback_access_token_returns_none_on_other_non_200():
     with patch.object(gql.requests, "post", return_value=_response({}, status_code=500)):
-        assert gql.get_playback_access_token("access-token", "somechannel") is None
+        assert gql.get_playback_access_token("somechannel") is None
 
 
 def test_get_playback_access_token_returns_none_on_missing_token_data():
     body = {"data": {"streamPlaybackAccessToken": None}}
     with patch.object(gql.requests, "post", return_value=_response(body)):
-        assert gql.get_playback_access_token("access-token", "somechannel") is None
+        assert gql.get_playback_access_token("somechannel") is None
 
 
 def test_get_playback_access_token_returns_none_on_unexpected_shape():
     with patch.object(gql.requests, "post", return_value=_response({"unexpected": "shape"})):
-        assert gql.get_playback_access_token("access-token", "somechannel") is None
+        assert gql.get_playback_access_token("somechannel") is None

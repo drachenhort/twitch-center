@@ -84,6 +84,30 @@ def test_build_channel_item_offline_shows_offline():
     assert item.getLabel2() == "Offline"
 
 
+def test_back_closes_window_when_nothing_is_playing():
+    win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
+    with patch("lib.windows.discover.xbmc.Player") as mock_player_cls:
+        mock_player_cls.return_value.isPlaying.return_value = False
+        with patch.object(win, "close") as mock_close:
+            win.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
+    mock_close.assert_called_once()
+    assert win.closed_event.is_set()
+
+
+def test_back_stops_playback_instead_of_closing_window_when_stream_is_playing():
+    # See HomeWindow's identical test: Kodi's fullscreen-video Back only
+    # exits the fullscreen view without stopping playback, so Back here must
+    # stop an active stream rather than closing the whole addon under it.
+    win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
+    with patch("lib.windows.discover.xbmc.Player") as mock_player_cls:
+        mock_player_cls.return_value.isPlaying.return_value = True
+        with patch.object(win, "close") as mock_close:
+            win.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
+        mock_player_cls.return_value.stop.assert_called_once()
+    mock_close.assert_not_called()
+    assert not win.closed_event.is_set()
+
+
 def test_oninit_populates_top_games():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
@@ -95,6 +119,11 @@ def test_oninit_populates_top_games():
     assert games_control.size() == 2
     labels = [games_control._items[i].getLabel() for i in range(2)]
     assert labels == ["Just Chatting", "League of Legends"]
+    # The skin's <defaultcontrol> targets the search box (always focusable),
+    # not the games list, which is empty at skin-parse time and would abort
+    # window activation if Kodi tried to focus it directly - onInit must
+    # claim focus explicitly once real data is loaded.
+    assert win.getFocusId() == DiscoverWindow.GAMES_LIST_ID
 
 
 def test_oninit_shows_relogin_when_no_token():
@@ -103,6 +132,7 @@ def test_oninit_shows_relogin_when_no_token():
         win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
         win.onInit()
     assert win.getControl(DiscoverWindow.ERROR_LABEL_ID).getLabel() != ""
+    assert win.getFocusId() == DiscoverWindow.RELOGIN_BUTTON_ID
 
 
 def test_oninit_shows_error_on_network_failure():
@@ -174,6 +204,70 @@ def test_empty_search_results_show_nothing_found_message():
         win.setFocusId(DiscoverWindow.SEARCH_BUTTON_ID)
         win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
+    assert win.getControl(DiscoverWindow.EMPTY_LABEL_ID).getLabel() != ""
+    assert win.getControl(DiscoverWindow.RESULTS_LIST_ID).size() == 0
+
+
+def test_toggling_search_mode_button_flips_mode_and_label():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ):
+        win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
+        win.onInit()
+        assert win._search_mode == "channels"
+
+        win.setFocusId(DiscoverWindow.SEARCH_MODE_TOGGLE_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        assert win._search_mode == "games"
+        assert "Games" in win.getControl(DiscoverWindow.SEARCH_MODE_TOGGLE_ID).getLabel()
+
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        assert win._search_mode == "channels"
+        assert "Channels" in win.getControl(DiscoverWindow.SEARCH_MODE_TOGGLE_ID).getLabel()
+
+
+def test_pressing_search_in_game_mode_searches_categories_then_lists_its_streams():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    matches = [{"id": "16497", "name": "World of Warships"}]
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(
+        api, "search_categories", return_value=matches
+    ) as mock_search_categories, patch.object(
+        api, "get_live_streams_by_game", return_value=STREAMS
+    ) as mock_get_streams:
+        win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
+        win.onInit()
+        win.setFocusId(DiscoverWindow.SEARCH_MODE_TOGGLE_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        win.getControl(DiscoverWindow.SEARCH_EDIT_ID).setText("warships")
+        win.setFocusId(DiscoverWindow.SEARCH_BUTTON_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    mock_search_categories.assert_called_once_with("tok", "", "warships", first=1)
+    mock_get_streams.assert_called_once_with("tok", "", "16497")
+    results_control = win.getControl(DiscoverWindow.RESULTS_LIST_ID)
+    assert results_control.size() == 1
+    assert results_control._items[0].getLabel() == "Alice"
+
+
+def test_pressing_search_in_game_mode_shows_message_when_no_game_matches():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(api, "search_categories", return_value=[]), patch.object(
+        api, "get_live_streams_by_game"
+    ) as mock_get_streams:
+        win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
+        win.onInit()
+        win.setFocusId(DiscoverWindow.SEARCH_MODE_TOGGLE_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        win.getControl(DiscoverWindow.SEARCH_EDIT_ID).setText("nonexistentgamexyz")
+        win.setFocusId(DiscoverWindow.SEARCH_BUTTON_ID)
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    mock_get_streams.assert_not_called()
     assert win.getControl(DiscoverWindow.EMPTY_LABEL_ID).getLabel() != ""
     assert win.getControl(DiscoverWindow.RESULTS_LIST_ID).size() == 0
 
@@ -391,7 +485,7 @@ def test_selecting_a_live_result_plays_it():
         win.setFocusId(DiscoverWindow.RESULTS_LIST_ID)
         win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
-    mock_resolve.assert_called_once_with("tok", STREAMS[0]["user_login"])
+    mock_resolve.assert_called_once_with(STREAMS[0]["user_login"], "")
     mock_play.assert_called_once_with("https://example.invalid/stream.m3u8")
 
 
@@ -439,50 +533,6 @@ def test_selecting_a_live_result_shows_results_error_when_resolution_fails():
     assert games_control.size() == 2
 
 
-def test_expired_token_during_channel_select_retries_playback_after_refresh():
-    old_token = {
-        "access_token": "old",
-        "refresh_token": "ref",
-        "user_id": "u1",
-        "login": "x",
-        "display_name": "X",
-    }
-    new_token = {"access_token": "new", "refresh_token": "ref2"}
-    addon = _addon_with_token(old_token)
-
-    resolve_calls = []
-
-    def fake_resolve(access_token, broadcaster_login):
-        resolve_calls.append((access_token, broadcaster_login))
-        if access_token == "old":
-            raise api.TokenExpiredError()
-        return "https://example.invalid/stream.m3u8"
-
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(api, "get_live_streams_by_game", return_value=STREAMS), patch(
-        "lib.windows.discover.stream.resolve_stream_url", side_effect=fake_resolve
-    ), patch(
-        "lib.windows.discover.player.play_stream", return_value=True
-    ) as mock_play, patch(
-        "lib.windows.discover.auth.refresh_access_token", return_value=new_token
-    ):
-        win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
-        win.onInit()
-        games_control = win.getControl(DiscoverWindow.GAMES_LIST_ID)
-        games_control.selectItem(0)
-        win.setFocusId(DiscoverWindow.GAMES_LIST_ID)
-        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
-        results_control = win.getControl(DiscoverWindow.RESULTS_LIST_ID)
-        results_control.selectItem(0)
-        win.setFocusId(DiscoverWindow.RESULTS_LIST_ID)
-        win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
-
-    assert resolve_calls == [
-        ("old", STREAMS[0]["user_login"]),
-        ("new", STREAMS[0]["user_login"]),
-    ]
-    mock_play.assert_called_once_with("https://example.invalid/stream.m3u8")
 
 
 def test_selecting_a_live_result_shows_error_on_unexpected_exception():

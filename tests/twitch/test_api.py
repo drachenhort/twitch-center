@@ -150,6 +150,30 @@ def test_get_live_streams_by_game_raises_token_expired_on_401():
             api.get_live_streams_by_game("token", "client-id", "509658")
 
 
+def test_search_categories_returns_id_and_name():
+    body = {
+        "data": [
+            {"id": "16497", "name": "World of Warships", "box_art_url": "https://x.invalid/a.jpg"},
+            {"id": "9999", "name": "Warships 2", "box_art_url": "https://x.invalid/b.jpg"},
+        ]
+    }
+    with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:
+        result = api.search_categories("token", "client-id", "warships")
+    assert result == [
+        {"id": "16497", "name": "World of Warships"},
+        {"id": "9999", "name": "Warships 2"},
+    ]
+    params = mock_get.call_args.kwargs["params"]
+    assert params["query"] == "warships"
+    assert params["first"] == 20
+
+
+def test_search_categories_raises_token_expired_on_401():
+    with patch.object(api.requests, "get", return_value=_response({}, status_code=401)):
+        with pytest.raises(api.TokenExpiredError):
+            api.search_categories("token", "client-id", "warships")
+
+
 def test_search_channels_returns_data_with_live_only_default():
     body = {
         "data": [

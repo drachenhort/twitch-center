@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <window>
-  <defaultcontrol always="true">101</defaultcontrol>
+  <defaultcontrol always="true">106</defaultcontrol>
   <controls>
     <control type="label" id="107">
       <description>Title with version</description>
@@ -133,6 +133,7 @@
       <font>font13</font>
       <align>center</align>
       <onleft>106</onleft>
+      <onright>108</onright>
       <ondown>105</ondown>
       <label>Log in again</label>
     </control>
@@ -147,6 +148,18 @@
       <onright>104</onright>
       <ondown>105</ondown>
       <label>Discover</label>
+    </control>
+    <control type="button" id="108">
+      <description>Settings</description>
+      <posx>1560</posx>
+      <posy>1010</posy>
+      <width>300</width>
+      <height>60</height>
+      <font>font13</font>
+      <align>center</align>
+      <onleft>104</onleft>
+      <ondown>105</ondown>
+      <label>Settings</label>
     </control>
   </controls>
 </window>

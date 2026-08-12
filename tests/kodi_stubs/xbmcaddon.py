@@ -22,3 +22,6 @@ class Addon:
 
     def getAddonInfo(self, key):
         return _ADDON_INFO.get(key, "")
+
+    def openSettings(self):
+        pass

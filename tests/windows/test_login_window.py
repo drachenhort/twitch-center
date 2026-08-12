@@ -19,13 +19,15 @@ def test_on_status_sets_status_label_text():
     assert win.getControl(LoginWindow.STATUS_LABEL_ID).getLabel() == "Waiting for authorization..."
 
 
-def test_on_status_success_closes_window():
+def test_on_status_success_sets_login_succeeded_flag():
+    # LoginWindow doesn't open Home itself - _on_status runs on the
+    # background polling thread, so it just flags success and lib.main.run()
+    # (on the main thread) does the actual handoff. See test_main.py.
     win = LoginWindow("script-twitch-center-login.xml", "/tmp")
     win._cancel_event = threading.Event()
-    with patch.object(win, "close") as mock_close:
-        win._on_status("success")
-    mock_close.assert_called_once()
-    assert win.closed_event.is_set()
+    win._on_status("success")
+    assert win.login_succeeded is True
+    assert not win.closed_event.is_set()
 
 
 def test_on_code_does_nothing_when_cancelled():
@@ -42,9 +44,8 @@ def test_on_status_does_nothing_when_cancelled():
     win = LoginWindow("script-twitch-center-login.xml", "/tmp")
     win._cancel_event = threading.Event()
     win._cancel_event.set()
-    with patch.object(win, "close") as mock_close:
-        win._on_status("success")
-    mock_close.assert_not_called()
+    win._on_status("success")
+    assert win.login_succeeded is False
     assert win.getControl(LoginWindow.STATUS_LABEL_ID).getLabel() == ""
 
 
@@ -64,10 +65,6 @@ def test_shared_closed_event_is_used_instead_of_a_fresh_one():
     shared = threading.Event()
     win = LoginWindow("script-twitch-center-login.xml", "/tmp", closed_event=shared)
     assert win.closed_event is shared
-    win._cancel_event = threading.Event()
-    with patch.object(win, "close"):
-        win._on_status("success")
-    assert shared.is_set()
 
 
 def test_on_action_unrelated_key_does_nothing():
@@ -116,3 +113,18 @@ def test_oninit_starts_new_thread_if_previous_thread_finished():
         win.onInit()
     assert mock_thread_cls.call_count == 2
     second_thread.start.assert_called_once()
+
+
+def test_oninit_does_not_restart_after_success_even_if_kodi_refires_it():
+    # Kodi can re-fire onInit on a window it still considers current, even
+    # after _on_status("success") has already handed off to Home and the
+    # polling thread has finished (is_alive() would be False by then) - the
+    # thread-liveness check alone isn't enough to stop a second device-code
+    # request from starting on an already-completed login.
+    win = LoginWindow("script-twitch-center-login.xml", "/tmp")
+    win._cancel_event = threading.Event()
+    win._on_status("success")
+
+    with patch("lib.windows.login.threading.Thread") as mock_thread_cls:
+        win.onInit()
+    mock_thread_cls.assert_not_called()

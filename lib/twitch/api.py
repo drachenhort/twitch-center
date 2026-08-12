@@ -91,6 +91,19 @@ def get_live_streams_by_game(access_token, client_id, game_id, first=20):
     return body["data"]
 
 
+def search_categories(access_token, client_id, query, first=20):
+    """Free-text game/category search (Helix /search/categories) for the given
+    query string. Returns a list of {"id", "name"} dicts, best match first (as
+    ordered by Twitch)."""
+    body = _get(
+        HELIX_BASE + "/search/categories",
+        access_token,
+        client_id,
+        params={"query": query, "first": first},
+    )
+    return [{"id": game["id"], "name": game["name"]} for game in body["data"]]
+
+
 def search_channels(access_token, client_id, query, live_only=True, first=20):
     """Free-text channel search (Helix /search/channels) for the given query string.
     Defaults to only currently-live channels - this app is about finding something
