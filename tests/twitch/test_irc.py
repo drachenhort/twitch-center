@@ -147,6 +147,57 @@ def test_read_messages_yields_connected_status_then_privmsg():
     }
 
 
+def test_reconnects_with_backoff_after_socket_error():
+    good_line = ":a!a@a PRIVMSG #chan :hi\r\n".encode("utf-8")
+    sockets = [
+        FakeSocket(recv_queue=[ConnectionError("boom")]),
+        FakeSocket(recv_queue=[good_line]),
+    ]
+    factory_calls = iter(sockets)
+    sleeps = []
+    client = ChatClient(
+        "chan",
+        socket_factory=lambda: next(factory_calls),
+        sleep_fn=lambda seconds: sleeps.append(seconds),
+    )
+    client.connect()
+
+    events = []
+    for event in client.read_messages():
+        events.append(event)
+        if event["type"] == "message":
+            break
+    client.disconnect()
+
+    states = [e["state"] for e in events if e["type"] == "status"]
+    assert states == ["connected", "disconnected", "connected"]
+    assert events[-1]["type"] == "message"
+    assert sleeps == [1]
+
+
+def test_backoff_doubles_on_consecutive_failures():
+    sockets = [
+        FakeSocket(recv_queue=[ConnectionError("boom")]),
+        FakeSocket(recv_queue=[ConnectionError("boom again")]),
+        FakeSocket(recv_queue=[":a!a@a PRIVMSG #chan :hi\r\n".encode("utf-8")]),
+    ]
+    factory_calls = iter(sockets)
+    sleeps = []
+    client = ChatClient(
+        "chan",
+        socket_factory=lambda: next(factory_calls),
+        sleep_fn=lambda seconds: sleeps.append(seconds),
+    )
+    client.connect()
+
+    for event in client.read_messages():
+        if event["type"] == "message":
+            break
+    client.disconnect()
+
+    assert sleeps == [1, 2]
+
+
 def test_ping_is_answered_with_pong_and_not_queued():
     # Follow the PING with a real PRIVMSG so the test has a deterministic
     # stopping point after confirming PING was handled.

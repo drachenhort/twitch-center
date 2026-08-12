@@ -80,6 +80,10 @@ IRC_PORT = 6697
 
 _QUEUE_POLL_TIMEOUT = 0.5
 
+_BACKOFF_START = 1
+_BACKOFF_MAX = 30
+_BACKOFF_RESET_AFTER = 30  # seconds a connection must stay up to reset backoff
+
 
 def _default_socket_factory():
     raw = socket_module.create_connection((IRC_HOST, IRC_PORT), timeout=10)
@@ -125,19 +129,37 @@ class ChatClient:
             self._thread.join(timeout=5)
 
     def _run(self):
-        try:
-            self._sock = self._socket_factory()
-            self._handshake()
-            self._queue.put({"type": "status", "state": "connected"})
-            self._read_loop()
-        except (OSError, ConnectionError):
-            pass
-        finally:
-            if self._sock is not None:
-                try:
-                    self._sock.close()
-                except OSError:
-                    pass
+        backoff = _BACKOFF_START
+        while not self._cancel_event.is_set():
+            connected_at = None
+            try:
+                self._sock = self._socket_factory()
+                self._handshake()
+                connected_at = time.time()
+                self._queue.put({"type": "status", "state": "connected"})
+                self._read_loop()
+            except (OSError, ConnectionError):
+                pass
+            finally:
+                if self._sock is not None:
+                    try:
+                        self._sock.close()
+                    except OSError:
+                        pass
+                    self._sock = None
+
+            # Give a concurrent disconnect() a brief window to set the
+            # cancel event before we treat this as a failure needing a
+            # backoff/retry cycle - closes the race between a just-closed
+            # connection and an in-flight disconnect() call.
+            if self._cancel_event.wait(0.05):
+                break
+
+            self._queue.put({"type": "status", "state": "disconnected"})
+            if connected_at is not None and (time.time() - connected_at) > _BACKOFF_RESET_AFTER:
+                backoff = _BACKOFF_START
+            self._sleep_fn(backoff)
+            backoff = min(backoff * 2, _BACKOFF_MAX)
 
     def _read_loop(self):
         buffer = ""
