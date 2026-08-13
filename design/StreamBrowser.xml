@@ -141,7 +141,7 @@
                     <width>415</width>
                     <height>275</height>
                     <texture>colors/white.png</texture>
-                    <colordiffuse>FFFFFF00</colordiffuse>
+                    <colordiffuse>$VAR[Color_FocusedCardBorder]</colordiffuse>
                 </control>
                 <control type="image">
                     <posx>8</posx>
@@ -149,7 +149,7 @@
                     <width>399</width>
                     <height>259</height>
                     <texture>colors/white.png</texture>
-                    <colordiffuse>$VAR[Color_SurfaceContainer]</colordiffuse>
+                    <colordiffuse>$VAR[Color_SurfaceContainerHigh]</colordiffuse>
                 </control>
                 <control type="image">
                     <posx>16</posx>
@@ -185,7 +185,7 @@
                     <width>383</width>
                     <height>36</height>
                     <texture>colors/white.png</texture>
-                    <colordiffuse>FFFFFF00</colordiffuse>
+                    <colordiffuse>$VAR[Color_FocusedCard]</colordiffuse>
                 </control>
                 <control type="label">
                     <posx>16</posx>
@@ -193,7 +193,7 @@
                     <width>383</width>
                     <height>36</height>
                     <font>CardHeadline</font>
-                    <textcolor>$VAR[Color_OnPrimary]</textcolor>
+                    <textcolor>$VAR[Color_OnFocusedCard]</textcolor>
                     <align>center</align>
                     <aligny>center</aligny>
                     <scroll>true</scroll>

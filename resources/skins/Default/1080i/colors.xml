@@ -27,4 +27,5 @@
     <!-- Focus highlight for the selected stream card -->
     <constant name="Color_FocusedCard">FFFFEB3B</constant>
     <constant name="Color_FocusedCardBorder">FFFFFF00</constant>
+    <constant name="Color_OnFocusedCard">FF000000</constant>
 </includes>
