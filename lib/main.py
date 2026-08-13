@@ -11,10 +11,21 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import xbmc
 import xbmcaddon
+import xbmcgui
 
 from lib.twitch import auth
 from lib.windows.home import HomeWindow
 from lib.windows.login import LoginWindow
+
+
+def show_quit_prompt():
+    """Display a confirmation dialog when the user attempts to quit."""
+    dialog = xbmcgui.Dialog()
+    return dialog.yesno(
+        "Twitch Center",
+        "Are you sure you want to quit?",
+        "Your chat and stream will be closed."
+    )
 
 
 def run(argv, addon=None, login_window_cls=None, home_window_cls=None, monitor_cls=None):
@@ -45,6 +56,10 @@ def run(argv, addon=None, login_window_cls=None, home_window_cls=None, monitor_c
     while not window.closed_event.is_set():
         if monitor.waitForAbort(1):
             break
+        if getattr(window, "quit_requested", False):
+            if not show_quit_prompt():
+                continue
+            window.quit_requested = False
         if getattr(window, "login_succeeded", False):
             # LoginWindow can't open Home itself: _on_status runs on its
             # background polling thread, and xbmcgui window creation must
