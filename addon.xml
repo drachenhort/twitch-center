@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="script.twitch.center" name="Twitch Center" version="0.14.0" provider-name="drachenhort">
+<addon id="script.twitch.center" name="Twitch Center" version="0.14.1" provider-name="drachenhort">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
     <import addon="script.module.requests" version="2.22.0"/>
@@ -21,6 +21,10 @@
       <icon>icon.png</icon>
     </assets>
     <news>
+      v0.14.1: Fixed Search crashing on open (AttributeError in onInit) - the window would flash
+      open then immediately bounce back to Home. Known issue: even fixed, Search can still hit the
+      pre-existing Kodi window-activation revert bug in some cases, same as Discover/re-login -
+      tracked separately.
       v0.14.0: Added an addon icon - shows in Kodi's addon browser and Add-ons list instead of
       the generic script placeholder.
       v0.13.1: Updated window tests to match the new quit-confirmation behavior introduced in v0.13.0.

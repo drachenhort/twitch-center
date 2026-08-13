@@ -110,6 +110,12 @@ class ControlLabel:
     def isVisible(self):
         return self._visible
 
+    def setEnabled(self, enabled):
+        self._enabled = enabled
+
+    def isEnabled(self):
+        return getattr(self, "_enabled", True)
+
 
 class WindowXML:
     def __init__(self, xml_filename, script_path, default_skin="Default", default_res="1080i"):

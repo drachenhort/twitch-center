@@ -4,6 +4,23 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.14.1] - 2026-08-13
+
+### Fixed
+- Search window crashed immediately on open: `onInit` called `.setFocus(True)` on an edit
+  control, but Kodi's `xbmcgui.ControlEdit` has no `setFocus` method (only `Window.setFocusId`
+  exists for this). The uncaught `AttributeError` made Kodi's window manager silently revert to
+  Home - looked like Search flashing open then bouncing back. `setFocusId` alone (already called
+  on the line above) was sufficient; the broken line is removed. Added `tests/windows/test_search_window.py`,
+  since `search.py` previously had no test coverage at all.
+
+### Known issue
+- Even with the crash fixed, opening Search from Home can still hit a separate, pre-existing
+  Kodi window-manager bug where a second custom window activation gets natively reverted with no
+  Python error - the same root cause already tracked for Discover and re-login. Confirmed live
+  this isn't specific to `xbmcgui.WindowXML` vs `WindowXMLDialog` (Search already uses
+  `WindowXMLDialog`); root cause is still open.
+
 ## [0.14.0] - 2026-08-13
 
 ### Added

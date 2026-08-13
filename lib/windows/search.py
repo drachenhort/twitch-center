@@ -31,7 +31,6 @@ class SearchWindow(xbmcgui.WindowXMLDialog):
 
     def onInit(self):
         self.setFocusId(self.SEARCH_INPUT_ID)
-        self.getControl(self.SEARCH_INPUT_ID).setFocus(True)
         self.getControl(self.STATUS_LABEL_ID).setLabel("")
         self._update_next_page_button()
 
