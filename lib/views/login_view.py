@@ -19,6 +19,11 @@ class LoginView:
     CODE_LABEL_ID = 101
     URL_LABEL_ID = 102
     STATUS_LABEL_ID = 103
+    CANCEL_BUTTON_ID = 104
+    # Matches the skin's <defaultcontrol always="true">104</defaultcontrol>,
+    # so the native first-activation focus and every later switch to Login
+    # agree on the same control.
+    DEFAULT_FOCUS_ID = CANCEL_BUTTON_ID
 
     def __init__(self, window, closed_event=None):
         self.window = window
@@ -31,10 +36,20 @@ class LoginView:
         self._cancel_event.set()
 
     def activate(self):
-        if self.login_succeeded:
-            return
-        if self._thread is not None and self._thread.is_alive():
-            return
+        # This view is constructed once and reused for the whole session, so
+        # every visit must be able to start a genuinely fresh device-code
+        # flow. MainWindow calls stop() when it navigates away, which sets
+        # _cancel_event - a set cancel event therefore means "the previous
+        # visit is over", and the guards below (which only exist to absorb
+        # Kodi re-firing onInit/activation WITHIN the current visit) are
+        # deliberately skipped so re-login works any number of times.
+        resuming_after_stop = self._cancel_event.is_set()
+        if not resuming_after_stop:
+            if self.login_succeeded:
+                return
+            if self._thread is not None and self._thread.is_alive():
+                return
+        self.login_succeeded = False
         self._cancel_event = threading.Event()
         addon = xbmcaddon.Addon()
         client_id = addon.getSetting("client_id")

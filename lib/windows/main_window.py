@@ -46,18 +46,34 @@ class MainWindow(xbmcgui.WindowXML):
         }
 
     def onInit(self):
-        self._switch_view(self._initial_view)
+        # Kodi can re-fire onInit on an already-active window; resuming the
+        # current view keeps a user who's deep in Discover/Search from being
+        # snapped back to the initial view.
+        self._switch_view(self._active_name or self._initial_view)
 
     def _switch_view(self, name):
         old_view = self._views.get(self._active_name)
-        if old_view is not None and hasattr(old_view, "stop"):
-            old_view.stop()
+        # Re-switching to the already-active view (Kodi re-firing onInit)
+        # must not tear the view down - stopping it would cancel work that
+        # is still legitimately in flight, e.g. Login's polling thread.
+        if old_view is not None and old_view is not self._views.get(name):
+            if hasattr(old_view, "stop"):
+                old_view.stop()
         for view_name, group_id in self.GROUP_IDS.items():
             control = self._safe_control(group_id)
             if control:
                 control.setVisible(view_name == name)
         self._active_name = name
-        self._views[name].activate()
+        view = self._views[name]
+        # The skin's <defaultcontrol always="true"> only applies once,
+        # natively, before onInit ever runs - every later view switch would
+        # otherwise leave focus on a now-hidden control. Claim the view's
+        # declared default BEFORE activate(), so any more specific focus the
+        # view claims itself (e.g. a freshly populated list) still wins.
+        default_focus = getattr(view, "DEFAULT_FOCUS_ID", None)
+        if default_focus is not None:
+            self.setFocusId(default_focus)
+        view.activate()
 
     def _safe_control(self, control_id):
         try:
@@ -75,7 +91,13 @@ class MainWindow(xbmcgui.WindowXML):
             else:
                 self._switch_view("menu")
             return
+        if self._active_name is None:
+            # Kodi can deliver input before onInit has run - there's no view
+            # to delegate to yet.
+            return
         self._views[self._active_name].handle_action(action)
 
     def onClick(self, control_id):
+        if self._active_name is None:
+            return
         self._views[self._active_name].handle_click(control_id)

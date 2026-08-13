@@ -10,6 +10,9 @@ class MenuView:
     SEARCH_BUTTON_ID = 503
     SETTINGS_BUTTON_ID = 504
     RELOGIN_BUTTON_ID = 505
+    # MainWindow focuses this when Menu becomes visible - the skin's own
+    # <defaultcontrol> only fires once, on the very first window activation.
+    DEFAULT_FOCUS_ID = LIVE_STREAMS_BUTTON_ID
 
     def __init__(self, window, closed_event=None):
         self.window = window

@@ -53,7 +53,6 @@ def run(argv, addon=None, main_window_cls=None, monitor_cls=None):
     window.show()
 
     monitor = monitor_cls()
-    switched_to_menu = False
     while not window.closed_event.is_set():
         if monitor.waitForAbort(1):
             break
@@ -61,14 +60,17 @@ def run(argv, addon=None, main_window_cls=None, monitor_cls=None):
             if not show_quit_prompt():
                 window.closed_event.quit_requested = False
                 continue
+            window.close()
             window.closed_event.set()
             window.closed_event.quit_requested = False
             break
-        if not switched_to_menu:
-            login_view = window._views.get("login")
-            if login_view is not None and getattr(login_view, "login_succeeded", False):
-                window._switch_view("menu")
-                switched_to_menu = True
+        login_view = window._views.get("login")
+        if login_view is not None and getattr(login_view, "login_succeeded", False):
+            window._switch_view("menu")
+            # Clear the flag rather than latching "we already switched once":
+            # LoginView is reused for the whole session, so a LATER login
+            # (via "Log in again") must be able to hand off to Menu too.
+            login_view.login_succeeded = False
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import xbmcgui
 
@@ -23,8 +23,27 @@ class FakeView:
         self.clicks.append(control_id)
 
 
-def _make_window(initial_view="menu"):
+class FocusingFakeView(FakeView):
+    """A view that declares a default focus target but does not claim any
+    more specific focus of its own inside activate()."""
+
+    DEFAULT_FOCUS_ID = 501
+
+
+class SelfFocusingFakeView(FakeView):
+    """A view that claims its own, more specific focus inside activate() -
+    that claim must win over DEFAULT_FOCUS_ID."""
+
+    DEFAULT_FOCUS_ID = 501
+
+    def activate(self):
+        super().activate()
+        self.window.setFocusId(999)
+
+
+def _make_window(initial_view="menu", view_classes=None):
     views = {name: FakeView for name in ("login", "menu", "live_streams", "discover", "search")}
+    views.update(view_classes or {})
     return MainWindow(
         "script-twitch-center-main.xml", "/tmp", initial_view=initial_view, view_classes=views
     )
@@ -97,3 +116,67 @@ def test_onclick_delegates_to_the_active_view():
     win.onInit()
     win.onClick(201)
     assert win._views["live_streams"].clicks == [201]
+
+
+def test_switch_view_focuses_the_targets_default_focus_id():
+    # The skin's <defaultcontrol always="true"> is applied once, natively,
+    # before onInit ever runs - so without this, every later view switch
+    # would leave focus on a control belonging to the now-hidden group.
+    win = _make_window(initial_view="login", view_classes={"menu": FocusingFakeView})
+    win.onInit()
+    win._switch_view("menu")
+    assert win.getFocusId() == FocusingFakeView.DEFAULT_FOCUS_ID
+
+
+def test_switch_view_lets_the_view_override_the_default_focus_in_activate():
+    win = _make_window(initial_view="login", view_classes={"menu": SelfFocusingFakeView})
+    win.onInit()
+    win._switch_view("menu")
+    assert win.getFocusId() == 999
+
+
+def test_switch_view_leaves_focus_alone_for_views_without_a_default():
+    win = _make_window(initial_view="login")
+    win.onInit()
+    win.setFocusId(42)
+    win._switch_view("discover")
+    assert win.getFocusId() == 42
+
+
+def test_oninit_resumes_the_active_view_when_refired():
+    # Kodi re-fires onInit on an already-active window; that must not throw
+    # a user who navigated to Discover back to the initial view.
+    win = _make_window(initial_view="menu")
+    win.onInit()
+    win._switch_view("discover")
+    win.onInit()
+    assert win._active_name == "discover"
+    assert win.getControl(win.GROUP_IDS["discover"]).isVisible() is True
+
+
+def test_oninit_refire_does_not_stop_the_still_active_view():
+    class StoppableFakeView(FakeView):
+        def __init__(self, window, closed_event=None):
+            super().__init__(window, closed_event=closed_event)
+            self.stop_calls = 0
+
+        def stop(self):
+            self.stop_calls += 1
+
+    win = _make_window(initial_view="login", view_classes={"login": StoppableFakeView})
+    win.onInit()
+    win.onInit()
+    assert win._views["login"].stop_calls == 0
+
+
+def test_onaction_before_oninit_does_not_raise():
+    win = _make_window(initial_view="menu")
+    assert win._active_name is None
+    win.onAction(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+    assert win._views["menu"].actions == []
+
+
+def test_onclick_before_oninit_does_not_raise():
+    win = _make_window(initial_view="menu")
+    win.onClick(501)
+    assert win._views["menu"].clicks == []

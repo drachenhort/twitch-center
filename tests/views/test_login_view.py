@@ -118,12 +118,43 @@ def test_activate_starts_new_thread_if_previous_thread_finished():
     second_thread.start.assert_called_once()
 
 
+def test_activate_starts_a_fresh_login_flow_on_a_second_visit():
+    # LoginView is constructed once and reused for the whole session, so
+    # "Log in again" after an earlier successful login has to start a
+    # genuinely fresh device-code flow. MainWindow calls stop() when it
+    # navigates away, which is what marks the previous visit as finished.
+    with patch("lib.views.login_view.threading.Thread") as mock_thread_cls:
+        first_thread = MagicMock()
+        first_thread.is_alive.return_value = True  # still polling when we leave
+        second_thread = MagicMock()
+        mock_thread_cls.side_effect = [first_thread, second_thread]
+
+        win = LoginView(FakeWindow(), closed_event=threading.Event())
+        win.activate()
+        win._on_status("success")
+        assert win.login_succeeded is True
+
+        # User leaves Login (MainWindow._switch_view) and comes back later.
+        win.stop()
+        win.activate()
+
+    assert mock_thread_cls.call_count == 2
+    second_thread.start.assert_called_once()
+    # A fresh flow means the stale success flag is cleared, and the new
+    # thread gets a fresh (un-cancelled) cancel event so its callbacks land.
+    assert win.login_succeeded is False
+    assert not win._cancel_event.is_set()
+    assert mock_thread_cls.call_args.kwargs["kwargs"]["cancel_event"] is win._cancel_event
+
+
 def test_activate_does_not_restart_after_success_even_if_reactivated():
-    # Kodi can re-show this view's group (e.g. re-activation) even after
-    # _on_status("success") has already handed off to Home and the polling
-    # thread has finished (is_alive() would be False by then) - the
+    # Kodi can re-fire onInit/activation on the still-current Login view
+    # even after _on_status("success") has flagged the handoff and the
+    # polling thread has finished (is_alive() would be False by then) - the
     # thread-liveness check alone isn't enough to stop a second device-code
-    # request from starting on an already-completed login.
+    # request from starting on an already-completed login. This guard is
+    # scoped to the CURRENT visit only; see
+    # test_activate_starts_a_fresh_login_flow_on_a_second_visit.
     win = LoginView(FakeWindow(), closed_event=threading.Event())
     win._cancel_event = threading.Event()
     win._on_status("success")
