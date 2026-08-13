@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.15.1] - 2026-08-14
+
+### Changed
+- No functional change - re-deploy marker for kodi.local install.
+
 ## [0.15.0] - 2026-08-13
 
 ### Added
