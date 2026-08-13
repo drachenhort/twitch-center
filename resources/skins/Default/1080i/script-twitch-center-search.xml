@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window>
+  <defaultcontrol always="true">101</defaultcontrol>
+  <controls>
+    <control type="image">
+      <posx>0</posx>
+      <posy>0</posy>
+      <width>1920</width>
+      <height>1080</height>
+      <texture>black.png</texture>
+      <colordiffuse>CC000000</colordiffuse>
+    </control>
+    <control type="group">
+      <posx>100</posx>
+      <posy>100</posy>
+      <width>1720</width>
+      <height>880</height>
+      
+      <control type="edit" id="101">
+        <description>Search Input</description>
+        <posx>0</posx>
+        <posy>0</posy>
+        <width>1720</width>
+        <height>60</height>
+        <font>font20</font>
+        <align>center</align>
+        <aligny>center</aligny>
+        <textcolor>ffffff</textcolor>
+        <focusedcolor>ff9146ff</focusedcolor>
+        <label>Search channels or streams...</label>
+        <onup>101</onup>
+        <ondown>102</ondown>
+        <onleft>101</onleft>
+        <onright>101</onright>
+      </control>
+      
+      <control type="label" id="103">
+        <description>Status</description>
+        <posx>0</posx>
+        <posy>70</posy>
+        <width>1720</width>
+        <height>40</height>
+        <font>font13</font>
+        <align>center</align>
+        <textcolor>aaaaaa</textcolor>
+        <label></label>
+      </control>
+      
+      <control type="list" id="102">
+        <description>Results List</description>
+        <posx>0</posx>
+        <posy>120</posy>
+        <width>1720</width>
+        <height>760</height>
+        <onup>101</onup>
+        <ondown>102</ondown>
+        <itemlayout width="1720" height="80">
+          <control type="label">
+            <posx>20</posx>
+            <width>1680</width>
+            <height>80</height>
+            <font>font20</font>
+            <align>left</align>
+            <aligny>center</aligny>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+        </itemlayout>
+        <focusedlayout width="1720" height="80">
+          <control type="label">
+            <posx>20</posx>
+            <width>1680</width>
+            <height>80</height>
+            <font>font20</font>
+            <align>left</align>
+            <aligny>center</aligny>
+            <textcolor>ff9146ff</textcolor>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+        </focusedlayout>
+      </control>
+    </control>
+  </controls>
+</window>

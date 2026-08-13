@@ -145,9 +145,22 @@
       <height>60</height>
       <font>font13</font>
       <align>center</align>
-      <onright>104</onright>
+      <onright>109</onright>
       <ondown>105</ondown>
       <label>Discover</label>
+    </control>
+    <control type="button" id="109">
+      <description>Search</description>
+      <posx>420</posx>
+      <posy>1010</posy>
+      <width>300</width>
+      <height>60</height>
+      <font>font13</font>
+      <align>center</align>
+      <onleft>106</onleft>
+      <onright>108</onright>
+      <ondown>105</ondown>
+      <label>Search</label>
     </control>
     <control type="button" id="108">
       <description>Settings</description>
@@ -157,7 +170,7 @@
       <height>60</height>
       <font>font13</font>
       <align>center</align>
-      <onleft>104</onleft>
+      <onleft>109</onleft>
       <ondown>105</ondown>
       <label>Settings</label>
     </control>
