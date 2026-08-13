@@ -1,5 +1,6 @@
 """Resolves a Twitch channel name to a playable HLS URL via Twitch's GraphQL +
 usher.ttvnw.net access-token endpoints. No xbmc* imports - pure Python, pytest-testable."""
+import random
 from urllib.parse import quote
 
 from lib.twitch import gql
@@ -32,4 +33,7 @@ def resolve_stream_url(channel_login, website_token=None):
         + "&sig="
         + token["signature"]
         + "&allow_source=true&fast_bread=true&player_backend=mediaplayer"
+        + "&acmb=e30="
+        + "&p="
+        + str(random.randint(1, 999999))
     )
