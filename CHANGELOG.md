@@ -4,6 +4,22 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.15.0] - 2026-08-13
+
+### Added
+- New landing Menu view - the addon now opens (or returns, via Back) to a menu that lets you
+  choose Live Streams, Discover, or Search, separating navigation from the followed-channel list
+  that used to live on Home.
+
+### Changed
+- Rewired the whole UI onto a single persistent `MainWindow` that hosts every screen (Login,
+  Menu, Live Streams, Discover, Search) as a toggle-able skin group, instead of constructing a
+  brand-new `xbmcgui` window for each screen transition. This eliminates the native Kodi
+  window-manager revert bug at its source - see the 2026-08-13 persistent-window-architecture
+  design spec - which fully resolves the "Known issue" noted in the 0.14.1 entry below for
+  Search, and the analogous issue previously tracked for Discover and re-login: a second-window
+  activation reverting with no error is no longer possible when there is only ever one window.
+
 ## [0.14.1] - 2026-08-13
 
 ### Fixed

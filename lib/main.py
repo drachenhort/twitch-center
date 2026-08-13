@@ -14,8 +14,7 @@ import xbmcaddon
 import xbmcgui
 
 from lib.twitch import auth
-from lib.windows.home import HomeWindow
-from lib.windows.login import LoginWindow
+from lib.windows.main_window import MainWindow
 
 
 def show_quit_prompt():
@@ -28,31 +27,33 @@ def show_quit_prompt():
     )
 
 
-def run(argv, addon=None, login_window_cls=None, home_window_cls=None, monitor_cls=None):
-    """Route to LoginWindow if no token is saved, otherwise HomeWindow.
+def run(argv, addon=None, main_window_cls=None, monitor_cls=None):
+    """Construct MainWindow once and block until it closes for real.
 
     Kodi's xbmc.python.script addons run to completion and tear down; a
     non-modal window (shown via show(), not doModal()) would be destroyed
     the instant run() returns. So after showing the window, block on an
     xbmc.Monitor() wait loop until either Kodi is shutting down or the
-    window signals (via its closed_event) that it's done."""
+    window signals (via its closed_event) that it's done. This is the same
+    wait-loop shape as before the persistent-window migration - only window
+    construction collapsed from "one per screen transition" to "once, ever"."""
     addon = addon or xbmcaddon.Addon()
-    login_window_cls = login_window_cls or LoginWindow
-    home_window_cls = home_window_cls or HomeWindow
+    main_window_cls = main_window_cls or MainWindow
     monitor_cls = monitor_cls or xbmc.Monitor
 
     token = auth.load_token(addon)
-    if token is None:
-        window = login_window_cls(
-            "script-twitch-center-login.xml", addon.getAddonInfo("path"), "Default", "1080i"
-        )
-    else:
-        window = home_window_cls(
-            "script-twitch-center-home.xml", addon.getAddonInfo("path"), "Default", "1080i"
-        )
+    initial_view = "menu" if token else "login"
+    window = main_window_cls(
+        "script-twitch-center-main.xml",
+        addon.getAddonInfo("path"),
+        "Default",
+        "1080i",
+        initial_view=initial_view,
+    )
     window.show()
 
     monitor = monitor_cls()
+    switched_to_menu = False
     while not window.closed_event.is_set():
         if monitor.waitForAbort(1):
             break
@@ -60,25 +61,14 @@ def run(argv, addon=None, login_window_cls=None, home_window_cls=None, monitor_c
             if not show_quit_prompt():
                 window.closed_event.quit_requested = False
                 continue
-            window.close()
             window.closed_event.set()
             window.closed_event.quit_requested = False
             break
-        if getattr(window, "login_succeeded", False):
-            # LoginWindow can't open Home itself: _on_status runs on its
-            # background polling thread, and xbmcgui window creation must
-            # happen on the main thread (unlike Home/Discover's own
-            # transitions, which fire from onAction on the main thread).
-            closed_event = window.closed_event
-            window.close()
-            window = home_window_cls(
-                "script-twitch-center-home.xml",
-                addon.getAddonInfo("path"),
-                "Default",
-                "1080i",
-                closed_event=closed_event,
-            )
-            window.show()
+        if not switched_to_menu:
+            login_view = window._views.get("login")
+            if login_view is not None and getattr(login_view, "login_succeeded", False):
+                window._switch_view("menu")
+                switched_to_menu = True
 
 
 if __name__ == "__main__":
