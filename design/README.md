@@ -58,17 +58,17 @@ Python have to match.
 ## Texture assets you still need to create
 
 Kodi has no native rounded-corner or box-shadow property, so "elevation" is
-faked with pre-rendered PNGs. Six small images, all referenced in
+faked with pre-rendered PNGs. Six small images, all required by
 `StreamBrowser.xml`:
 
 | File | What it is |
 |---|---|
-| `card_surface.png` | *(Optional)* Flat rounded-rect (12dp radius), fill `#211F26` (Surface Container), no shadow. The implementation now falls back to `colors/white.png` + `colordiffuse` so this is only needed if you want rounded corners. |
-| `card_surface_focus.png` | *(Optional)* Same shape, fill `#2B2930` (Surface Container High), soft drop shadow baked in. The implementation now falls back to `colors/white.png` + `colordiffuse`. |
-| `badge_live.png` | *(Optional)* Small rounded pill, fill `#E64980`. The implementation now falls back to `colors/white.png` + `colordiffuse`. |
-| `name_box.png` | *(Optional)* Flat rounded-rect strip, fill `#2B2930` (Surface Container High). The implementation now falls back to `colors/white.png` + `colordiffuse`. |
-| `card_border.png` | *(Optional)* Hollow rounded-rect frame. The implementation now draws the focus border with two overlapping `colors/white.png` rectangles instead. |
-| `thumb_mask.png` | Referenced in the notes above but not yet used in the XML — optional, for rounding thumbnail corners if you want that polish later (needs a multiply-blend overlay, slightly more setup). |
+| `card_surface.png` | Flat rounded-rect (12dp radius), fill `#211F26` (Surface Container), no shadow. |
+| `card_surface_focus.png` | Same shape, fill `#2B2930` (Surface Container High), soft drop shadow baked in. |
+| `badge_live.png` | Small rounded pill, fill `#E64980`. |
+| `name_box.png` | Flat rounded-rect strip, fill `#2B2930` (Surface Container High). |
+| `card_border.png` | Hollow rounded-rect frame for the focus highlight. |
+| `thumb_mask.png` | Not yet used in the XML — optional, for rounding thumbnail corners later (needs a multiply-blend overlay, slightly more setup). |
 
 Build these as **9-patch-style textures**: draw the shape once at a size
 larger than the smallest usable size (e.g. 96×64px canvas for a rounded

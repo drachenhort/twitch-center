@@ -13,15 +13,16 @@
     card_surface_focus.png - same card, +2 shadow "elevation" baked in,
                               slightly lighter fill (surface container high)
     badge_live.png         - small rounded-pill shape, live-badge color
+    name_box.png           - flat rounded-rect strip for the stream name
+    card_border.png        - hollow rounded-rect frame for focus highlight
     thumb_mask.png          - rounded-corner mask/frame overlay for thumbnails
 
-  These are 9-patch-style stretchable PNGs (Kodi honors border insets via
-  the texture's own transparent padding + <texturefocus border="l,t,r,b">),
-  so one small PNG scales cleanly to any card width.
+  These are 9-patch-style stretchable PNGs. Use the border="..." attribute
+  on the <texture> tag so Kodi keeps the corners crisp when scaling.
 -->
-<window>
-    <defaultcontrol always="true">3000</defaultcontrol>
-    <onload condition="true">SetProperty(loaded,true)</onload>
+<window type="dialog">
+    <defaultcontrol>3000</defaultcontrol>
+    <onload>SetProperty(loaded,true)</onload>
 
     <controls>
 
@@ -72,8 +73,7 @@
                 <control type="image">
                     <width>415</width>
                     <height>275</height>
-                    <texture>colors/white.png</texture>
-                    <colordiffuse>$VAR[Color_SurfaceContainer]</colordiffuse>
+                    <texture border="16">card_surface.png</texture>
                 </control>
                 <control type="image">
                     <posx>16</posx>
@@ -89,8 +89,7 @@
                     <width>96</width>
                     <height>28</height>
                     <visible>!String.IsEmpty(ListItem.Property(is_live))</visible>
-                    <texture>colors/white.png</texture>
-                    <colordiffuse>$VAR[Color_LiveBadge]</colordiffuse>
+                    <texture border="8">badge_live.png</texture>
                 </control>
                 <control type="label">
                     <posx>34</posx>
@@ -108,8 +107,7 @@
                     <posy>219</posy>
                     <width>383</width>
                     <height>36</height>
-                    <texture>colors/white.png</texture>
-                    <colordiffuse>$VAR[Color_SurfaceContainerHigh]</colordiffuse>
+                    <texture border="8">name_box.png</texture>
                 </control>
                 <control type="label">
                     <posx>16</posx>
@@ -140,16 +138,14 @@
                 <control type="image">
                     <width>415</width>
                     <height>275</height>
-                    <texture>colors/white.png</texture>
-                    <colordiffuse>$VAR[Color_FocusedCardBorder]</colordiffuse>
+                    <texture border="16">card_border.png</texture>
                 </control>
                 <control type="image">
                     <posx>8</posx>
                     <posy>8</posy>
                     <width>399</width>
                     <height>259</height>
-                    <texture>colors/white.png</texture>
-                    <colordiffuse>$VAR[Color_SurfaceContainerHigh]</colordiffuse>
+                    <texture border="16">card_surface_focus.png</texture>
                 </control>
                 <control type="image">
                     <posx>16</posx>
@@ -165,8 +161,7 @@
                     <width>96</width>
                     <height>28</height>
                     <visible>!String.IsEmpty(ListItem.Property(is_live))</visible>
-                    <texture>colors/white.png</texture>
-                    <colordiffuse>$VAR[Color_LiveBadge]</colordiffuse>
+                    <texture border="8">badge_live.png</texture>
                 </control>
                 <control type="label">
                     <posx>34</posx>
