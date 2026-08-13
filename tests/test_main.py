@@ -215,3 +215,81 @@ def test_run_keeps_waiting_while_a_child_window_owns_the_shared_event():
 
     assert monitors[-1].calls == 4
     assert windows[0].closed_event.is_set()
+
+
+def test_run_prompts_before_quit_and_exits_when_confirmed():
+    FakeHomeWindow.instances.clear()
+
+    class QuittingHomeWindow(FakeHomeWindow):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.closed_event = threading.Event()
+            self.closed_event.quit_requested = False
+
+    class TickingMonitor:
+        def __init__(self):
+            self.calls = 0
+
+        def waitForAbort(self, timeout=None):
+            self.calls += 1
+            if self.calls == 1:
+                FakeHomeWindow.instances[-1].closed_event.quit_requested = True
+            return False
+
+    prompts = []
+    original_prompt = main.show_quit_prompt
+    main.show_quit_prompt = lambda: prompts.append(True) or True
+    try:
+        main.run(
+            [],
+            addon=FakeAddon(token={"access_token": "tok"}),
+            login_window_cls=FakeLoginWindow,
+            home_window_cls=QuittingHomeWindow,
+            monitor_cls=TickingMonitor,
+        )
+    finally:
+        main.show_quit_prompt = original_prompt
+
+    assert len(prompts) == 1
+    assert len(FakeHomeWindow.instances) == 1
+    assert FakeHomeWindow.instances[0].closed_event.is_set()
+
+
+def test_run_does_not_quit_when_user_cancels_prompt():
+    FakeHomeWindow.instances.clear()
+
+    class QuittingHomeWindow(FakeHomeWindow):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.closed_event = threading.Event()
+            self.closed_event.quit_requested = False
+
+    class TickingMonitor:
+        def __init__(self):
+            self.calls = 0
+
+        def waitForAbort(self, timeout=None):
+            self.calls += 1
+            if self.calls == 1:
+                FakeHomeWindow.instances[-1].closed_event.quit_requested = True
+            elif self.calls >= 3:
+                FakeHomeWindow.instances[-1].closed_event.set()
+            return False
+
+    prompts = []
+    original_prompt = main.show_quit_prompt
+    main.show_quit_prompt = lambda: prompts.append(True) or False
+    try:
+        main.run(
+            [],
+            addon=FakeAddon(token={"access_token": "tok"}),
+            login_window_cls=FakeLoginWindow,
+            home_window_cls=QuittingHomeWindow,
+            monitor_cls=TickingMonitor,
+        )
+    finally:
+        main.show_quit_prompt = original_prompt
+
+    assert len(prompts) == 1
+    assert FakeHomeWindow.instances[0].closed_event.is_set()
+    assert not getattr(FakeHomeWindow.instances[0].closed_event, "quit_requested", False)

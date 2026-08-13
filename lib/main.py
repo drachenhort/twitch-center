@@ -56,10 +56,14 @@ def run(argv, addon=None, login_window_cls=None, home_window_cls=None, monitor_c
     while not window.closed_event.is_set():
         if monitor.waitForAbort(1):
             break
-        if getattr(window, "quit_requested", False):
+        if getattr(window.closed_event, "quit_requested", False):
             if not show_quit_prompt():
+                window.closed_event.quit_requested = False
                 continue
-            window.quit_requested = False
+            window.close()
+            window.closed_event.set()
+            window.closed_event.quit_requested = False
+            break
         if getattr(window, "login_succeeded", False):
             # LoginWindow can't open Home itself: _on_status runs on its
             # background polling thread, and xbmcgui window creation must

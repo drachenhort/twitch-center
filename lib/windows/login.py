@@ -41,6 +41,8 @@ class LoginWindow(xbmcgui.WindowXML):
         # down (destroying the newly-shown window) the moment the parent set
         # its own event.
         self.closed_event = closed_event or threading.Event()
+        if not hasattr(self.closed_event, "quit_requested"):
+            self.closed_event.quit_requested = False
 
     def onInit(self):
         if self.login_succeeded:
@@ -90,5 +92,6 @@ class LoginWindow(xbmcgui.WindowXML):
     def onAction(self, action):
         if action.getId() in (xbmcgui.ACTION_PREVIOUS_MENU, xbmcgui.ACTION_NAV_BACK):
             self._cancel_event.set()
-            self.close()
-            self.closed_event.set()
+            # Ask main.run() to show a quit confirmation before we tear down.
+            self.closed_event.quit_requested = True
+            return

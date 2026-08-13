@@ -78,6 +78,8 @@ class DiscoverWindow(xbmcgui.WindowXML):
         super().__init__(*args, **kwargs)
         # Shared across the whole window-navigation chain - see LoginWindow.
         self.closed_event = closed_event or threading.Event()
+        if not hasattr(self.closed_event, "quit_requested"):
+            self.closed_event.quit_requested = False
         self._search_mode = "channels"
 
     def _safe_control(self, control_id):
@@ -375,8 +377,9 @@ class DiscoverWindow(xbmcgui.WindowXML):
             if xbmc.Player().isPlaying():
                 xbmc.Player().stop()
                 return
-            self.close()
-            self.closed_event.set()
+            # Ask main.run() to show a quit confirmation before we tear down.
+            self.closed_event.quit_requested = True
+            return
         elif action.getId() == xbmcgui.ACTION_SELECT_ITEM:
             focus = self.getFocusId()
             if focus == self.RELOGIN_BUTTON_ID:

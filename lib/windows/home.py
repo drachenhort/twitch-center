@@ -85,6 +85,8 @@ class HomeWindow(xbmcgui.WindowXML):
         super().__init__(*args, **kwargs)
         # Shared across the whole window-navigation chain - see LoginWindow.
         self.closed_event = closed_event or threading.Event()
+        if not hasattr(self.closed_event, "quit_requested"):
+            self.closed_event.quit_requested = False
         self._settings = settings or Settings()
         self._followed = []
         self._live = []
@@ -290,8 +292,9 @@ class HomeWindow(xbmcgui.WindowXML):
             if xbmc.Player().isPlaying():
                 xbmc.Player().stop()
                 return
-            self.close()
-            self.closed_event.set()
+            # Ask main.run() to show a quit confirmation before we tear down.
+            self.closed_event.quit_requested = True
+            return
         elif action.getId() == xbmcgui.ACTION_SELECT_ITEM:
             if self.getFocusId() == self.RELOGIN_BUTTON_ID:
                 self._open_login_window()
