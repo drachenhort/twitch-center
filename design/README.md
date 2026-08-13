@@ -67,6 +67,7 @@ faked with pre-rendered PNGs. Four small images, all referenced in
 | `card_surface_focus.png` | Same shape, fill `#2B2930` (Surface Container High), soft drop shadow baked in (~8–16px blur, ~20% opacity black, offset down). Focused-state background — this single asset *is* the elevation effect. |
 | `badge_live.png` | Small rounded pill, fill `#E64980`. |
 | `name_box.png` | Flat rounded-rect strip, fill `#2B2930` (Surface Container High), sits directly below the thumbnail and holds the streamer name. |
+| `card_border.png` | Hollow rounded-rect frame (only the border is opaque), used on the focused card to draw a bright yellow outline around the selected stream. |
 | `thumb_mask.png` | Referenced in the notes above but not yet used in the XML — optional, for rounding thumbnail corners if you want that polish later (needs a multiply-blend overlay, slightly more setup). |
 
 Build these as **9-patch-style textures**: draw the shape once at a size
