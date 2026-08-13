@@ -49,6 +49,9 @@ class MainWindow(xbmcgui.WindowXML):
         self._switch_view(self._initial_view)
 
     def _switch_view(self, name):
+        old_view = self._views.get(self._active_name)
+        if old_view is not None and hasattr(old_view, "stop"):
+            old_view.stop()
         for view_name, group_id in self.GROUP_IDS.items():
             control = self._safe_control(group_id)
             if control:
