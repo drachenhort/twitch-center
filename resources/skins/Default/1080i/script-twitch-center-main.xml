@@ -225,7 +225,8 @@
           <control type="image">
             <width>415</width>
             <height>275</height>
-            <texture border="16">card_surface.png</texture>
+            <texture>black.png</texture>
+            <colordiffuse>$VAR[Color_SurfaceContainer]</colordiffuse>
           </control>
           <control type="image">
             <posx>16</posx>
@@ -241,7 +242,8 @@
             <width>96</width>
             <height>28</height>
             <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
-            <texture>badge_live.png</texture>
+            <texture>black.png</texture>
+            <colordiffuse>$VAR[Color_LiveBadge]</colordiffuse>
           </control>
           <control type="label">
             <posx>34</posx>
@@ -259,7 +261,7 @@
             <posy>219</posy>
             <width>383</width>
             <height>36</height>
-            <texture border="8">name_box.png</texture>
+            <texture>black.png</texture>
             <colordiffuse>$VAR[Color_SurfaceContainerHigh]</colordiffuse>
           </control>
           <control type="label">
@@ -289,16 +291,16 @@
           <control type="image">
             <width>415</width>
             <height>275</height>
-            <texture border="16">card_surface_focus.png</texture>
-            <colordiffuse>$VAR[Color_FocusedCard]</colordiffuse>
+            <texture>black.png</texture>
+            <colordiffuse>$VAR[Color_FocusedCardBorder]</colordiffuse>
           </control>
           <control type="image">
-            <posx>0</posx>
-            <posy>0</posy>
-            <width>415</width>
-            <height>275</height>
-            <texture border="16">card_border.png</texture>
-            <colordiffuse>$VAR[Color_FocusedCardBorder]</colordiffuse>
+            <posx>8</posx>
+            <posy>8</posy>
+            <width>399</width>
+            <height>259</height>
+            <texture>black.png</texture>
+            <colordiffuse>$VAR[Color_SurfaceContainer]</colordiffuse>
           </control>
           <control type="image">
             <posx>16</posx>
@@ -314,7 +316,8 @@
             <width>96</width>
             <height>28</height>
             <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
-            <texture>badge_live.png</texture>
+            <texture>black.png</texture>
+            <colordiffuse>$VAR[Color_LiveBadge]</colordiffuse>
           </control>
           <control type="label">
             <posx>34</posx>
@@ -332,7 +335,7 @@
             <posy>219</posy>
             <width>383</width>
             <height>36</height>
-            <texture border="8">name_box.png</texture>
+            <texture>black.png</texture>
             <colordiffuse>$VAR[Color_FocusedCardBorder]</colordiffuse>
           </control>
           <control type="label">
@@ -353,7 +356,7 @@
             <width>383</width>
             <height>16</height>
             <font>CardBody</font>
-            <textcolor>$VAR[Color_OnSurfaceVariant]</textcolor>
+            <textcolor>$VAR[Color_OnSurface]</textcolor>
             <label>$INFO[ListItem.Property(subtitle)]</label>
           </control>
         </focusedlayout>

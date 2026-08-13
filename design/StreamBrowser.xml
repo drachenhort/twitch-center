@@ -72,7 +72,8 @@
                 <control type="image">
                     <width>415</width>
                     <height>275</height>
-                    <texture border="16">card_surface.png</texture>
+                    <texture>colors/white.png</texture>
+                    <colordiffuse>$VAR[Color_SurfaceContainer]</colordiffuse>
                 </control>
                 <control type="image">
                     <posx>16</posx>
@@ -88,7 +89,8 @@
                     <width>96</width>
                     <height>28</height>
                     <visible>!String.IsEmpty(ListItem.Property(is_live))</visible>
-                    <texture>badge_live.png</texture>
+                    <texture>colors/white.png</texture>
+                    <colordiffuse>$VAR[Color_LiveBadge]</colordiffuse>
                 </control>
                 <control type="label">
                     <posx>34</posx>
@@ -106,7 +108,7 @@
                     <posy>219</posy>
                     <width>383</width>
                     <height>36</height>
-                    <texture border="8">name_box.png</texture>
+                    <texture>colors/white.png</texture>
                     <colordiffuse>$VAR[Color_SurfaceContainerHigh]</colordiffuse>
                 </control>
                 <control type="label">
@@ -133,23 +135,21 @@
             </itemlayout>
 
             <focusedlayout width="415" height="275">
-                <!-- Focused-state card: "elevated" texture (shadow baked
-                     into the PNG) tinted yellow so the selected stream
-                     is immediately visible, plus a bright yellow border
-                     and matching name box for extra contrast. -->
+                <!-- Focused-state card: bright yellow border with dark
+                     inner card so the selected stream is impossible to miss. -->
                 <control type="image">
                     <width>415</width>
                     <height>275</height>
-                    <texture border="16">card_surface_focus.png</texture>
-                    <colordiffuse>FFFFEB3B</colordiffuse>
+                    <texture>colors/white.png</texture>
+                    <colordiffuse>FFFFFF00</colordiffuse>
                 </control>
                 <control type="image">
-                    <posx>0</posx>
-                    <posy>0</posy>
-                    <width>415</width>
-                    <height>275</height>
-                    <texture border="16">card_border.png</texture>
-                    <colordiffuse>FFFFFF00</colordiffuse>
+                    <posx>8</posx>
+                    <posy>8</posy>
+                    <width>399</width>
+                    <height>259</height>
+                    <texture>colors/white.png</texture>
+                    <colordiffuse>$VAR[Color_SurfaceContainer]</colordiffuse>
                 </control>
                 <control type="image">
                     <posx>16</posx>
@@ -165,7 +165,8 @@
                     <width>96</width>
                     <height>28</height>
                     <visible>!String.IsEmpty(ListItem.Property(is_live))</visible>
-                    <texture>badge_live.png</texture>
+                    <texture>colors/white.png</texture>
+                    <colordiffuse>$VAR[Color_LiveBadge]</colordiffuse>
                 </control>
                 <control type="label">
                     <posx>34</posx>
@@ -183,7 +184,7 @@
                     <posy>219</posy>
                     <width>383</width>
                     <height>36</height>
-                    <texture border="8">name_box.png</texture>
+                    <texture>colors/white.png</texture>
                     <colordiffuse>FFFFFF00</colordiffuse>
                 </control>
                 <control type="label">
@@ -204,7 +205,7 @@
                     <width>383</width>
                     <height>16</height>
                     <font>CardBody</font>
-                    <textcolor>$VAR[Color_OnSurfaceVariant]</textcolor>
+                    <textcolor>$VAR[Color_OnSurface]</textcolor>
                     <label>$INFO[ListItem.Property(viewer_count)] viewers · $INFO[ListItem.Property(game_name)]</label>
                 </control>
             </focusedlayout>
