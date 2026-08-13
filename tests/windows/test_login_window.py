@@ -49,16 +49,19 @@ def test_on_status_does_nothing_when_cancelled():
     assert win.getControl(LoginWindow.STATUS_LABEL_ID).getLabel() == ""
 
 
-def test_on_action_back_sets_cancel_event_and_closes():
+def test_on_action_back_requests_quit():
     import xbmcgui
 
+    # Back no longer closes the window directly; it asks main.run() to show a
+    # confirmation dialog and only tear down if the user confirms.
     win = LoginWindow("script-twitch-center-login.xml", "/tmp")
     win._cancel_event = threading.Event()
     with patch.object(win, "close") as mock_close:
         win.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
     assert win._cancel_event.is_set()
-    mock_close.assert_called_once()
-    assert win.closed_event.is_set()
+    mock_close.assert_not_called()
+    assert not win.closed_event.is_set()
+    assert win.closed_event.quit_requested is True
 
 
 def test_shared_closed_event_is_used_instead_of_a_fresh_one():

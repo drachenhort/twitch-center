@@ -84,20 +84,23 @@ def test_build_channel_item_offline_shows_offline():
     assert item.getLabel2() == "Offline"
 
 
-def test_back_closes_window_when_nothing_is_playing():
+def test_back_requests_quit_when_nothing_is_playing():
+    # Back no longer closes the window directly; it asks main.run() to show a
+    # confirmation dialog and only tear down if the user confirms.
     win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
     with patch("lib.windows.discover.xbmc.Player") as mock_player_cls:
         mock_player_cls.return_value.isPlaying.return_value = False
         with patch.object(win, "close") as mock_close:
             win.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
-    mock_close.assert_called_once()
-    assert win.closed_event.is_set()
+    mock_close.assert_not_called()
+    assert not win.closed_event.is_set()
+    assert win.closed_event.quit_requested is True
 
 
-def test_back_stops_playback_instead_of_closing_window_when_stream_is_playing():
-    # See HomeWindow's identical test: Kodi's fullscreen-video Back only
-    # exits the fullscreen view without stopping playback, so Back here must
-    # stop an active stream rather than closing the whole addon under it.
+def test_back_stops_playback_instead_of_requesting_quit_when_stream_is_playing():
+    # See HomeWindow's identical test: Kodi's fullscreen-video Back only exits
+    # the fullscreen view without stopping playback, so Back here must stop
+    # an active stream rather than treating it as a quit request.
     win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp")
     with patch("lib.windows.discover.xbmc.Player") as mock_player_cls:
         mock_player_cls.return_value.isPlaying.return_value = True
@@ -106,6 +109,7 @@ def test_back_stops_playback_instead_of_closing_window_when_stream_is_playing():
         mock_player_cls.return_value.stop.assert_called_once()
     mock_close.assert_not_called()
     assert not win.closed_event.is_set()
+    assert not getattr(win.closed_event, "quit_requested", False)
 
 
 def test_oninit_populates_top_games():
@@ -293,7 +297,7 @@ def test_selecting_relogin_button_opens_login_window_and_closes_discover():
     assert not win.closed_event.is_set()
 
 
-def test_relogin_chain_sets_the_shared_event_only_when_login_window_closes():
+def test_relogin_chain_requests_quit_only_when_login_window_back_is_pressed():
     addon = _addon_with_token({"access_token": "old", "refresh_token": "ref", "user_id": "u1"})
 
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
@@ -312,15 +316,19 @@ def test_relogin_chain_sets_the_shared_event_only_when_login_window_closes():
         )
         login_window.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
 
-    assert shared_event.is_set()
+    # The login window only *requests* quit; the actual teardown happens in
+    # main.run() after the user confirms the dialog.
+    assert login_window.closed_event.quit_requested is True
+    assert not shared_event.is_set()
 
 
-def test_back_from_discover_sets_the_shared_event():
+def test_back_from_discover_requests_quit_on_shared_event():
     shared = threading.Event()
     win = DiscoverWindow("script-twitch-center-discover.xml", "/tmp", closed_event=shared)
     assert win.closed_event is shared
     win.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
-    assert shared.is_set()
+    assert shared.quit_requested is True
+    assert not shared.is_set()
 
 
 def test_empty_top_games_shows_a_message_instead_of_a_blank_row():
@@ -531,8 +539,6 @@ def test_selecting_a_live_result_shows_results_error_when_resolution_fails():
     # Games row must survive a transient playback failure, same as a transient
     # search/browse failure already does.
     assert games_control.size() == 2
-
-
 
 
 def test_selecting_a_live_result_shows_error_on_unexpected_exception():

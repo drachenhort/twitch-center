@@ -60,21 +60,24 @@ def test_build_list_item_live_sets_label2_and_thumbnail():
     assert item.getProperty("broadcaster_id") == "2"
 
 
-def test_back_closes_window_when_nothing_is_playing():
+def test_back_requests_quit_when_nothing_is_playing():
+    # Back no longer closes the window directly; it asks main.run() to show a
+    # confirmation dialog and only tear down if the user confirms.
     win = HomeWindow("script-twitch-center-home.xml", "/tmp")
     with patch("lib.windows.home.xbmc.Player") as mock_player_cls:
         mock_player_cls.return_value.isPlaying.return_value = False
         with patch.object(win, "close") as mock_close:
             win.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
-    mock_close.assert_called_once()
-    assert win.closed_event.is_set()
+    mock_close.assert_not_called()
+    assert not win.closed_event.is_set()
+    assert win.closed_event.quit_requested is True
 
 
-def test_back_stops_playback_instead_of_closing_window_when_stream_is_playing():
+def test_back_stops_playback_instead_of_requesting_quit_when_stream_is_playing():
     # Kodi's own fullscreen-video Back only exits the fullscreen view, it
     # doesn't stop playback - Home regains focus with the stream still
     # running behind it. A Back press here must stop that stream rather
-    # than closing the whole addon out from under it.
+    # than treating it as a quit request.
     win = HomeWindow("script-twitch-center-home.xml", "/tmp")
     with patch("lib.windows.home.xbmc.Player") as mock_player_cls:
         mock_player_cls.return_value.isPlaying.return_value = True
@@ -83,6 +86,7 @@ def test_back_stops_playback_instead_of_closing_window_when_stream_is_playing():
         mock_player_cls.return_value.stop.assert_called_once()
     mock_close.assert_not_called()
     assert not win.closed_event.is_set()
+    assert not getattr(win.closed_event, "quit_requested", False)
 
 
 def _addon_with_token(token):
@@ -384,9 +388,10 @@ def test_selecting_relogin_button_opens_login_window_and_closes_home():
     assert not win.closed_event.is_set()
 
 
-def test_relogin_chain_sets_the_shared_event_only_when_login_window_closes():
-    """The event main.run() waits on must survive Home -> Login navigation and
-    end up set when the login window itself finally closes."""
+def test_relogin_chain_requests_quit_only_when_login_window_back_is_pressed():
+    """The event main.run() waits on must survive Home -> Login navigation.
+    The login window signals a quit request on Back; main.run() then shows
+    the confirmation dialog and performs the actual teardown."""
     addon = _addon_with_token({"access_token": "old", "refresh_token": "ref", "user_id": "u1"})
 
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
@@ -406,7 +411,8 @@ def test_relogin_chain_sets_the_shared_event_only_when_login_window_closes():
         assert login_window.closed_event is shared_event
         login_window.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
 
-    assert shared_event.is_set()
+    assert login_window.closed_event.quit_requested is True
+    assert not shared_event.is_set()
 
 
 def test_selecting_settings_button_opens_addon_settings_and_reloads():
@@ -606,7 +612,7 @@ def test_selecting_discover_button_opens_discover_window_and_closes_home():
     assert not win.closed_event.is_set()
 
 
-def test_discover_chain_sets_the_shared_event_only_when_discover_closes():
+def test_discover_chain_requests_quit_only_when_discover_back_is_pressed():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
 
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
@@ -628,7 +634,8 @@ def test_discover_chain_sets_the_shared_event_only_when_discover_closes():
         assert discover_window.closed_event is shared_event
         discover_window.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
 
-    assert shared_event.is_set()
+    assert discover_window.closed_event.quit_requested is True
+    assert not shared_event.is_set()
 
 
 def test_build_list_item_live_sets_broadcaster_login_and_is_live_true():
