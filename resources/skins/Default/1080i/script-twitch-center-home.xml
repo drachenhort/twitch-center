@@ -133,7 +133,7 @@
       <font>font13</font>
       <align>center</align>
       <onleft>106</onleft>
-      <onright>108</onright>
+      <onright>109</onright>
       <ondown>105</ondown>
       <label>Log in again</label>
     </control>
@@ -145,7 +145,7 @@
       <height>60</height>
       <font>font13</font>
       <align>center</align>
-      <onright>109</onright>
+      <onright>104</onright>
       <ondown>105</ondown>
       <label>Discover</label>
     </control>

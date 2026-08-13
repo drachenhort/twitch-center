@@ -79,6 +79,7 @@ class HomeWindow(xbmcgui.WindowXML):
     DISCOVER_BUTTON_ID = DISCOVER_BUTTON_ID
     TITLE_LABEL_ID = TITLE_LABEL_ID
     SETTINGS_BUTTON_ID = SETTINGS_BUTTON_ID
+    SEARCH_BUTTON_ID = SEARCH_BUTTON_ID
 
     def __init__(self, *args, closed_event=None, settings=None, **kwargs):
         super().__init__(*args, **kwargs)
