@@ -213,6 +213,7 @@ def test_main_skin_xml_declares_all_expected_control_ids():
         EMPTY_LABEL_ID as LIVE_STREAMS_EMPTY_LABEL_ID,
         ERROR_LABEL_ID as LIVE_STREAMS_ERROR_LABEL_ID,
         GAMES_LIST_ID as LIVE_STREAMS_GAMES_LIST_ID,
+        RELOGIN_BUTTON_ID as LIVE_STREAMS_RELOGIN_BUTTON_ID,
         TITLE_LABEL_ID,
     )
     from lib.views.login_view import LoginView
@@ -223,6 +224,7 @@ def test_main_skin_xml_declares_all_expected_control_ids():
         LoginView.CODE_LABEL_ID,
         LoginView.URL_LABEL_ID,
         LoginView.STATUS_LABEL_ID,
+        LoginView.CANCEL_BUTTON_ID,
         MenuView.LIVE_STREAMS_BUTTON_ID,
         MenuView.DISCOVER_BUTTON_ID,
         MenuView.SEARCH_BUTTON_ID,
@@ -232,6 +234,7 @@ def test_main_skin_xml_declares_all_expected_control_ids():
         LIVE_STREAMS_EMPTY_LABEL_ID,
         LIVE_STREAMS_ERROR_LABEL_ID,
         LIVE_STREAMS_GAMES_LIST_ID,
+        LIVE_STREAMS_RELOGIN_BUTTON_ID,
         TITLE_LABEL_ID,
         DISCOVER_RESULTS_LIST_ID,
         DISCOVER_EMPTY_LABEL_ID,
@@ -248,3 +251,22 @@ def test_main_skin_xml_declares_all_expected_control_ids():
     }
     control_ids = set(_main_skin_control_ids())
     assert expected_ids <= control_ids
+
+
+def test_view_default_focus_ids_exist_in_the_skin_and_are_focusable():
+    # MainWindow.setFocusId()s a view's DEFAULT_FOCUS_ID when that view
+    # becomes visible. A missing id would silently fail in real Kodi, and a
+    # data-populated list is empty (hence unfocusable) at that moment.
+    from lib.windows.main_window import MainWindow
+
+    root = ET.parse(MAIN_SKIN_XML).getroot()
+    control_ids = set(_main_skin_control_ids())
+    for name, cls in MainWindow._default_view_classes().items():
+        default_focus = getattr(cls, "DEFAULT_FOCUS_ID", None)
+        if default_focus is None:
+            continue
+        assert default_focus in control_ids, f"{name}: DEFAULT_FOCUS_ID {default_focus} not in skin"
+        assert _control_type(root, default_focus) != "list", (
+            f"{name}: DEFAULT_FOCUS_ID {default_focus} is a list, which is empty "
+            "(and so unfocusable) at the moment the view becomes visible"
+        )

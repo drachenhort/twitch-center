@@ -1,8 +1,6 @@
 """Discover view: browse live channels by any game, or search by channel name or
 by game/category name (toggle via SEARCH_MODE_TOGGLE_ID). Not a Window subclass -
 see MainWindow."""
-import threading
-
 import xbmc
 import xbmcaddon
 import xbmcgui
@@ -71,10 +69,8 @@ class DiscoverView:
 
     def __init__(self, window, closed_event=None):
         self.window = window
-        # Shared across the whole window-navigation chain - see LoginWindow.
-        self.closed_event = closed_event or threading.Event()
-        if not hasattr(self.closed_event, "quit_requested"):
-            self.closed_event.quit_requested = False
+        # Shared across every view hosted by MainWindow, which bootstraps it.
+        self.closed_event = closed_event
         self._search_mode = "channels"
 
     def _safe_control(self, control_id):
@@ -110,11 +106,9 @@ class DiscoverView:
     def _load_games(self, addon, client_id, token):
         games = api.get_top_games(token["access_token"], client_id)
         self._populate_games(games)
-        # The skin's <defaultcontrol> targets the search box (always
-        # focusable, unlike the games list which is empty at skin-parse
-        # time - see script-twitch-center-discover.xml) - claim focus on the
-        # now-populated games list explicitly, same race-avoidance as
-        # HomeWindow._load_and_populate.
+        # Claim focus on the now-populated games list explicitly rather than
+        # leaving it wherever the previous view left it - same race-avoidance
+        # as LiveStreamsView._load_and_populate.
         games_list = self._safe_control(self.GAMES_LIST_ID)
         if games_list and games_list.size():
             self.window.setFocusId(self.GAMES_LIST_ID)

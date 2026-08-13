@@ -18,10 +18,8 @@ class SearchView:
         self.search_results = []
         self._update_queue = []
         self._next_cursor = None
-        # Shared across the whole window-navigation chain - see LoginWindow.
-        self.closed_event = closed_event or threading.Event()
-        if not hasattr(self.closed_event, "quit_requested"):
-            self.closed_event.quit_requested = False
+        # Shared across every view hosted by MainWindow, which bootstraps it.
+        self.closed_event = closed_event
 
     def _safe_control(self, control_id):
         try:

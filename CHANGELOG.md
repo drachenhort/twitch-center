@@ -20,6 +20,23 @@ All notable changes to this project are documented here. Format loosely follows
   Search, and the analogous issue previously tracked for Discover and re-login: a second-window
   activation reverting with no error is no longer possible when there is only ever one window.
 
+### Fixed
+- Keyboard/remote focus went nowhere after switching screens: the skin's `<defaultcontrol>` only
+  applies once, natively, before `onInit` runs, so every later view switch left focus on a control
+  belonging to the now-hidden group. Views can now declare a `DEFAULT_FOCUS_ID` that `MainWindow`
+  claims on switch (before `activate()`, so a view's own more specific focus still wins).
+- "Log in again" only worked once per session: the reused `LoginView` kept its old
+  fresh-instance-per-login guards, so every later visit no-opped on a dead screen. Re-login now
+  starts a genuinely fresh device-code flow each visit, while still absorbing Kodi re-firing
+  activation within a single visit.
+- Kodi re-firing `onInit` on the already-active window snapped the user back to the initial view
+  (and tore down the view that was still running); it now resumes the active view instead.
+- Input arriving before `onInit` raised `KeyError: None` instead of being ignored.
+- Live Streams bounced to Menu on an error or an empty followed list, hiding the message it had
+  just set. It now stays put and offers a "Log in again" button (skin control 204), matching
+  Discover.
+- The confirmed-quit path closes the window explicitly again before exiting.
+
 ## [0.14.1] - 2026-08-13
 
 ### Fixed

@@ -193,7 +193,9 @@ def test_oninit_sets_title_with_addon_version():
     assert addon.getAddonInfo("version") in title
 
 
-def test_activate_switches_to_menu_when_no_followed_channels():
+def test_activate_offers_relogin_in_place_when_no_followed_channels():
+    # Switching to Menu here would hide the group before the user could read
+    # the message that was just set - stay put and offer a way forward.
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
         api, "get_followed_channels", return_value=[]
@@ -205,7 +207,9 @@ def test_activate_switches_to_menu_when_no_followed_channels():
         win.activate()
     assert win.window.getControl(LiveStreamsView.EMPTY_LABEL_ID).getLabel() != ""
     assert win.window.getControl(LiveStreamsView.CHANNEL_LIST_ID).size() == 0
-    assert window.switched_to == ["menu"]
+    assert window.switched_to == []
+    assert win.window.getControl(LiveStreamsView.RELOGIN_BUTTON_ID).isVisible() is True
+    assert window.getFocusId() == LiveStreamsView.RELOGIN_BUTTON_ID
 
 
 def test_oninit_refreshes_token_and_retries_on_expiry():
@@ -277,9 +281,38 @@ def test_oninit_shows_error_state_on_network_failure():
         win = LiveStreamsView(window)
         win.activate()
     assert win.window.getControl(LiveStreamsView.ERROR_LABEL_ID).getLabel() != ""
-    # See test_activate_switches_to_menu_when_no_followed_channels: same
-    # explicit-focus race, this time the fallback is switching to Menu.
-    assert window.switched_to == ["menu"]
+    # The error message is only useful if the group stays visible - so the
+    # error state stays on Live Streams and offers the re-login button
+    # instead of bouncing to Menu.
+    assert window.switched_to == []
+    assert win.window.getControl(LiveStreamsView.RELOGIN_BUTTON_ID).isVisible() is True
+    assert window.getFocusId() == LiveStreamsView.RELOGIN_BUTTON_ID
+
+
+def test_selecting_the_relogin_button_switches_to_the_login_view():
+    window = FakeWindow()
+    win = LiveStreamsView(window)
+    window.setFocusId(LiveStreamsView.RELOGIN_BUTTON_ID)
+    win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+    assert window.switched_to == ["login"]
+
+
+def test_successful_load_hides_a_stale_relogin_button():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    window = FakeWindow()
+    win = LiveStreamsView(window)
+    win._show_error("boom")
+    assert window.getControl(LiveStreamsView.RELOGIN_BUTTON_ID).isVisible() is True
+
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ):
+        win.activate()
+
+    assert window.getControl(LiveStreamsView.RELOGIN_BUTTON_ID).isVisible() is False
+    assert window.getFocusId() == LiveStreamsView.CHANNEL_LIST_ID
 
 
 def test_oninit_shows_relogin_when_token_has_no_user_id():

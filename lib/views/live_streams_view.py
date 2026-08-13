@@ -1,7 +1,5 @@
 """Live Streams view: the user's followed channels, live ones surfaced
 first. Not a Window subclass - see MainWindow."""
-import threading
-
 import xbmc
 import xbmcaddon
 import xbmcgui
@@ -13,6 +11,7 @@ from lib.windows import player
 CHANNEL_LIST_ID = 201
 EMPTY_LABEL_ID = 202
 ERROR_LABEL_ID = 203
+RELOGIN_BUTTON_ID = 204
 GAMES_LIST_ID = 205
 TITLE_LABEL_ID = 207
 
@@ -68,15 +67,14 @@ class LiveStreamsView:
     CHANNEL_LIST_ID = CHANNEL_LIST_ID
     EMPTY_LABEL_ID = EMPTY_LABEL_ID
     ERROR_LABEL_ID = ERROR_LABEL_ID
+    RELOGIN_BUTTON_ID = RELOGIN_BUTTON_ID
     GAMES_LIST_ID = GAMES_LIST_ID
     TITLE_LABEL_ID = TITLE_LABEL_ID
 
     def __init__(self, window, closed_event=None, settings=None):
         self.window = window
-        # Shared across the whole window-navigation chain - see LoginWindow.
-        self.closed_event = closed_event or threading.Event()
-        if not hasattr(self.closed_event, "quit_requested"):
-            self.closed_event.quit_requested = False
+        # Shared across every view hosted by MainWindow, which bootstraps it.
+        self.closed_event = closed_event
         self._settings = settings or Settings()
         self._followed = []
         self._live = []
@@ -131,17 +129,17 @@ class LiveStreamsView:
         self._selected_game = None
         self._populate_games(games)
         self._populate(followed, live_list)
-        # The skin's <defaultcontrol> targets the (still empty at skin-parse
-        # time) channel list, so Kodi's initial focus lands wherever its
-        # fallback search finds first - often a button. Explicitly claim
-        # focus now that the list is actually populated (or switch to Menu
-        # if it stayed empty), so a leftover keypress can't trigger an
-        # unintended action while focus is still up for grabs.
+        # MainWindow focuses a view's DEFAULT_FOCUS_ID (if any) before
+        # activate() runs; claim the channel list explicitly now that it is
+        # actually populated, so a leftover keypress can't trigger an
+        # unintended action while focus is still up for grabs. If it stayed
+        # empty there is nothing to focus, so offer the re-login button and
+        # leave the explanatory message on screen (Back returns to Menu).
         channel_list = self._safe_control(self.CHANNEL_LIST_ID)
         if channel_list and channel_list.size():
             self.window.setFocusId(self.CHANNEL_LIST_ID)
         else:
-            self.window._switch_view("menu")
+            self._show_relogin_button()
 
     def _handle_expired_token(self, addon, client_id, token, on_success=None, on_error=None):
         """Refresh the access token, then redo whatever the user was doing.
@@ -193,6 +191,11 @@ class LiveStreamsView:
             on_error(_NETWORK_ERROR_MESSAGE)
 
     def _populate_games(self, games):
+        # A successful load supersedes any earlier error state.
+        relogin_btn = self._safe_control(self.RELOGIN_BUTTON_ID)
+        if relogin_btn:
+            relogin_btn.setVisible(False)
+
         control = self._safe_control(self.GAMES_LIST_ID)
         if control:
             control.reset()
@@ -252,25 +255,33 @@ class LiveStreamsView:
         error_label = self._safe_control(self.ERROR_LABEL_ID)
         if error_label:
             error_label.setLabel(message)
-        # See _load_and_populate: claim a definite destination explicitly
-        # rather than leaving focus to Kodi's fallback search over an empty
-        # defaultcontrol list - there's no relogin button to focus anymore,
-        # so route to Menu instead.
-        self.window._switch_view("menu")
+        # Stay on Live Streams: switching to Menu here would hide the group
+        # before the user could read the message we just set. Back (handled
+        # centrally by MainWindow) still returns to Menu at any time.
+        self._show_relogin_button()
+
+    def _show_relogin_button(self):
+        relogin_btn = self._safe_control(self.RELOGIN_BUTTON_ID)
+        if relogin_btn:
+            relogin_btn.setVisible(True)
+            self.window.setFocusId(self.RELOGIN_BUTTON_ID)
 
     def _show_results_error(self, message):
         """Transient failure (e.g. one playback attempt): keep the channel
         list and games row intact so a single failure doesn't force an
-        addon restart - mirrors DiscoverWindow's _show_results_error."""
+        addon restart - mirrors DiscoverView's _show_results_error."""
         error_label = self._safe_control(self.ERROR_LABEL_ID)
         if error_label:
             error_label.setLabel(message)
 
     def handle_action(self, action):
         if action.getId() == xbmcgui.ACTION_SELECT_ITEM:
-            if self.window.getFocusId() == self.GAMES_LIST_ID:
+            focus = self.window.getFocusId()
+            if focus == self.RELOGIN_BUTTON_ID:
+                self.window._switch_view("login")
+            elif focus == self.GAMES_LIST_ID:
                 self._on_game_selected()
-            elif self.window.getFocusId() == self.CHANNEL_LIST_ID:
+            elif focus == self.CHANNEL_LIST_ID:
                 self._on_channel_selected()
 
     def handle_click(self, control_id):

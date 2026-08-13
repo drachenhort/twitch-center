@@ -278,6 +278,21 @@
         <align>center</align>
         <label></label>
       </control>
+      <control type="button" id="204">
+        <description>Log in again</description>
+        <posx>760</posx>
+        <posy>540</posy>
+        <width>400</width>
+        <height>60</height>
+        <font>font13</font>
+        <align>center</align>
+        <onup>205</onup>
+        <ondown>201</ondown>
+        <onleft>204</onleft>
+        <onright>204</onright>
+        <label>Log in again</label>
+        <visible>false</visible>
+      </control>
     </control>
 
     <!-- ===================== DISCOVER (300) ===================== -->
