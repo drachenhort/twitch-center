@@ -5,7 +5,7 @@
 ```
 resources/skins/Default/1080i/colors.xml       Material 3 dark color tokens
 resources/skins/Default/1080i/Font.xml          Roboto-based type scale
-resources/skins/Default/1080i/StreamBrowser.xml Card-grid window definition
+design/StreamBrowser.xml                        Card-grid window definition
 ```
 
 ## Wiring it up in Python
@@ -58,7 +58,7 @@ Python have to match.
 ## Texture assets you still need to create
 
 Kodi has no native rounded-corner or box-shadow property, so "elevation" is
-faked with pre-rendered PNGs. Four small images, all referenced in
+faked with pre-rendered PNGs. Six small images, all referenced in
 `StreamBrowser.xml`:
 
 | File | What it is |
@@ -90,7 +90,7 @@ fonts by filename match against what's declared in `Font.xml`.
 
 ## Next steps
 
-- Generate the four texture PNGs (I can script this with Pillow if useful)
+- Generate the texture PNGs (I can script this with Pillow if useful)
 - Wire `fetch_live_streams()` to your existing Kick/Twitch API integration
 - Add a second focused-state variant for the LIVE badge if you want it to
   pulse/highlight further on focus (would need an animation block in the
