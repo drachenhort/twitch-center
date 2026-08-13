@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.14.0] - 2026-08-13
+
+### Added
+- Addon icon (`icon.png`), wired via `addon.xml`'s `<assets>` block - shows in Kodi's addon
+  browser and Add-ons list instead of the generic script placeholder.
+
 ## [0.12.0] - 2026-08-12
 
 ### Added
