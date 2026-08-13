@@ -1,5 +1,6 @@
 """Login view: device-code login screen, displays the code + verification
 URL, polls for auth. Not a Window subclass - see MainWindow."""
+import functools
 import threading
 
 import xbmc
@@ -51,6 +52,19 @@ class LoginView:
                 return
         self.login_succeeded = False
         self._cancel_event = threading.Event()
+        # Bind this flow's callbacks to the cancel event that was just
+        # created for it, via functools.partial, instead of letting them
+        # read the mutable self._cancel_event attribute at call time. A
+        # still-running previous flow's callbacks must keep checking the
+        # event THEY were started (and cancelled) with - if they read
+        # self._cancel_event instead, it would already have been rebound
+        # above to the new flow's event, so the old flow's own cancellation
+        # would go unnoticed and it could write stale data over the fresh
+        # login screen.
+        cancel_event = self._cancel_event
+        on_code = functools.partial(self._on_code, cancel_event)
+        on_status = functools.partial(self._on_status, cancel_event)
+
         addon = xbmcaddon.Addon()
         client_id = addon.getSetting("client_id")
         thread = threading.Thread(
@@ -59,23 +73,23 @@ class LoginView:
                 "client_id": client_id,
                 "scopes": auth.SCOPES,
                 "addon": addon,
-                "on_code": self._on_code,
-                "on_status": self._on_status,
-                "cancel_event": self._cancel_event,
+                "on_code": on_code,
+                "on_status": on_status,
+                "cancel_event": cancel_event,
             },
         )
         thread.daemon = True
         thread.start()
         self._thread = thread
 
-    def _on_code(self, user_code, verification_uri):
-        if self._cancel_event.is_set():
+    def _on_code(self, cancel_event, user_code, verification_uri):
+        if cancel_event.is_set():
             return
         self.window.getControl(self.CODE_LABEL_ID).setLabel(user_code)
         self.window.getControl(self.URL_LABEL_ID).setLabel(verification_uri)
 
-    def _on_status(self, status):
-        if self._cancel_event.is_set():
+    def _on_status(self, cancel_event, status):
+        if cancel_event.is_set():
             return
         if status == "error":
             xbmc.log("script.twitch.center: device-code login reported an error", xbmc.LOGERROR)

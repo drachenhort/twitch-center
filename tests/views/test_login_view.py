@@ -21,7 +21,7 @@ class FakeWindow:
 def test_on_code_sets_code_and_url_labels():
     win = LoginView(FakeWindow(), closed_event=threading.Event())
     win._cancel_event = threading.Event()
-    win._on_code("ABCD-1234", "https://www.twitch.tv/activate")
+    win._on_code(win._cancel_event, "ABCD-1234", "https://www.twitch.tv/activate")
     assert win.window.getControl(LoginView.CODE_LABEL_ID).getLabel() == "ABCD-1234"
     assert win.window.getControl(LoginView.URL_LABEL_ID).getLabel() == "https://www.twitch.tv/activate"
 
@@ -29,7 +29,7 @@ def test_on_code_sets_code_and_url_labels():
 def test_on_status_sets_status_label_text():
     win = LoginView(FakeWindow(), closed_event=threading.Event())
     win._cancel_event = threading.Event()
-    win._on_status("pending")
+    win._on_status(win._cancel_event, "pending")
     assert win.window.getControl(LoginView.STATUS_LABEL_ID).getLabel() == "Waiting for authorization..."
 
 
@@ -39,7 +39,7 @@ def test_on_status_success_sets_login_succeeded_flag():
     # (on the main thread) does the actual handoff. See test_main.py.
     win = LoginView(FakeWindow(), closed_event=threading.Event())
     win._cancel_event = threading.Event()
-    win._on_status("success")
+    win._on_status(win._cancel_event, "success")
     assert win.login_succeeded is True
     assert not win.closed_event.is_set()
 
@@ -48,7 +48,7 @@ def test_on_code_does_nothing_when_cancelled():
     win = LoginView(FakeWindow(), closed_event=threading.Event())
     win._cancel_event = threading.Event()
     win._cancel_event.set()
-    win._on_code("ABCD-1234", "https://www.twitch.tv/activate")
+    win._on_code(win._cancel_event, "ABCD-1234", "https://www.twitch.tv/activate")
     # No control was touched - getControl would lazily create a blank one,
     # so its label staying empty demonstrates _on_code short-circuited.
     assert win.window.getControl(LoginView.CODE_LABEL_ID).getLabel() == ""
@@ -58,7 +58,7 @@ def test_on_status_does_nothing_when_cancelled():
     win = LoginView(FakeWindow(), closed_event=threading.Event())
     win._cancel_event = threading.Event()
     win._cancel_event.set()
-    win._on_status("success")
+    win._on_status(win._cancel_event, "success")
     assert win.login_succeeded is False
     assert win.window.getControl(LoginView.STATUS_LABEL_ID).getLabel() == ""
 
@@ -131,7 +131,7 @@ def test_activate_starts_a_fresh_login_flow_on_a_second_visit():
 
         win = LoginView(FakeWindow(), closed_event=threading.Event())
         win.activate()
-        win._on_status("success")
+        win._on_status(win._cancel_event, "success")
         assert win.login_succeeded is True
 
         # User leaves Login (MainWindow._switch_view) and comes back later.
@@ -157,8 +157,59 @@ def test_activate_does_not_restart_after_success_even_if_reactivated():
     # test_activate_starts_a_fresh_login_flow_on_a_second_visit.
     win = LoginView(FakeWindow(), closed_event=threading.Event())
     win._cancel_event = threading.Event()
-    win._on_status("success")
+    win._on_status(win._cancel_event, "success")
 
     with patch("lib.views.login_view.threading.Thread") as mock_thread_cls:
         win.activate()
     mock_thread_cls.assert_not_called()
+
+
+def test_stale_thread_callbacks_are_ignored_after_a_second_activate():
+    # Regression test: a first flow's background thread can still be
+    # winding down (its on_code/on_status callbacks about to fire) when the
+    # user backs out and re-enters Login, triggering a second activate().
+    # activate() rebinds self._cancel_event to a brand-new Event for the
+    # second flow - if the first flow's callbacks checked self._cancel_event
+    # (the mutable instance attribute) instead of the event THEY were
+    # started with, they'd see the new, un-cancelled event and write stale
+    # data (an old code, or a stale status) over the fresh login screen.
+    with patch("lib.views.login_view.threading.Thread") as mock_thread_cls:
+        first_thread = MagicMock()
+        first_thread.is_alive.return_value = True  # still winding down
+        second_thread = MagicMock()
+        mock_thread_cls.side_effect = [first_thread, second_thread]
+
+        win = LoginView(FakeWindow(), closed_event=threading.Event())
+
+        # First flow starts.
+        win.activate()
+        first_kwargs = mock_thread_cls.call_args.kwargs["kwargs"]
+        first_on_code = first_kwargs["on_code"]
+        first_on_status = first_kwargs["on_status"]
+
+        # User leaves Login (MainWindow._switch_view calls stop(), setting
+        # the first flow's cancel event) and comes back, starting a second,
+        # independent flow. The first thread hasn't actually died yet
+        # (is_alive() still True), mirroring a real still-winding-down
+        # thread.
+        win.stop()
+        win.activate()
+        second_kwargs = mock_thread_cls.call_args.kwargs["kwargs"]
+        second_on_code = second_kwargs["on_code"]
+        second_on_status = second_kwargs["on_status"]
+
+    # The first flow's own callbacks fire late, after the second flow is
+    # already under way. They must recognize THEIR OWN cancellation and do
+    # nothing - not read the (now different) self._cancel_event.
+    first_on_code("STALE-CODE", "https://stale.example/activate")
+    first_on_status("error")
+    assert win.window.getControl(LoginView.CODE_LABEL_ID).getLabel() == ""
+    assert win.window.getControl(LoginView.URL_LABEL_ID).getLabel() == ""
+    assert win.window.getControl(LoginView.STATUS_LABEL_ID).getLabel() == ""
+
+    # The second (current) flow's callbacks must still work normally.
+    second_on_code("FRESH-CODE", "https://fresh.example/activate")
+    second_on_status("pending")
+    assert win.window.getControl(LoginView.CODE_LABEL_ID).getLabel() == "FRESH-CODE"
+    assert win.window.getControl(LoginView.URL_LABEL_ID).getLabel() == "https://fresh.example/activate"
+    assert win.window.getControl(LoginView.STATUS_LABEL_ID).getLabel() == "Waiting for authorization..."
