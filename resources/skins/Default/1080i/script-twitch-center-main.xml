@@ -157,104 +157,175 @@
     <!-- ===================== LIVE STREAMS (200) ===================== -->
     <control type="group" id="200">
       <control type="label" id="207">
-        <description>Title with version</description>
-        <posx>60</posx>
-        <posy>60</posy>
-        <width>800</width>
-        <height>50</height>
-        <font>font32</font>
-        <label>Twitch Center</label>
+        <description>Title</description>
+        <posx>64</posx>
+        <posy>48</posy>
+        <width>1200</width>
+        <height>48</height>
+        <font>Title</font>
+        <textcolor>$VAR[Color_OnSurface]</textcolor>
+        <label>Live Streams</label>
+      </control>
+      <control type="label">
+        <description>Subtitle</description>
+        <posx>64</posx>
+        <posy>100</posy>
+        <width>1200</width>
+        <height>28</height>
+        <font>CardBody</font>
+        <textcolor>$VAR[Color_OnSurfaceVariant]</textcolor>
+        <label>$INFO[Container(201).NumItems] channels live now</label>
       </control>
       <control type="list" id="205">
         <description>Followed games filter</description>
-        <posx>60</posx>
-        <posy>130</posy>
-        <width>1800</width>
-        <height>90</height>
+        <posx>48</posx>
+        <posy>140</posy>
+        <width>1824</width>
+        <height>60</height>
         <orientation>horizontal</orientation>
         <onup>205</onup>
         <ondown>201</ondown>
         <onleft>205</onleft>
         <onright>205</onright>
-        <itemlayout width="220" height="80">
+        <itemlayout width="220" height="60">
           <control type="label">
             <width>220</width>
-            <height>80</height>
-            <font>font13</font>
+            <height>60</height>
+            <font>CardBody</font>
+            <textcolor>$VAR[Color_OnSurfaceVariant]</textcolor>
             <align>center</align>
             <aligny>center</aligny>
             <label>$INFO[ListItem.Label]</label>
           </control>
         </itemlayout>
-        <focusedlayout width="220" height="80">
+        <focusedlayout width="220" height="60">
           <control type="label">
             <width>220</width>
-            <height>80</height>
-            <font>font13</font>
+            <height>60</height>
+            <font>CardBody</font>
+            <textcolor>$VAR[Color_Primary]</textcolor>
             <align>center</align>
             <aligny>center</aligny>
-            <textcolor>ff9146ff</textcolor>
             <label>$INFO[ListItem.Label]</label>
           </control>
         </focusedlayout>
       </control>
-      <control type="list" id="201">
+      <control type="panel" id="201">
         <description>Followed channels</description>
-        <posx>60</posx>
-        <posy>240</posy>
-        <width>1800</width>
-        <height>760</height>
+        <posx>48</posx>
+        <posy>220</posy>
+        <width>1824</width>
+        <height>800</height>
         <onup>205</onup>
         <ondown>201</ondown>
-        <itemlayout width="1800" height="120">
+        <onleft>201</onleft>
+        <onright>201</onright>
+        <orientation>horizontal</orientation>
+        <itemlayout width="420" height="280">
           <control type="image">
-            <posx>10</posx>
-            <posy>0</posy>
-            <width>160</width>
-            <height>90</height>
-            <texture>$INFO[ListItem.Art(thumb)]</texture>
+            <width>420</width>
+            <height>280</height>
+            <texture border="16">card_surface.png</texture>
+          </control>
+          <control type="image">
+            <posx>16</posx>
+            <posy>16</posy>
+            <width>388</width>
+            <height>218</height>
             <aspectratio>scale</aspectratio>
+            <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Art(thumb)]</texture>
+          </control>
+          <control type="image">
+            <posx>32</posx>
+            <posy>32</posy>
+            <width>96</width>
+            <height>28</height>
+            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
+            <texture>badge_live.png</texture>
           </control>
           <control type="label">
-            <posx>190</posx>
-            <width>1600</width>
-            <height>60</height>
-            <font>font20</font>
+            <posx>34</posx>
+            <posy>36</posy>
+            <width>90</width>
+            <height>28</height>
+            <font>CardLabel</font>
+            <textcolor>$VAR[Color_OnLiveBadge]</textcolor>
+            <align>center</align>
+            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
+            <label>LIVE</label>
+          </control>
+          <control type="label">
+            <posx>16</posx>
+            <posy>244</posy>
+            <width>388</width>
+            <height>24</height>
+            <font>CardHeadline</font>
+            <textcolor>$VAR[Color_OnSurface]</textcolor>
+            <scroll>false</scroll>
             <label>$INFO[ListItem.Label]</label>
           </control>
           <control type="label">
-            <posx>190</posx>
-            <posy>65</posy>
-            <width>1600</width>
-            <height>40</height>
-            <font>font13</font>
-            <label>$INFO[ListItem.Label2]</label>
+            <posx>16</posx>
+            <posy>264</posy>
+            <width>388</width>
+            <height>20</height>
+            <font>CardBody</font>
+            <textcolor>$VAR[Color_OnSurfaceVariant]</textcolor>
+            <label>$INFO[ListItem.Property(subtitle)]</label>
           </control>
         </itemlayout>
-        <focusedlayout width="1800" height="120">
+
+        <focusedlayout width="420" height="280">
           <control type="image">
-            <posx>10</posx>
-            <posy>0</posy>
-            <width>160</width>
-            <height>90</height>
-            <texture>$INFO[ListItem.Art(thumb)]</texture>
+            <width>420</width>
+            <height>280</height>
+            <texture border="16">card_surface_focus.png</texture>
+          </control>
+          <control type="image">
+            <posx>16</posx>
+            <posy>16</posy>
+            <width>388</width>
+            <height>218</height>
             <aspectratio>scale</aspectratio>
+            <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Art(thumb)]</texture>
+          </control>
+          <control type="image">
+            <posx>32</posx>
+            <posy>32</posy>
+            <width>96</width>
+            <height>28</height>
+            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
+            <texture>badge_live.png</texture>
           </control>
           <control type="label">
-            <posx>190</posx>
-            <width>1600</width>
-            <height>60</height>
-            <font>font20</font>
-            <textcolor>ff9146ff</textcolor>
+            <posx>34</posx>
+            <posy>36</posy>
+            <width>90</width>
+            <height>28</height>
+            <font>CardLabel</font>
+            <textcolor>$VAR[Color_OnLiveBadge]</textcolor>
+            <align>center</align>
+            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
+            <label>LIVE</label>
+          </control>
+          <control type="label">
+            <posx>16</posx>
+            <posy>244</posy>
+            <width>388</width>
+            <height>24</height>
+            <font>CardHeadline</font>
+            <textcolor>$VAR[Color_Primary]</textcolor>
+            <scroll>true</scroll>
             <label>$INFO[ListItem.Label]</label>
           </control>
           <control type="label">
-            <posx>190</posx>
-            <posy>65</posy>
-            <width>1600</width>
-            <height>40</height>
-            <font>font13</font>
-            <label>$INFO[ListItem.Label2]</label>
+            <posx>16</posx>
+            <posy>264</posy>
+            <width>388</width>
+            <height>20</height>
+            <font>CardBody</font>
+            <textcolor>$VAR[Color_OnSurfaceVariant]</textcolor>
+            <label>$INFO[ListItem.Property(subtitle)]</label>
           </control>
         </focusedlayout>
       </control>
@@ -264,7 +335,8 @@
         <posy>460</posy>
         <width>800</width>
         <height>60</height>
-        <font>font20</font>
+        <font>CardHeadline</font>
+        <textcolor>$VAR[Color_OnSurfaceVariant]</textcolor>
         <align>center</align>
         <label></label>
       </control>
@@ -274,7 +346,8 @@
         <posy>460</posy>
         <width>800</width>
         <height>60</height>
-        <font>font20</font>
+        <font>CardHeadline</font>
+        <textcolor>$VAR[Color_OnSurfaceVariant]</textcolor>
         <align>center</align>
         <label></label>
       </control>
@@ -284,8 +357,11 @@
         <posy>540</posy>
         <width>400</width>
         <height>60</height>
-        <font>font13</font>
+        <font>CardBody</font>
+        <textcolor>$VAR[Color_OnSurface]</textcolor>
+        <focusedcolor>$VAR[Color_Primary]</focusedcolor>
         <align>center</align>
+        <aligny>center</aligny>
         <onup>205</onup>
         <ondown>201</ondown>
         <onleft>204</onleft>

@@ -55,9 +55,17 @@ def _build_list_item(channel, stream_data=None):
         )
         item.setArt({"thumb": _thumbnail_url(stream_data["thumbnail_url"])})
         item.setProperty("is_live", "true")
+        item.setProperty("viewer_count", str(stream_data["viewer_count"]))
+        item.setProperty("game_name", stream_data["game_name"])
+        item.setProperty(
+            "subtitle", str(stream_data["viewer_count"]) + " viewers · " + stream_data["game_name"]
+        )
     else:
         item.setLabel2("Offline")
         item.setProperty("is_live", "false")
+        item.setProperty("viewer_count", "")
+        item.setProperty("game_name", "")
+        item.setProperty("subtitle", "Offline")
     item.setProperty("broadcaster_id", channel["broadcaster_id"])
     item.setProperty("broadcaster_login", channel["broadcaster_login"])
     return item
@@ -90,10 +98,9 @@ class LiveStreamsView:
 
     def activate(self):
         addon = xbmcaddon.Addon()
-        version = addon.getAddonInfo("version")
         title_label = self._safe_control(self.TITLE_LABEL_ID)
         if title_label:
-            title_label.setLabel("Twitch Center v" + version)
+            title_label.setLabel("Live Streams")
         client_id = addon.getSetting("client_id")
         token = auth.load_token(addon)
         if token is None:

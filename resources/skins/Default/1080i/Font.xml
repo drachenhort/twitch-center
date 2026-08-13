@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Roboto-based type scale for twitch-center.
+  Includes legacy font names used by the original skin so other views
+  keep working, plus the Material 3 style fonts used by StreamBrowser.
+-->
+<fonts>
+    <fontset id="Default">
+        <!-- Legacy font names -->
+        <font>
+            <name>font13</name>
+            <filename>Roboto-Regular.ttf</filename>
+            <size>13</size>
+        </font>
+        <font>
+            <name>font20</name>
+            <filename>Roboto-Regular.ttf</filename>
+            <size>20</size>
+        </font>
+        <font>
+            <name>font32</name>
+            <filename>Roboto-Medium.ttf</filename>
+            <size>32</size>
+        </font>
+        <font>
+            <name>font37</name>
+            <filename>Roboto-Medium.ttf</filename>
+            <size>37</size>
+        </font>
+
+        <!-- Material 3 type scale -->
+        <font>
+            <name>Title</name>
+            <filename>Roboto-Medium.ttf</filename>
+            <size>28</size>
+        </font>
+        <font>
+            <name>CardHeadline</name>
+            <filename>Roboto-Medium.ttf</filename>
+            <size>20</size>
+        </font>
+        <font>
+            <name>CardBody</name>
+            <filename>Roboto-Regular.ttf</filename>
+            <size>16</size>
+        </font>
+        <font>
+            <name>CardLabel</name>
+            <filename>Roboto-Medium.ttf</filename>
+            <size>13</size>
+        </font>
+    </fontset>
+</fonts>
