@@ -179,7 +179,7 @@ def test_oninit_passes_website_token_setting_to_followed_live_games():
     mock_games.assert_called_once_with("my-website-token")
 
 
-def test_oninit_sets_title_with_addon_version():
+def test_oninit_sets_title_to_live_streams():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
         api, "get_followed_channels", return_value=[]
@@ -189,8 +189,7 @@ def test_oninit_sets_title_with_addon_version():
         win = LiveStreamsView(FakeWindow())
         win.activate()
     title = win.window.getControl(LiveStreamsView.TITLE_LABEL_ID).getLabel()
-    assert title.startswith("Twitch Center v")
-    assert addon.getAddonInfo("version") in title
+    assert title == "Live Streams"
 
 
 def test_activate_offers_relogin_in_place_when_no_followed_channels():
