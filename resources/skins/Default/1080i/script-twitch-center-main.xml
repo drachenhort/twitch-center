@@ -231,7 +231,7 @@
             <posx>16</posx>
             <posy>16</posy>
             <width>383</width>
-            <height>213</height>
+            <height>203</height>
             <aspectratio>scale</aspectratio>
             <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Art(thumb)]</texture>
           </control>
@@ -254,21 +254,31 @@
             <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
             <label>LIVE</label>
           </control>
+          <control type="image">
+            <posx>16</posx>
+            <posy>219</posy>
+            <width>383</width>
+            <height>36</height>
+            <texture border="8">name_box.png</texture>
+            <colordiffuse>$VAR[Color_SurfaceContainerHigh]</colordiffuse>
+          </control>
           <control type="label">
             <posx>16</posx>
-            <posy>239</posy>
+            <posy>219</posy>
             <width>383</width>
-            <height>24</height>
+            <height>36</height>
             <font>CardHeadline</font>
             <textcolor>$VAR[Color_OnSurface]</textcolor>
+            <align>center</align>
+            <aligny>center</aligny>
             <scroll>false</scroll>
             <label>$INFO[ListItem.Label]</label>
           </control>
           <control type="label">
             <posx>16</posx>
-            <posy>259</posy>
+            <posy>257</posy>
             <width>383</width>
-            <height>20</height>
+            <height>16</height>
             <font>CardBody</font>
             <textcolor>$VAR[Color_OnSurfaceVariant]</textcolor>
             <label>$INFO[ListItem.Property(subtitle)]</label>
@@ -286,7 +296,7 @@
             <posx>16</posx>
             <posy>16</posy>
             <width>383</width>
-            <height>213</height>
+            <height>203</height>
             <aspectratio>scale</aspectratio>
             <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Art(thumb)]</texture>
           </control>
@@ -309,21 +319,31 @@
             <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
             <label>LIVE</label>
           </control>
+          <control type="image">
+            <posx>16</posx>
+            <posy>219</posy>
+            <width>383</width>
+            <height>36</height>
+            <texture border="8">name_box.png</texture>
+            <colordiffuse>$VAR[Color_SurfaceContainerHigh]</colordiffuse>
+          </control>
           <control type="label">
             <posx>16</posx>
-            <posy>239</posy>
+            <posy>219</posy>
             <width>383</width>
-            <height>24</height>
+            <height>36</height>
             <font>CardHeadline</font>
             <textcolor>$VAR[Color_Primary]</textcolor>
+            <align>center</align>
+            <aligny>center</aligny>
             <scroll>true</scroll>
             <label>$INFO[ListItem.Label]</label>
           </control>
           <control type="label">
             <posx>16</posx>
-            <posy>259</posy>
+            <posy>257</posy>
             <width>383</width>
-            <height>20</height>
+            <height>16</height>
             <font>CardBody</font>
             <textcolor>$VAR[Color_OnSurfaceVariant]</textcolor>
             <label>$INFO[ListItem.Property(subtitle)]</label>
