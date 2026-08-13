@@ -255,10 +255,10 @@
             <visible>String.IsEqual(ListItem.Property(is_live),true) + Integer.IsGreater(ListItem.Property(viewer_count),999)</visible>
           </control>
           <control type="image">
-            <posx>8</posx>
-            <posy>8</posy>
-            <width>399</width>
-            <height>259</height>
+            <posx>4</posx>
+            <posy>4</posy>
+            <width>407</width>
+            <height>267</height>
             <texture>card_surface.png</texture>
           </control>
           <control type="image">
@@ -379,10 +379,10 @@
             <visible>String.IsEqual(ListItem.Property(is_live),true) + Integer.IsGreater(ListItem.Property(viewer_count),999)</visible>
           </control>
           <control type="image">
-            <posx>12</posx>
-            <posy>12</posy>
-            <width>391</width>
-            <height>251</height>
+            <posx>8</posx>
+            <posy>8</posy>
+            <width>399</width>
+            <height>259</height>
             <texture>card_surface_focus.png</texture>
           </control>
           <control type="image">
