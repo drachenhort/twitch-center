@@ -22,8 +22,9 @@ def show_quit_prompt():
     dialog = xbmcgui.Dialog()
     return dialog.yesno(
         "Twitch Center",
-        "Are you sure you want to quit?",
-        "Your chat and stream will be closed."
+        "Are you sure you want to quit?\nYour chat and stream will be closed.",
+        nolabel="No",
+        yeslabel="Yes"
     )
 
 

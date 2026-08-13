@@ -231,37 +231,6 @@
         <orientation>horizontal</orientation>
         <itemlayout width="415" height="275">
           <control type="image">
-            <width>415</width>
-            <height>275</height>
-            <texture>card_border_offline.png</texture>
-            <visible>!String.IsEqual(ListItem.Property(is_live),true)</visible>
-          </control>
-          <control type="image">
-            <width>415</width>
-            <height>275</height>
-            <texture>card_border_bronze.png</texture>
-            <visible>String.IsEqual(ListItem.Property(is_live),true) + !Integer.IsGreater(ListItem.Property(viewer_count),99)</visible>
-          </control>
-          <control type="image">
-            <width>415</width>
-            <height>275</height>
-            <texture>card_border_silver.png</texture>
-            <visible>String.IsEqual(ListItem.Property(is_live),true) + Integer.IsGreater(ListItem.Property(viewer_count),99) + !Integer.IsGreater(ListItem.Property(viewer_count),999)</visible>
-          </control>
-          <control type="image">
-            <width>415</width>
-            <height>275</height>
-            <texture>card_border_gold.png</texture>
-            <visible>String.IsEqual(ListItem.Property(is_live),true) + Integer.IsGreater(ListItem.Property(viewer_count),999)</visible>
-          </control>
-          <control type="image">
-            <posx>4</posx>
-            <posy>4</posy>
-            <width>407</width>
-            <height>267</height>
-            <texture>card_surface.png</texture>
-          </control>
-          <control type="image">
             <posx>16</posx>
             <posy>16</posy>
             <width>383</width>
@@ -288,25 +257,6 @@
             <aspectratio>scale</aspectratio>
             <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Art(thumb)]</texture>
             <diffuse>thumb_mask.png</diffuse>
-          </control>
-          <control type="image">
-            <posx>295</posx>
-            <posy>64</posy>
-            <width>96</width>
-            <height>28</height>
-            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
-            <texture>badge_live.png</texture>
-          </control>
-          <control type="label">
-            <posx>297</posx>
-            <posy>68</posy>
-            <width>90</width>
-            <height>28</height>
-            <font>CardLabel</font>
-            <textcolor>FFFFFFFF</textcolor>
-            <align>center</align>
-            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
-            <label>LIVE</label>
           </control>
           <control type="label">
             <posx>16</posx>
@@ -344,45 +294,6 @@
           <control type="image">
             <width>415</width>
             <height>275</height>
-            <texture>card_border.png</texture>
-          </control>
-          <control type="image">
-            <posx>4</posx>
-            <posy>4</posy>
-            <width>407</width>
-            <height>267</height>
-            <texture>card_border_offline.png</texture>
-            <visible>!String.IsEqual(ListItem.Property(is_live),true)</visible>
-          </control>
-          <control type="image">
-            <posx>4</posx>
-            <posy>4</posy>
-            <width>407</width>
-            <height>267</height>
-            <texture>card_border_bronze.png</texture>
-            <visible>String.IsEqual(ListItem.Property(is_live),true) + !Integer.IsGreater(ListItem.Property(viewer_count),99)</visible>
-          </control>
-          <control type="image">
-            <posx>4</posx>
-            <posy>4</posy>
-            <width>407</width>
-            <height>267</height>
-            <texture>card_border_silver.png</texture>
-            <visible>String.IsEqual(ListItem.Property(is_live),true) + Integer.IsGreater(ListItem.Property(viewer_count),99) + !Integer.IsGreater(ListItem.Property(viewer_count),999)</visible>
-          </control>
-          <control type="image">
-            <posx>4</posx>
-            <posy>4</posy>
-            <width>407</width>
-            <height>267</height>
-            <texture>card_border_gold.png</texture>
-            <visible>String.IsEqual(ListItem.Property(is_live),true) + Integer.IsGreater(ListItem.Property(viewer_count),999)</visible>
-          </control>
-          <control type="image">
-            <posx>8</posx>
-            <posy>8</posy>
-            <width>399</width>
-            <height>259</height>
             <texture>card_surface_focus.png</texture>
           </control>
           <control type="image">
@@ -412,25 +323,6 @@
             <aspectratio>scale</aspectratio>
             <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Art(thumb)]</texture>
             <diffuse>thumb_mask.png</diffuse>
-          </control>
-          <control type="image">
-            <posx>295</posx>
-            <posy>64</posy>
-            <width>96</width>
-            <height>28</height>
-            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
-            <texture>badge_live.png</texture>
-          </control>
-          <control type="label">
-            <posx>297</posx>
-            <posy>68</posy>
-            <width>90</width>
-            <height>28</height>
-            <font>CardLabel</font>
-            <textcolor>FFFFFFFF</textcolor>
-            <align>center</align>
-            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
-            <label>LIVE</label>
           </control>
           <control type="label">
             <posx>16</posx>
