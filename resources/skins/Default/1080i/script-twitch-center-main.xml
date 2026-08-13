@@ -280,6 +280,7 @@
             <width>420</width>
             <height>280</height>
             <texture border="16">card_surface_focus.png</texture>
+            <colordiffuse>$VAR[Color_FocusedCard]</colordiffuse>
           </control>
           <control type="image">
             <posx>16</posx>

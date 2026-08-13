@@ -23,4 +23,7 @@
     <!-- Twitch/Kick-flavored accent for the LIVE badge -->
     <constant name="Color_LiveBadge">FFE64980</constant>
     <constant name="Color_OnLiveBadge">FFFFFFFF</constant>
+
+    <!-- Focus highlight for the selected stream card -->
+    <constant name="Color_FocusedCard">FFFFEB3B</constant>
 </includes>

@@ -124,11 +124,13 @@
 
             <focusedlayout width="420" height="280">
                 <!-- Focused-state card: "elevated" texture (shadow baked
-                     into the PNG) + primary-tinted headline for contrast -->
+                     into the PNG) tinted yellow so the selected stream
+                     is immediately visible. -->
                 <control type="image">
                     <width>420</width>
                     <height>280</height>
                     <texture border="16">card_surface_focus.png</texture>
+                    <colordiffuse>FFFFEB3B</colordiffuse>
                 </control>
                 <control type="image">
                     <posx>16</posx>
