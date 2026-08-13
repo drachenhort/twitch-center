@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Bundle Roboto (or Roboto Flex) as .ttf under resources/skins/Default/fonts/
+  and reference it here. Material 3's type scale, condensed to what a
+  stream-browser screen actually needs.
+-->
+<fonts>
+    <fontset id="Default">
+        <font>
+            <name>Title</name>
+            <filename>Roboto-Medium.ttf</filename>
+            <size>28</size>
+        </font>
+        <font>
+            <name>CardHeadline</name>
+            <filename>Roboto-Medium.ttf</filename>
+            <size>20</size>
+        </font>
+        <font>
+            <name>CardBody</name>
+            <filename>Roboto-Regular.ttf</filename>
+            <size>16</size>
+        </font>
+        <font>
+            <name>CardLabel</name>
+            <filename>Roboto-Medium.ttf</filename>
+            <size>13</size>
+        </font>
+    </fontset>
+</fonts>

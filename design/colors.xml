@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Material 3 dark theme tokens, adapted for twitch-center.
+  Reference these in controls as $VAR[colorname] once included via
+  <include>Colors</include>, or just paste hex values directly if you'd
+  rather not deal with Kodi's include system for a first pass.
+
+  Source palette: Material 3 baseline dark scheme.
+  https://m3.material.io/styles/color/roles
+-->
+<includes>
+    <constant name="Color_Surface">FF1C1B1F</constant>
+    <constant name="Color_SurfaceVariant">FF49454F</constant>
+    <constant name="Color_SurfaceContainer">FF211F26</constant>
+    <constant name="Color_SurfaceContainerHigh">FF2B2930</constant>
+
+    <constant name="Color_OnSurface">FFE6E1E5</constant>
+    <constant name="Color_OnSurfaceVariant">FFCAC4D0</constant>
+
+    <constant name="Color_Primary">FFD0BCFF</constant>
+    <constant name="Color_OnPrimary">FF381E72</constant>
+    <constant name="Color_PrimaryContainer">FF4F378B</constant>
+    <constant name="Color_OnPrimaryContainer">FFEADDFF</constant>
+
+    <constant name="Color_Outline">FF938F99</constant>
+
+    <!-- Twitch/Kick-flavored accent for the LIVE badge; not part of the
+         stock Material palette but tuned to sit well against Surface -->
+    <constant name="Color_LiveBadge">FFE64980</constant>
+    <constant name="Color_OnLiveBadge">FFFFFFFF</constant>
+</includes>
