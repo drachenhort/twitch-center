@@ -7,13 +7,28 @@ import time
 from queue import Empty, Full, Queue
 
 
+def _unescape_tag_value(value):
+    """Unescape an IRCv3 tag value (Twitch IRC tags use \\:, \\s, \\\\, \\r, \\n)."""
+    result = []
+    escape_map = {":": ";", "s": " ", "\\": "\\", "r": "\r", "n": "\n"}
+    i = 0
+    while i < len(value):
+        if value[i] == "\\" and i + 1 < len(value) and value[i + 1] in escape_map:
+            result.append(escape_map[value[i + 1]])
+            i += 2
+        else:
+            result.append(value[i])
+            i += 1
+    return "".join(result)
+
+
 def _parse_tags(tag_str):
     tags = {}
     for pair in tag_str.split(";"):
         if not pair:
             continue
         key, _, value = pair.partition("=")
-        tags[key] = value
+        tags[key] = _unescape_tag_value(value)
     return tags
 
 

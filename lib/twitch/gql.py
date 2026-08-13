@@ -167,17 +167,17 @@ def search(query, access_token=None, search_type="all", cursor=None):
     
     if search_type == "channel":
         url = f"{helix_url}/search/channels"
-        params["type"] = "channel"
+        params["live_only"] = "true"
     elif search_type == "stream":
         url = f"{helix_url}/search/streams"
-        params["type"] = "live"
     else:
         # Fetch both channels and streams
         results = []
         next_cursor = None
         for t, u in [("channel", f"{helix_url}/search/channels"), ("stream", f"{helix_url}/search/streams")]:
             p = dict(params)
-            p["type"] = "channel" if t == "channel" else "live"
+            if t == "channel":
+                p["live_only"] = "true"
             try:
                 resp = requests.get(u, headers=headers, params=p, timeout=10)
                 if resp.status_code == 200:
