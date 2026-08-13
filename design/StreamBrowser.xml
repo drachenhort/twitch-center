@@ -67,18 +67,18 @@
             <onup>3000</onup>
             <ondown>3000</ondown>
             <orientation>horizontal</orientation>
-            <itemlayout width="420" height="280">
+            <itemlayout width="415" height="275">
                 <!-- Resting-state card: flat, no elevation -->
                 <control type="image">
-                    <width>420</width>
-                    <height>280</height>
+                    <width>415</width>
+                    <height>275</height>
                     <texture border="16">card_surface.png</texture>
                 </control>
                 <control type="image">
                     <posx>16</posx>
                     <posy>16</posy>
-                    <width>388</width>
-                    <height>218</height>
+                    <width>383</width>
+                    <height>213</height>
                     <aspectratio>scale</aspectratio>
                     <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Thumb]</texture>
                 </control>
@@ -103,8 +103,8 @@
                 </control>
                 <control type="label">
                     <posx>16</posx>
-                    <posy>244</posy>
-                    <width>388</width>
+                    <posy>239</posy>
+                    <width>383</width>
                     <height>24</height>
                     <font>CardHeadline</font>
                     <textcolor>$VAR[Color_OnSurface]</textcolor>
@@ -113,8 +113,8 @@
                 </control>
                 <control type="label">
                     <posx>16</posx>
-                    <posy>264</posy>
-                    <width>388</width>
+                    <posy>259</posy>
+                    <width>383</width>
                     <height>20</height>
                     <font>CardBody</font>
                     <textcolor>$VAR[Color_OnSurfaceVariant]</textcolor>
@@ -122,21 +122,21 @@
                 </control>
             </itemlayout>
 
-            <focusedlayout width="420" height="280">
+            <focusedlayout width="415" height="275">
                 <!-- Focused-state card: "elevated" texture (shadow baked
                      into the PNG) tinted yellow so the selected stream
                      is immediately visible. -->
                 <control type="image">
-                    <width>420</width>
-                    <height>280</height>
+                    <width>415</width>
+                    <height>275</height>
                     <texture border="16">card_surface_focus.png</texture>
                     <colordiffuse>FFFFEB3B</colordiffuse>
                 </control>
                 <control type="image">
                     <posx>16</posx>
                     <posy>16</posy>
-                    <width>388</width>
-                    <height>218</height>
+                    <width>383</width>
+                    <height>213</height>
                     <aspectratio>scale</aspectratio>
                     <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Thumb]</texture>
                 </control>
@@ -161,8 +161,8 @@
                 </control>
                 <control type="label">
                     <posx>16</posx>
-                    <posy>244</posy>
-                    <width>388</width>
+                    <posy>239</posy>
+                    <width>383</width>
                     <height>24</height>
                     <font>CardHeadline</font>
                     <textcolor>$VAR[Color_Primary]</textcolor>
@@ -171,8 +171,8 @@
                 </control>
                 <control type="label">
                     <posx>16</posx>
-                    <posy>264</posy>
-                    <width>388</width>
+                    <posy>259</posy>
+                    <width>383</width>
                     <height>20</height>
                     <font>CardBody</font>
                     <textcolor>$VAR[Color_OnSurfaceVariant]</textcolor>
