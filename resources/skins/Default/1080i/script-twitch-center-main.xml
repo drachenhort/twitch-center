@@ -66,16 +66,24 @@
         <posy>0</posy>
         <width>1920</width>
         <height>1080</height>
-        <texture>black.png</texture>
+        <texture>home_bg.jpg</texture>
       </control>
-      <control type="label">
-        <description>Title</description>
-        <posx>60</posx>
-        <posy>60</posy>
-        <width>800</width>
-        <height>50</height>
-        <font>font32</font>
-        <label>Twitch Center</label>
+      <control type="image">
+        <posx>0</posx>
+        <posy>0</posy>
+        <width>1920</width>
+        <height>1080</height>
+        <texture>black.png</texture>
+        <colordiffuse>99000000</colordiffuse>
+      </control>
+      <control type="image">
+        <description>Logo</description>
+        <posx>745</posx>
+        <posy>50</posy>
+        <width>430</width>
+        <height>119</height>
+        <aspectratio>keep aligncenter</aspectratio>
+        <texture>logo_overlay.png</texture>
       </control>
       <control type="button" id="501">
         <description>Live Streams</description>
@@ -163,7 +171,7 @@
         <width>1200</width>
         <height>48</height>
         <font>Title</font>
-        <textcolor>$VAR[Color_OnSurface]</textcolor>
+        <textcolor>FFE6E1E5</textcolor>
         <label>Live Streams</label>
       </control>
       <control type="label">
@@ -173,7 +181,7 @@
         <width>1200</width>
         <height>28</height>
         <font>CardBody</font>
-        <textcolor>$VAR[Color_OnSurfaceVariant]</textcolor>
+        <textcolor>FFCAC4D0</textcolor>
         <label>$INFO[Container(201).NumItems] channels live now</label>
       </control>
       <control type="list" id="205">
@@ -192,7 +200,7 @@
             <width>220</width>
             <height>60</height>
             <font>CardBody</font>
-            <textcolor>$VAR[Color_OnSurfaceVariant]</textcolor>
+            <textcolor>FFCAC4D0</textcolor>
             <align>center</align>
             <aligny>center</aligny>
             <label>$INFO[ListItem.Label]</label>
@@ -203,7 +211,7 @@
             <width>220</width>
             <height>60</height>
             <font>CardBody</font>
-            <textcolor>$VAR[Color_Primary]</textcolor>
+            <textcolor>FFD0BCFF</textcolor>
             <align>center</align>
             <aligny>center</aligny>
             <label>$INFO[ListItem.Label]</label>
@@ -225,65 +233,110 @@
           <control type="image">
             <width>415</width>
             <height>275</height>
-            <texture>black.png</texture>
-            <colordiffuse>$VAR[Color_SurfaceContainer]</colordiffuse>
+            <texture>card_border_offline.png</texture>
+            <visible>!String.IsEqual(ListItem.Property(is_live),true)</visible>
+          </control>
+          <control type="image">
+            <width>415</width>
+            <height>275</height>
+            <texture>card_border_bronze.png</texture>
+            <visible>String.IsEqual(ListItem.Property(is_live),true) + !Integer.IsGreater(ListItem.Property(viewer_count),99)</visible>
+          </control>
+          <control type="image">
+            <width>415</width>
+            <height>275</height>
+            <texture>card_border_silver.png</texture>
+            <visible>String.IsEqual(ListItem.Property(is_live),true) + Integer.IsGreater(ListItem.Property(viewer_count),99) + !Integer.IsGreater(ListItem.Property(viewer_count),999)</visible>
+          </control>
+          <control type="image">
+            <width>415</width>
+            <height>275</height>
+            <texture>card_border_gold.png</texture>
+            <visible>String.IsEqual(ListItem.Property(is_live),true) + Integer.IsGreater(ListItem.Property(viewer_count),999)</visible>
+          </control>
+          <control type="image">
+            <posx>8</posx>
+            <posy>8</posy>
+            <width>399</width>
+            <height>259</height>
+            <texture>card_surface.png</texture>
           </control>
           <control type="image">
             <posx>16</posx>
             <posy>16</posy>
             <width>383</width>
-            <height>203</height>
-            <aspectratio>scale</aspectratio>
-            <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Art(thumb)]</texture>
-          </control>
-          <control type="image">
-            <posx>32</posx>
-            <posy>32</posy>
-            <width>96</width>
-            <height>28</height>
-            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
-            <texture>black.png</texture>
-            <colordiffuse>$VAR[Color_LiveBadge]</colordiffuse>
-          </control>
-          <control type="label">
-            <posx>34</posx>
-            <posy>36</posy>
-            <width>90</width>
-            <height>28</height>
-            <font>CardLabel</font>
-            <textcolor>$VAR[Color_OnLiveBadge]</textcolor>
-            <align>center</align>
-            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
-            <label>LIVE</label>
-          </control>
-          <control type="image">
-            <posx>16</posx>
-            <posy>219</posy>
-            <width>383</width>
-            <height>36</height>
-            <texture>black.png</texture>
-            <colordiffuse>$VAR[Color_SurfaceContainerHigh]</colordiffuse>
+            <height>32</height>
+            <texture>name_box.png</texture>
           </control>
           <control type="label">
             <posx>16</posx>
-            <posy>219</posy>
+            <posy>16</posy>
             <width>383</width>
-            <height>36</height>
+            <height>32</height>
             <font>CardHeadline</font>
-            <textcolor>$VAR[Color_OnSurface]</textcolor>
+            <textcolor>FFE6E1E5</textcolor>
             <align>center</align>
             <aligny>center</aligny>
             <scroll>false</scroll>
             <label>$INFO[ListItem.Label]</label>
           </control>
+          <control type="image">
+            <posx>16</posx>
+            <posy>56</posy>
+            <width>383</width>
+            <height>155</height>
+            <aspectratio>scale</aspectratio>
+            <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Art(thumb)]</texture>
+            <diffuse>thumb_mask.png</diffuse>
+          </control>
+          <control type="image">
+            <posx>295</posx>
+            <posy>64</posy>
+            <width>96</width>
+            <height>28</height>
+            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
+            <texture>badge_live.png</texture>
+          </control>
+          <control type="label">
+            <posx>297</posx>
+            <posy>68</posy>
+            <width>90</width>
+            <height>28</height>
+            <font>CardLabel</font>
+            <textcolor>FFFFFFFF</textcolor>
+            <align>center</align>
+            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
+            <label>LIVE</label>
+          </control>
           <control type="label">
             <posx>16</posx>
-            <posy>257</posy>
-            <width>383</width>
-            <height>16</height>
+            <posy>223</posy>
+            <width>270</width>
+            <height>28</height>
             <font>CardBody</font>
-            <textcolor>$VAR[Color_OnSurfaceVariant]</textcolor>
-            <label>$INFO[ListItem.Property(subtitle)]</label>
+            <textcolor>FFCAC4D0</textcolor>
+            <aligny>center</aligny>
+            <label>$INFO[ListItem.Property(game_name)]</label>
+          </control>
+          <control type="image">
+            <posx>303</posx>
+            <posy>223</posy>
+            <width>96</width>
+            <height>28</height>
+            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
+            <texture>stat_chip.png</texture>
+          </control>
+          <control type="label">
+            <posx>303</posx>
+            <posy>223</posy>
+            <width>96</width>
+            <height>28</height>
+            <font>CardLabel</font>
+            <textcolor>FFE6E1E5</textcolor>
+            <align>center</align>
+            <aligny>center</aligny>
+            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
+            <label>$INFO[ListItem.Property(viewer_count)]</label>
           </control>
         </itemlayout>
 
@@ -291,73 +344,123 @@
           <control type="image">
             <width>415</width>
             <height>275</height>
-            <texture>black.png</texture>
-            <colordiffuse>$VAR[Color_FocusedCardBorder]</colordiffuse>
+            <texture>card_border.png</texture>
           </control>
           <control type="image">
-            <posx>8</posx>
-            <posy>8</posy>
-            <width>399</width>
-            <height>259</height>
-            <texture>black.png</texture>
-            <colordiffuse>$VAR[Color_SurfaceContainer]</colordiffuse>
+            <posx>4</posx>
+            <posy>4</posy>
+            <width>407</width>
+            <height>267</height>
+            <texture>card_border_offline.png</texture>
+            <visible>!String.IsEqual(ListItem.Property(is_live),true)</visible>
+          </control>
+          <control type="image">
+            <posx>4</posx>
+            <posy>4</posy>
+            <width>407</width>
+            <height>267</height>
+            <texture>card_border_bronze.png</texture>
+            <visible>String.IsEqual(ListItem.Property(is_live),true) + !Integer.IsGreater(ListItem.Property(viewer_count),99)</visible>
+          </control>
+          <control type="image">
+            <posx>4</posx>
+            <posy>4</posy>
+            <width>407</width>
+            <height>267</height>
+            <texture>card_border_silver.png</texture>
+            <visible>String.IsEqual(ListItem.Property(is_live),true) + Integer.IsGreater(ListItem.Property(viewer_count),99) + !Integer.IsGreater(ListItem.Property(viewer_count),999)</visible>
+          </control>
+          <control type="image">
+            <posx>4</posx>
+            <posy>4</posy>
+            <width>407</width>
+            <height>267</height>
+            <texture>card_border_gold.png</texture>
+            <visible>String.IsEqual(ListItem.Property(is_live),true) + Integer.IsGreater(ListItem.Property(viewer_count),999)</visible>
+          </control>
+          <control type="image">
+            <posx>12</posx>
+            <posy>12</posy>
+            <width>391</width>
+            <height>251</height>
+            <texture>card_surface_focus.png</texture>
           </control>
           <control type="image">
             <posx>16</posx>
             <posy>16</posy>
             <width>383</width>
-            <height>203</height>
-            <aspectratio>scale</aspectratio>
-            <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Art(thumb)]</texture>
-          </control>
-          <control type="image">
-            <posx>32</posx>
-            <posy>32</posy>
-            <width>96</width>
-            <height>28</height>
-            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
-            <texture>black.png</texture>
-            <colordiffuse>$VAR[Color_LiveBadge]</colordiffuse>
-          </control>
-          <control type="label">
-            <posx>34</posx>
-            <posy>36</posy>
-            <width>90</width>
-            <height>28</height>
-            <font>CardLabel</font>
-            <textcolor>$VAR[Color_OnLiveBadge]</textcolor>
-            <align>center</align>
-            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
-            <label>LIVE</label>
-          </control>
-          <control type="image">
-            <posx>16</posx>
-            <posy>219</posy>
-            <width>383</width>
-            <height>36</height>
-            <texture>black.png</texture>
-            <colordiffuse>$VAR[Color_FocusedCardBorder]</colordiffuse>
+            <height>32</height>
+            <texture>name_box.png</texture>
           </control>
           <control type="label">
             <posx>16</posx>
-            <posy>219</posy>
+            <posy>16</posy>
             <width>383</width>
-            <height>36</height>
+            <height>32</height>
             <font>CardHeadline</font>
-            <textcolor>$VAR[Color_OnPrimary]</textcolor>
+            <textcolor>FFD0BCFF</textcolor>
             <align>center</align>
             <aligny>center</aligny>
             <scroll>true</scroll>
             <label>$INFO[ListItem.Label]</label>
           </control>
+          <control type="image">
+            <posx>16</posx>
+            <posy>56</posy>
+            <width>383</width>
+            <height>155</height>
+            <aspectratio>scale</aspectratio>
+            <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Art(thumb)]</texture>
+            <diffuse>thumb_mask.png</diffuse>
+          </control>
+          <control type="image">
+            <posx>295</posx>
+            <posy>64</posy>
+            <width>96</width>
+            <height>28</height>
+            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
+            <texture>badge_live.png</texture>
+          </control>
+          <control type="label">
+            <posx>297</posx>
+            <posy>68</posy>
+            <width>90</width>
+            <height>28</height>
+            <font>CardLabel</font>
+            <textcolor>FFFFFFFF</textcolor>
+            <align>center</align>
+            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
+            <label>LIVE</label>
+          </control>
           <control type="label">
             <posx>16</posx>
-            <posy>257</posy>
-            <width>383</width>
-            <height>16</height>
+            <posy>223</posy>
+            <width>270</width>
+            <height>28</height>
             <font>CardBody</font>
-            <textcolor>$VAR[Color_OnSurface]</textcolor>
-            <label>$INFO[ListItem.Property(subtitle)]</label>
+            <textcolor>FFE6E1E5</textcolor>
+            <aligny>center</aligny>
+            <label>$INFO[ListItem.Property(game_name)]</label>
+          </control>
+          <control type="image">
+            <posx>303</posx>
+            <posy>223</posy>
+            <width>96</width>
+            <height>28</height>
+            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
+            <texture>stat_chip.png</texture>
+          </control>
+          <control type="label">
+            <posx>303</posx>
+            <posy>223</posy>
+            <width>96</width>
+            <height>28</height>
+            <font>CardLabel</font>
+            <textcolor>FFD0BCFF</textcolor>
+            <align>center</align>
+            <aligny>center</aligny>
+            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
+            <label>$INFO[ListItem.Property(viewer_count)]</label>
           </control>
         </focusedlayout>
       </control>
@@ -368,7 +471,7 @@
         <width>800</width>
         <height>60</height>
         <font>CardHeadline</font>
-        <textcolor>$VAR[Color_OnSurfaceVariant]</textcolor>
+        <textcolor>FFCAC4D0</textcolor>
         <align>center</align>
         <label></label>
       </control>
@@ -379,7 +482,7 @@
         <width>800</width>
         <height>60</height>
         <font>CardHeadline</font>
-        <textcolor>$VAR[Color_OnSurfaceVariant]</textcolor>
+        <textcolor>FFCAC4D0</textcolor>
         <align>center</align>
         <label></label>
       </control>
@@ -390,8 +493,8 @@
         <width>400</width>
         <height>60</height>
         <font>CardBody</font>
-        <textcolor>$VAR[Color_OnSurface]</textcolor>
-        <focusedcolor>$VAR[Color_Primary]</focusedcolor>
+        <textcolor>FFE6E1E5</textcolor>
+        <focusedcolor>FFD0BCFF</focusedcolor>
         <align>center</align>
         <aligny>center</aligny>
         <onup>205</onup>
