@@ -153,15 +153,17 @@ def get_playback_access_token(channel_login, website_token=None):
     return {"value": value, "signature": signature}
 
 
-def search(query, access_token=None, search_type="all"):
+def search(query, access_token=None, search_type="all", cursor=None):
     """Search for channels and/or streams on Twitch using the Helix API.
-    Returns a list of result dicts. Best-effort: returns [] on failure."""
+    Returns a tuple of (results, next_cursor). Best-effort: returns ([], None) on failure."""
     helix_url = "https://api.twitch.tv/helix"
     headers = {"Client-Id": WEB_CLIENT_ID}
     if access_token:
         headers["Authorization"] = f"Bearer {access_token}"
         
     params = {"query": query, "first": 20}
+    if cursor:
+        params["cursor"] = cursor
     
     if search_type == "channel":
         url = f"{helix_url}/search/channels"
@@ -172,21 +174,25 @@ def search(query, access_token=None, search_type="all"):
     else:
         # Fetch both channels and streams
         results = []
+        next_cursor = None
         for t, u in [("channel", f"{helix_url}/search/channels"), ("stream", f"{helix_url}/search/streams")]:
             p = dict(params)
             p["type"] = "channel" if t == "channel" else "live"
             try:
                 resp = requests.get(u, headers=headers, params=p, timeout=10)
                 if resp.status_code == 200:
-                    results.extend(resp.json().get("data", []))
+                    data = resp.json()
+                    results.extend(data.get("data", []))
+                    next_cursor = data.get("pagination", {}).get("cursor")
             except requests.RequestException:
                 pass
-        return results
+        return results, next_cursor
 
     try:
         response = requests.get(url, headers=headers, params=params, timeout=10)
         if response.status_code != 200:
-            return []
-        return response.json().get("data", [])
+            return [], None
+        data = response.json()
+        return data.get("data", []), data.get("pagination", {}).get("cursor")
     except requests.RequestException:
-        return []
+        return [], None
