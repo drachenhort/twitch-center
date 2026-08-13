@@ -14,12 +14,24 @@ independent of window class (`WindowXML` vs `WindowXMLDialog`), trigger path
 Kodi's own window manager and is not something addon code can work around by
 picking a different window flavor.
 
+Separately: today, opening the addon drops straight into the followed-channel
+list. There's no landing menu separating "go watch something" from other
+options (Discover, Search, Settings, re-login) — they're all crammed onto the
+same screen as the channel list itself.
+
 ## Goal
 
-Eliminate the bug at the source: never construct a second top-level
-`xbmcgui.Window*` instance during a session. Fold Login, Home, Discover, and
-Search into one persistent window, switching between them by toggling which
-skin `<group>` is visible.
+1. Eliminate the revert bug at the source: never construct a second
+   top-level `xbmcgui.Window*` instance during a session. Fold every screen
+   into one persistent window, switching between them by toggling which
+   skin `<group>` is visible.
+2. Add a landing **Menu** view as the new entry point (after Login): four
+   buttons — **Live Streams**, **Discover**, **Search**, **Settings** — plus
+   **Log in again**. "Live Streams" leads to a view holding exactly today's
+   Home content (followed-channel list + games filter row, otherwise
+   unchanged). Menu becomes the new navigational "top" — Back from Live
+   Streams/Discover/Search returns to Menu; Back from Menu asks to quit
+   (Menu takes over the role Home's Back handling has today).
 
 Out of scope for this spec: the Material 3 card-grid visual redesign of
 Discover (separate spec, built afterward on top of this architecture).
@@ -30,29 +42,38 @@ Discover's current plain-list visuals carry over unchanged here.
 One `xbmcgui.WindowXML` subclass, `MainWindow`
 (`lib/windows/main_window.py`), backed by one skin file,
 `resources/skins/Default/1080i/script-twitch-center-main.xml`, containing
-four `<control type="group">` blocks — one per screen. `MainWindow` owns:
+five `<control type="group">` blocks — one per screen: Login, Menu, Live
+Streams, Discover, Search. `MainWindow` owns:
 
-- View switching: `_switch_view(name)` hides all four groups, shows the
+- View switching: `_switch_view(name)` hides all five groups, shows the
   target one, calls the target controller's `activate()`.
 - Centralized Back handling in `onAction`, before delegating to the active
   controller: if a stream is playing, stop it; else if the active view is
-  Home, ask for quit-confirmation (existing `main.run()` flow); else switch
-  back to the Home view. This replaces four near-identical copies of the
-  same Back logic with one.
+  Menu, ask for quit-confirmation (existing `main.run()` flow); else switch
+  to the Menu view. This replaces several near-identical copies of the same
+  Back logic with one, and moves the "top of the stack" role from Home to
+  Menu.
 - Delegation: `onAction`/`onClick` not handled above are passed to
   `self._active_controller.handle_action(action)` /
   `.handle_click(control_id)`.
 
-Four plain Python controller classes — **not** `Window` subclasses —
-hold each screen's existing logic almost unchanged: `LoginView`,
-`HomeView`, `DiscoverView`, `SearchView` (`lib/views/login_view.py`,
-`home_view.py`, `discover_view.py`, `search_view.py`). Each is constructed
-with a reference to the owning `MainWindow` (for `getControl`/`setFocusId`/
-`getFocusId`/`close` passthrough) and the shared `closed_event`. Today's
-`onInit` body becomes `activate()`; today's `onAction`/`onClick` bodies
-become `handle_action()`/`handle_click()` (minus the Back-handling lines,
-now centralized in `MainWindow`); every other method (search threads,
-`_render_results`, `_build_channel_item`, etc.) moves over unchanged.
+Five plain Python controller classes — **not** `Window` subclasses —
+hold each screen's logic: `LoginView`, `MenuView`, `LiveStreamsView`,
+`DiscoverView`, `SearchView` (`lib/views/login_view.py`, `menu_view.py`,
+`live_streams_view.py`, `discover_view.py`, `search_view.py`).
+`LiveStreamsView`/`DiscoverView`/`SearchView` are adapted from today's
+`HomeWindow`/`DiscoverWindow`/`SearchWindow` bodies almost unchanged, minus
+the button-row handling that moves to `MenuView` (see below). `MenuView` is
+new: four buttons + Log in again, each `handle_action`/`handle_click`
+branch just calls `self.window._switch_view(...)` (or
+`xbmcaddon.Addon().openSettings()` for Settings, same native call as
+today). Each controller is constructed with a reference to the owning
+`MainWindow` (for `getControl`/`setFocusId`/`getFocusId`/`close`
+passthrough) and the shared `closed_event`. Today's `onInit` body becomes
+`activate()`; today's `onAction`/`onClick` bodies become
+`handle_action()`/`handle_click()` (minus Back-handling, now centralized in
+`MainWindow`); every other method (search threads, `_render_results`,
+`_build_channel_item`, etc.) moves over unchanged.
 
 Cross-screen navigation (`_open_discover_window`, `_open_login_window`,
 `_open_search_window` today) collapses to a single call:
@@ -60,10 +81,11 @@ Cross-screen navigation (`_open_discover_window`, `_open_login_window`,
 `show()`/`close()` handoff, no per-transition `closed_event` passing (one
 `closed_event`, owned by `MainWindow`, shared by construction).
 
-`main.py` shrinks to: decide the initial view from token presence, construct
-`MainWindow` once, `.show()`, then the existing `monitor.waitForAbort(1)`
-loop — now watching for two things instead of window teardown: the shared
-`closed_event`, and a `pending_view_switch` flag (see Login handoff below).
+`main.py` shrinks to: decide the initial view from token presence (`"menu"`
+if a token exists, else `"login"`), construct `MainWindow` once, `.show()`,
+then the existing `monitor.waitForAbort(1)` loop — now watching for two
+things instead of window teardown: the shared `closed_event`, and a
+`login_succeeded` flag (see Login handoff below).
 
 Player (`lib/windows/player.py`) and `ChatOverlay`
 (`lib/windows/chat_overlay.py`) are untouched — they're Kodi's native
@@ -73,23 +95,26 @@ fullscreen-video window plus an existing, already-working
 ## Control ID plan
 
 Control IDs are window-wide in Kodi even inside `<group>` blocks, so each
-screen gets its own hundred-block to avoid collisions (pure renumbering, no
-behavior change):
+screen gets its own hundred-block to avoid collisions. The button-row
+constants (`DISCOVER_BUTTON_ID`, `SEARCH_BUTTON_ID`, `SETTINGS_BUTTON_ID`,
+`RELOGIN_BUTTON_ID`) move off Home/Live-Streams entirely, onto the new Menu
+view:
 
-| View | Constant | Old ID | New ID |
+| View | Constant | Old ID (old owner) | New ID |
 |---|---|---|---|
-| Login | `CODE_LABEL_ID` | 101 | 101 |
-| Login | `URL_LABEL_ID` | 102 | 102 |
-| Login | `STATUS_LABEL_ID` | 103 | 103 |
-| Home | `CHANNEL_LIST_ID` | 101 | 201 |
-| Home | `EMPTY_LABEL_ID` | 102 | 202 |
-| Home | `ERROR_LABEL_ID` | 103 | 203 |
-| Home | `RELOGIN_BUTTON_ID` | 104 | 204 |
-| Home | `GAMES_LIST_ID` | 105 | 205 |
-| Home | `DISCOVER_BUTTON_ID` | 106 | 206 |
-| Home | `TITLE_LABEL_ID` | 107 | 207 |
-| Home | `SETTINGS_BUTTON_ID` | 108 | 208 |
-| Home | `SEARCH_BUTTON_ID` | 109 | 209 |
+| Login | `CODE_LABEL_ID` | 101 (Login) | 101 |
+| Login | `URL_LABEL_ID` | 102 (Login) | 102 |
+| Login | `STATUS_LABEL_ID` | 103 (Login) | 103 |
+| Menu | `LIVE_STREAMS_BUTTON_ID` | — (new) | 501 |
+| Menu | `DISCOVER_BUTTON_ID` | 106 (Home) | 502 |
+| Menu | `SEARCH_BUTTON_ID` | 109 (Home) | 503 |
+| Menu | `SETTINGS_BUTTON_ID` | 108 (Home) | 504 |
+| Menu | `RELOGIN_BUTTON_ID` | 104 (Home) | 505 |
+| Live Streams | `CHANNEL_LIST_ID` | 101 (Home) | 201 |
+| Live Streams | `EMPTY_LABEL_ID` | 102 (Home) | 202 |
+| Live Streams | `ERROR_LABEL_ID` | 103 (Home) | 203 |
+| Live Streams | `GAMES_LIST_ID` | 105 (Home) | 205 |
+| Live Streams | `TITLE_LABEL_ID` | 107 (Home) | 207 |
 | Discover | `RESULTS_LIST_ID` | 201 | 301 |
 | Discover | `EMPTY_LABEL_ID` | 202 | 302 |
 | Discover | `ERROR_LABEL_ID` | 203 | 303 |
@@ -103,8 +128,21 @@ behavior change):
 | Search | `STATUS_LABEL_ID` | 103 | 403 |
 | Search | `NEXT_PAGE_BUTTON_ID` | 104 | 404 |
 
-Each view's top-level `<control type="group">` also gets an ID (100, 200,
-300, 400) so `MainWindow._switch_view` can `getControl(group_id).setVisible(...)`.
+Notes:
+- Discover keeps its own `RELOGIN_BUTTON_ID` (304): Discover's relogin
+  button today handles a session expiring *while browsing Discover*, a
+  different case from Menu's always-visible "Log in again" — both still
+  route to `_switch_view("login")`, just from different screens. Live
+  Streams' equivalent relogin case (`_show_relogin_prompt` in today's
+  `HomeWindow`) now also switches to Menu's relogin path rather than
+  needing its own button — Live Streams' error/empty label already
+  communicates the problem; the user backs out to Menu and picks "Log in
+  again" there. (Simplification worth calling out during implementation
+  review — if it reads as worse UX in practice, Live Streams can keep a
+  dedicated relogin button too, at ID 204.)
+- Each view's top-level `<control type="group">` also gets an ID (100 Login,
+  500 Menu, 200 Live Streams, 300 Discover, 400 Search) so
+  `MainWindow._switch_view` can `getControl(group_id).setVisible(...)`.
 
 ## Login handoff (background-thread constraint preserved)
 
@@ -120,9 +158,8 @@ window are still Kodi GUI API calls, and this codebase's existing pattern
 
 `LoginView` keeps the same shape: `_on_status("success")` sets
 `self.login_succeeded = True` (unchanged). `main.py`'s monitor loop keeps
-polling once a second and, on seeing it, calls
-`window._switch_view("home")` itself (main thread) instead of constructing a
-new `HomeWindow`.
+polling once a second and, on seeing it, calls `window._switch_view("menu")`
+itself (main thread) instead of constructing a new `HomeWindow`.
 
 ## File structure
 
@@ -131,8 +168,12 @@ new `HomeWindow`.
 - `lib/views/__init__.py` — new, empty.
 - `lib/views/login_view.py` — new. `LoginView`, adapted from
   `lib/windows/login.py`'s `LoginWindow` body.
-- `lib/views/home_view.py` — new. `HomeView`, adapted from
-  `lib/windows/home.py`'s `HomeWindow` body.
+- `lib/views/menu_view.py` — new. `MenuView`: four buttons + Log in again,
+  each branch calling `_switch_view` (or `openSettings()` for Settings).
+- `lib/views/live_streams_view.py` — new. `LiveStreamsView`, adapted from
+  `lib/windows/home.py`'s `HomeWindow` body, minus the button-row handling
+  (`DISCOVER_BUTTON_ID`/`SEARCH_BUTTON_ID`/`SETTINGS_BUTTON_ID` branches,
+  which move to `MenuView`).
 - `lib/views/discover_view.py` — new. `DiscoverView`, adapted from
   `lib/windows/discover.py`'s `DiscoverWindow` body (module-level helpers
   `_build_channel_item`/`_build_stream_item` move here too).
@@ -143,12 +184,13 @@ new `HomeWindow`.
 - `resources/skins/Default/1080i/script-twitch-center-main.xml` — new,
   replaces the four existing per-screen skin files (which get deleted).
 - `lib/main.py` — rewritten `run()`, much shorter.
-- `tests/windows/test_home_window.py`,
-  `test_discover_window.py`,
+- `tests/windows/test_home_window.py`, `test_discover_window.py`,
   `tests/windows/test_search_window.py` → moved/renamed to
-  `tests/views/test_home_view.py` etc., adapted to construct the
-  controller directly against a fake `window` double instead of
-  instantiating an `xbmcgui.WindowXML` subclass (see Testing below).
+  `tests/views/test_live_streams_view.py`, `test_discover_view.py`,
+  `test_search_view.py`, adapted to construct the controller directly
+  against a fake `window` double instead of instantiating an
+  `xbmcgui.WindowXML` subclass (see Testing below).
+- `tests/views/test_menu_view.py` — new.
 - `tests/test_main.py` — updated for the new `run()` shape.
 
 ## Testing
@@ -163,13 +205,16 @@ controller being a `WindowXML` itself. Existing assertions (`getControl(...).get
 `getFocusId()`, `closed_event.quit_requested`, etc.) carry over unchanged —
 only construction changes, from
 `HomeWindow("script-twitch-center-home.xml", "/tmp")` to
-`HomeView(FakeWindow(), closed_event=...)`.
+`LiveStreamsView(FakeWindow(), closed_event=...)`.
 
 New coverage this spec adds: `tests/windows/test_main_window.py` — view
 switching (`_switch_view` hides/shows the right groups, calls `activate()`
 on the target controller), centralized Back handling (playing → stop;
-Home + not playing → quit-requested; non-Home → switches to Home), and
+Menu + not playing → quit-requested; non-Menu → switches to Menu), and
 action/click delegation to whichever controller is active.
+`tests/views/test_menu_view.py` — each button's `handle_click`/`handle_action`
+calls `_switch_view` with the right target (or `openSettings()` for
+Settings).
 
 ## Error handling
 
