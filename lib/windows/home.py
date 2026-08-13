@@ -10,6 +10,7 @@ from lib.twitch import api, auth, gql, stream
 from lib.windows import player
 from lib.windows.login import LoginWindow
 from lib.windows.discover import DiscoverWindow
+from lib.windows.search import SearchWindow
 
 CHANNEL_LIST_ID = 101
 EMPTY_LABEL_ID = 102
@@ -19,6 +20,7 @@ GAMES_LIST_ID = 105
 DISCOVER_BUTTON_ID = 106
 TITLE_LABEL_ID = 107
 SETTINGS_BUTTON_ID = 108
+SEARCH_BUTTON_ID = 109
 
 _MISSING_TOKEN_MESSAGE = "You're not logged in. Reopen the addon to log in."
 _EMPTY_FOLLOWED_MESSAGE = "You're not following anyone yet."
@@ -298,6 +300,8 @@ class HomeWindow(xbmcgui.WindowXML):
                 self._open_discover_window()
             elif self.getFocusId() == self.SETTINGS_BUTTON_ID:
                 self._open_addon_settings()
+            elif self.getFocusId() == self.SEARCH_BUTTON_ID:
+                self._open_search_window()
             elif self.getFocusId() == self.CHANNEL_LIST_ID:
                 self._on_channel_selected()
 
@@ -387,3 +391,17 @@ class HomeWindow(xbmcgui.WindowXML):
         if self.closed_event.is_set():
             return
         self.onInit()
+
+    def _open_search_window(self):
+        addon = xbmcaddon.Addon()
+        search_window = SearchWindow(
+            "script-twitch-center-search.xml",
+            addon.getAddonInfo("path"),
+            "Default",
+            "1080i",
+            closed_event=self.closed_event,
+        )
+        search_window.show()
+        # Handing off, not ending the chain - see _open_login_window.
+        xbmc.sleep(100)
+        self.close()
