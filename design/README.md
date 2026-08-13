@@ -5,7 +5,7 @@
 ```
 resources/skins/Default/1080i/colors.xml       Material 3 dark color tokens
 resources/skins/Default/1080i/Font.xml          Roboto-based type scale
-design/StreamBrowser.xml                        Card-grid window definition
+resources/skins/Default/1080i/StreamBrowser.xml Card-grid window definition
 ```
 
 ## Wiring it up in Python
@@ -79,8 +79,8 @@ edge are the "don't stretch this part" corner/edge region.
 
 Any vector tool (Inkscape, Figma, even a quick script with Pillow +
 `ImageDraw.rounded_rectangle` and a Gaussian blur pass for the shadow) works
-for generating these — happy to write a Pillow script that generates all
-four from the color tokens above if that's easier than hand-drawing them.
+for generating these — happy to write a Pillow script that generates them
+from the color tokens above if that's easier than hand-drawing them.
 
 ## Fonts
 
