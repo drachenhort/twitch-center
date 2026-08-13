@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from lib.twitch import stream
 from lib.windows import player
 
 
@@ -39,6 +40,17 @@ class FakeChatOverlay:
         self.closed = True
 
 
+class FakeWatchdog:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def start(self):
+        pass
+
+    def stop(self):
+        pass
+
+
 def _patch_playable():
     return patch("lib.windows.player.Helper"), patch("lib.windows.player.xbmc.Player")
 
@@ -46,7 +58,7 @@ def _patch_playable():
 def test_play_stream_returns_true_and_plays_when_inputstream_available():
     with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
         "lib.windows.player.xbmc.Player"
-    ) as mock_player_cls:
+    ) as mock_player_cls, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog):
         mock_helper_cls.return_value.check_inputstream.return_value = True
         mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
 
@@ -70,7 +82,7 @@ def test_play_stream_returns_true_and_plays_when_inputstream_available():
 def test_play_stream_returns_false_when_inputstream_declined():
     with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
         "lib.windows.player.xbmc.Player"
-    ) as mock_player_cls:
+    ) as mock_player_cls, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog):
         mock_helper_cls.return_value.check_inputstream.return_value = False
 
         result = player.play_stream(
@@ -85,7 +97,7 @@ def test_play_stream_creates_and_shows_overlay_when_mode_is_overlay():
     FakeChatOverlay.instances.clear()
     with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
         "lib.windows.player.xbmc.Player"
-    ) as mock_player_cls:
+    ) as mock_player_cls, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog):
         mock_helper_cls.return_value.check_inputstream.return_value = True
         mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
 
@@ -108,7 +120,7 @@ def test_play_stream_creates_overlay_when_mode_is_both():
     FakeChatOverlay.instances.clear()
     with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
         "lib.windows.player.xbmc.Player"
-    ) as mock_player_cls:
+    ) as mock_player_cls, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog):
         mock_helper_cls.return_value.check_inputstream.return_value = True
         mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
 
@@ -127,7 +139,7 @@ def test_play_stream_skips_overlay_when_mode_is_standalone():
     FakeChatOverlay.instances.clear()
     with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
         "lib.windows.player.xbmc.Player"
-    ) as mock_player_cls:
+    ) as mock_player_cls, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog):
         mock_helper_cls.return_value.check_inputstream.return_value = True
         mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
 
@@ -146,7 +158,7 @@ def test_play_stream_skips_overlay_when_inputstream_declined():
     FakeChatOverlay.instances.clear()
     with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
         "lib.windows.player.xbmc.Player"
-    ) as mock_player_cls:
+    ) as mock_player_cls, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog):
         mock_helper_cls.return_value.check_inputstream.return_value = False
 
         result = player.play_stream(
@@ -167,7 +179,9 @@ def test_play_stream_returns_true_even_if_chat_overlay_construction_raises():
 
     with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
         "lib.windows.player.xbmc.Player"
-    ) as mock_player_cls, patch("lib.windows.player.xbmc.log") as mock_log:
+    ) as mock_player_cls, patch("lib.windows.player.xbmc.log") as mock_log, patch(
+        "lib.windows.player.PlaybackWatchdog", FakeWatchdog
+    ):
         mock_helper_cls.return_value.check_inputstream.return_value = True
         mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
 
@@ -188,9 +202,11 @@ def test_chat_aware_player_teardown_closes_overlay_and_disconnects_client_on_sto
     overlay = FakeChatOverlay(
         "x.xml", "/tmp", "Default", "1080i", channel="c", chat_client_cls=FakeChatClient
     )
-    watcher = player._ChatAwarePlayer(overlay)
+    watcher = player._ChatAwarePlayer(
+        overlay, url="https://example.invalid/stream.m3u8", channel="c", enable_watchdog=False
+    )
 
-    watcher.onPlaybackStopped()
+    watcher.onPlayBackStopped()
 
     assert overlay.closed is True
     assert overlay._client.disconnected is True
@@ -201,9 +217,11 @@ def test_chat_aware_player_teardown_closes_overlay_and_disconnects_client_on_end
     overlay = FakeChatOverlay(
         "x.xml", "/tmp", "Default", "1080i", channel="c", chat_client_cls=FakeChatClient
     )
-    watcher = player._ChatAwarePlayer(overlay)
+    watcher = player._ChatAwarePlayer(
+        overlay, url="https://example.invalid/stream.m3u8", channel="c", enable_watchdog=False
+    )
 
-    watcher.onPlaybackEnded()
+    watcher.onPlayBackEnded()
 
     assert overlay.closed is True
     assert overlay._client.disconnected is True
@@ -214,9 +232,11 @@ def test_chat_aware_player_teardown_closes_overlay_and_disconnects_client_on_err
     overlay = FakeChatOverlay(
         "x.xml", "/tmp", "Default", "1080i", channel="c", chat_client_cls=FakeChatClient
     )
-    watcher = player._ChatAwarePlayer(overlay)
+    watcher = player._ChatAwarePlayer(
+        overlay, url="https://example.invalid/stream.m3u8", channel="c", enable_watchdog=False
+    )
 
-    watcher.onPlaybackError()
+    watcher.onPlayBackError()
 
     assert overlay.closed is True
     assert overlay._client.disconnected is True
@@ -228,9 +248,11 @@ def test_chat_aware_player_teardown_works_even_if_overlay_client_not_yet_set():
         "x.xml", "/tmp", "Default", "1080i", channel="c", chat_client_cls=FakeChatClient
     )
     overlay._client = None  # simulates onInit not having run yet when show() returned
-    watcher = player._ChatAwarePlayer(overlay)
+    watcher = player._ChatAwarePlayer(
+        overlay, url="https://example.invalid/stream.m3u8", channel="c", enable_watchdog=False
+    )
 
-    watcher.onPlaybackStopped()  # must not raise
+    watcher.onPlayBackStopped()  # must not raise
 
     assert overlay.closed is True
 
@@ -239,7 +261,7 @@ def test_play_stream_tears_down_previous_watcher_when_called_again():
     FakeChatOverlay.instances.clear()
     with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
         "lib.windows.player.xbmc.Player"
-    ) as mock_player_cls:
+    ) as mock_player_cls, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog):
         mock_helper_cls.return_value.check_inputstream.return_value = True
         mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
 
@@ -265,3 +287,163 @@ def test_play_stream_tears_down_previous_watcher_when_called_again():
     assert len(FakeChatOverlay.instances) == 2
     second_overlay = FakeChatOverlay.instances[1]
     assert second_overlay.closed is False
+
+
+def test_ad_break_state_tracks_event_and_clears():
+    state = player.AdBreakState()
+    assert state.active is False
+
+    state.begin(
+        {
+            "duration_seconds": 60,
+            "started_at": "2026-08-14T00:00:00Z",
+            "is_automatic": True,
+            "broadcaster_user_login": "streamer",
+        }
+    )
+    assert state.active is True
+    assert state.duration == 60
+    assert state.channel == "streamer"
+    assert state.is_automatic is True
+
+    state.clear()
+    assert state.active is False
+    assert state.duration == 0
+
+
+class FakePlayerForRecovery:
+    def __init__(self):
+        self.played = []
+
+    def isPlaying(self):
+        return True
+
+    def play(self, url, list_item):
+        self.played.append((url, list_item.getPath()))
+
+
+def test_recovery_manager_resolves_fresh_url_and_restarts_player():
+    with patch.object(stream, "resolve_stream_url", return_value="https://fresh.url/stream.m3u8") as mock_resolve, patch(
+        "lib.windows.player.Helper"
+    ) as mock_helper_cls:
+        mock_helper_cls.return_value.check_inputstream.return_value = True
+        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
+
+        fake_player = FakePlayerForRecovery()
+        recovery = player.RecoveryManager(fake_player, "somechannel")
+        recovery.recover()
+
+    mock_resolve.assert_called_once_with("somechannel", None)
+    assert len(fake_player.played) == 1
+    assert fake_player.played[0][0] == "https://fresh.url/stream.m3u8"
+    assert fake_player.played[0][1] == "https://fresh.url/stream.m3u8"
+
+
+def test_recovery_manager_is_noop_when_already_recovering():
+    with patch.object(stream, "resolve_stream_url") as mock_resolve, patch(
+        "lib.windows.player.Helper"
+    ) as mock_helper_cls:
+        mock_helper_cls.return_value.check_inputstream.return_value = True
+
+        fake_player = FakePlayerForRecovery()
+        recovery = player.RecoveryManager(fake_player, "somechannel")
+
+        # Hold the lock to simulate a concurrent recovery in progress.
+        with recovery._lock:
+            recovery.recover()
+
+        mock_resolve.assert_not_called()
+
+
+def test_playback_watchdog_triggers_recovery_after_stall():
+    fake_player = FakePlayerForRecovery()
+    fake_player.getTime = lambda: 5.0
+
+    ad_state = player.AdBreakState()
+    recovery = player.RecoveryManager(fake_player, "channel")
+    watchdog = player.PlaybackWatchdog(fake_player, ad_state, recovery)
+
+    with patch.object(recovery, "recover") as mock_recover, patch.object(
+        player, "time"
+    ) as mock_time:
+        counter = [0]
+
+        def monotonic():
+            counter[0] += 1
+            return counter[0] - 1
+
+        mock_time.monotonic.side_effect = monotonic
+
+        for _ in range(16):
+            watchdog._check_once()
+
+    mock_recover.assert_called_once()
+
+
+def test_playback_watchdog_uses_longer_threshold_during_active_ad_break():
+    fake_player = FakePlayerForRecovery()
+    fake_player.getTime = lambda: 5.0
+
+    ad_state = player.AdBreakState()
+    ad_state.begin({"duration_seconds": 5, "broadcaster_user_login": "streamer"})
+    recovery = player.RecoveryManager(fake_player, "channel")
+    watchdog = player.PlaybackWatchdog(fake_player, ad_state, recovery)
+
+    with patch.object(recovery, "recover") as mock_recover, patch.object(
+        player, "time"
+    ) as mock_time:
+        counter = [0]
+
+        def monotonic():
+            counter[0] += 1
+            return counter[0] - 1
+
+        mock_time.monotonic.side_effect = monotonic
+
+        # Threshold is duration (5) + grace (10) = 15, so 16 checks triggers it.
+        for _ in range(16):
+            watchdog._check_once()
+
+    mock_recover.assert_called_once()
+
+
+def test_playback_watchdog_does_not_recover_while_position_advances():
+    fake_player = FakePlayerForRecovery()
+    position = [0.0]
+
+    def advance():
+        position[0] += 1.0
+        return position[0]
+
+    fake_player.getTime = advance
+
+    ad_state = player.AdBreakState()
+    recovery = player.RecoveryManager(fake_player, "channel")
+    watchdog = player.PlaybackWatchdog(fake_player, ad_state, recovery)
+
+    with patch.object(recovery, "recover") as mock_recover:
+        for _ in range(50):
+            watchdog._check_once()
+
+    mock_recover.assert_not_called()
+
+
+def test_playback_watchdog_does_not_recover_while_paused():
+    fake_player = FakePlayerForRecovery()
+    fake_player.getTime = lambda: 5.0
+
+    ad_state = player.AdBreakState()
+    recovery = player.RecoveryManager(fake_player, "channel")
+    watchdog = player.PlaybackWatchdog(
+        fake_player, ad_state, recovery, is_paused_fn=lambda: True
+    )
+
+    with patch.object(recovery, "recover") as mock_recover, patch.object(
+        player, "time"
+    ) as mock_time:
+        mock_time.monotonic.return_value = 100.0
+
+        for _ in range(50):
+            watchdog._check_once()
+
+    mock_recover.assert_not_called()
