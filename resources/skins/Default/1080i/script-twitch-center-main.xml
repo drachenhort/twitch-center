@@ -1,0 +1,555 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window>
+  <defaultcontrol always="true">104</defaultcontrol>
+  <controls>
+
+    <!-- ===================== LOGIN (100) ===================== -->
+    <control type="group" id="100">
+      <control type="label">
+        <description>Title</description>
+        <posx>560</posx>
+        <posy>260</posy>
+        <width>800</width>
+        <height>50</height>
+        <font>font32</font>
+        <align>center</align>
+        <label>Activate Twitch Center</label>
+      </control>
+      <control type="label" id="101">
+        <description>User code</description>
+        <posx>560</posx>
+        <posy>340</posy>
+        <width>800</width>
+        <height>140</height>
+        <font>font37</font>
+        <align>center</align>
+        <aligny>center</aligny>
+        <label></label>
+      </control>
+      <control type="label" id="102">
+        <description>Verification URL</description>
+        <posx>560</posx>
+        <posy>500</posy>
+        <width>800</width>
+        <height>40</height>
+        <font>font13</font>
+        <align>center</align>
+        <label></label>
+      </control>
+      <control type="label" id="103">
+        <description>Status</description>
+        <posx>560</posx>
+        <posy>560</posy>
+        <width>800</width>
+        <height>40</height>
+        <font>font13</font>
+        <align>center</align>
+        <label></label>
+      </control>
+      <control type="button" id="104">
+        <description>Cancel</description>
+        <posx>760</posx>
+        <posy>640</posy>
+        <width>400</width>
+        <height>60</height>
+        <font>font13</font>
+        <align>center</align>
+        <label>Cancel</label>
+        <onclick>PreviousMenu</onclick>
+      </control>
+    </control>
+
+    <!-- ===================== MENU (500) ===================== -->
+    <control type="group" id="500">
+      <control type="image">
+        <posx>0</posx>
+        <posy>0</posy>
+        <width>1920</width>
+        <height>1080</height>
+        <texture>black.png</texture>
+      </control>
+      <control type="label">
+        <description>Title</description>
+        <posx>60</posx>
+        <posy>60</posy>
+        <width>800</width>
+        <height>50</height>
+        <font>font32</font>
+        <label>Twitch Center</label>
+      </control>
+      <control type="button" id="501">
+        <description>Live Streams</description>
+        <posx>660</posx>
+        <posy>360</posy>
+        <width>600</width>
+        <height>80</height>
+        <font>font20</font>
+        <align>center</align>
+        <aligny>center</aligny>
+        <onright>501</onright>
+        <onleft>501</onleft>
+        <ondown>502</ondown>
+        <onup>505</onup>
+        <label>Live Streams</label>
+      </control>
+      <control type="button" id="502">
+        <description>Discover</description>
+        <posx>660</posx>
+        <posy>460</posy>
+        <width>600</width>
+        <height>80</height>
+        <font>font20</font>
+        <align>center</align>
+        <aligny>center</aligny>
+        <onright>502</onright>
+        <onleft>502</onleft>
+        <onup>501</onup>
+        <ondown>503</ondown>
+        <label>Discover</label>
+      </control>
+      <control type="button" id="503">
+        <description>Search</description>
+        <posx>660</posx>
+        <posy>560</posy>
+        <width>600</width>
+        <height>80</height>
+        <font>font20</font>
+        <align>center</align>
+        <aligny>center</aligny>
+        <onright>503</onright>
+        <onleft>503</onleft>
+        <onup>502</onup>
+        <ondown>504</ondown>
+        <label>Search</label>
+      </control>
+      <control type="button" id="504">
+        <description>Settings</description>
+        <posx>660</posx>
+        <posy>660</posy>
+        <width>600</width>
+        <height>80</height>
+        <font>font20</font>
+        <align>center</align>
+        <aligny>center</aligny>
+        <onright>504</onright>
+        <onleft>504</onleft>
+        <onup>503</onup>
+        <ondown>505</ondown>
+        <label>Settings</label>
+      </control>
+      <control type="button" id="505">
+        <description>Log in again</description>
+        <posx>660</posx>
+        <posy>760</posy>
+        <width>600</width>
+        <height>80</height>
+        <font>font13</font>
+        <align>center</align>
+        <aligny>center</aligny>
+        <onright>505</onright>
+        <onleft>505</onleft>
+        <onup>504</onup>
+        <ondown>501</ondown>
+        <label>Log in again</label>
+      </control>
+    </control>
+
+    <!-- ===================== LIVE STREAMS (200) ===================== -->
+    <control type="group" id="200">
+      <control type="label" id="207">
+        <description>Title with version</description>
+        <posx>60</posx>
+        <posy>60</posy>
+        <width>800</width>
+        <height>50</height>
+        <font>font32</font>
+        <label>Twitch Center</label>
+      </control>
+      <control type="list" id="205">
+        <description>Followed games filter</description>
+        <posx>60</posx>
+        <posy>130</posy>
+        <width>1800</width>
+        <height>90</height>
+        <orientation>horizontal</orientation>
+        <onup>205</onup>
+        <ondown>201</ondown>
+        <onleft>205</onleft>
+        <onright>205</onright>
+        <itemlayout width="220" height="80">
+          <control type="label">
+            <width>220</width>
+            <height>80</height>
+            <font>font13</font>
+            <align>center</align>
+            <aligny>center</aligny>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+        </itemlayout>
+        <focusedlayout width="220" height="80">
+          <control type="label">
+            <width>220</width>
+            <height>80</height>
+            <font>font13</font>
+            <align>center</align>
+            <aligny>center</aligny>
+            <textcolor>ff9146ff</textcolor>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+        </focusedlayout>
+      </control>
+      <control type="list" id="201">
+        <description>Followed channels</description>
+        <posx>60</posx>
+        <posy>240</posy>
+        <width>1800</width>
+        <height>760</height>
+        <onup>205</onup>
+        <ondown>201</ondown>
+        <itemlayout width="1800" height="120">
+          <control type="image">
+            <posx>10</posx>
+            <posy>0</posy>
+            <width>160</width>
+            <height>90</height>
+            <texture>$INFO[ListItem.Art(thumb)]</texture>
+            <aspectratio>scale</aspectratio>
+          </control>
+          <control type="label">
+            <posx>190</posx>
+            <width>1600</width>
+            <height>60</height>
+            <font>font20</font>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+          <control type="label">
+            <posx>190</posx>
+            <posy>65</posy>
+            <width>1600</width>
+            <height>40</height>
+            <font>font13</font>
+            <label>$INFO[ListItem.Label2]</label>
+          </control>
+        </itemlayout>
+        <focusedlayout width="1800" height="120">
+          <control type="image">
+            <posx>10</posx>
+            <posy>0</posy>
+            <width>160</width>
+            <height>90</height>
+            <texture>$INFO[ListItem.Art(thumb)]</texture>
+            <aspectratio>scale</aspectratio>
+          </control>
+          <control type="label">
+            <posx>190</posx>
+            <width>1600</width>
+            <height>60</height>
+            <font>font20</font>
+            <textcolor>ff9146ff</textcolor>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+          <control type="label">
+            <posx>190</posx>
+            <posy>65</posy>
+            <width>1600</width>
+            <height>40</height>
+            <font>font13</font>
+            <label>$INFO[ListItem.Label2]</label>
+          </control>
+        </focusedlayout>
+      </control>
+      <control type="label" id="202">
+        <description>Empty followed list message</description>
+        <posx>560</posx>
+        <posy>460</posy>
+        <width>800</width>
+        <height>60</height>
+        <font>font20</font>
+        <align>center</align>
+        <label></label>
+      </control>
+      <control type="label" id="203">
+        <description>Error / re-login message</description>
+        <posx>560</posx>
+        <posy>460</posy>
+        <width>800</width>
+        <height>60</height>
+        <font>font20</font>
+        <align>center</align>
+        <label></label>
+      </control>
+    </control>
+
+    <!-- ===================== DISCOVER (300) ===================== -->
+    <control type="group" id="300">
+      <control type="label">
+        <description>Title</description>
+        <posx>60</posx>
+        <posy>60</posy>
+        <width>800</width>
+        <height>50</height>
+        <font>font32</font>
+        <label>Discover</label>
+      </control>
+      <control type="edit" id="306">
+        <description>Search query</description>
+        <posx>60</posx>
+        <posy>130</posy>
+        <width>1200</width>
+        <height>60</height>
+        <font>font13</font>
+        <onright>307</onright>
+        <ondown>305</ondown>
+        <label>Search channels...</label>
+      </control>
+      <control type="button" id="307">
+        <description>Search</description>
+        <posx>1280</posx>
+        <posy>130</posy>
+        <width>200</width>
+        <height>60</height>
+        <font>font13</font>
+        <align>center</align>
+        <onleft>306</onleft>
+        <onright>308</onright>
+        <ondown>305</ondown>
+        <label>Search</label>
+      </control>
+      <control type="button" id="308">
+        <description>Search mode toggle (channels/games)</description>
+        <posx>1500</posx>
+        <posy>130</posy>
+        <width>360</width>
+        <height>60</height>
+        <font>font13</font>
+        <align>center</align>
+        <onleft>307</onleft>
+        <onright>304</onright>
+        <ondown>305</ondown>
+        <label>Searching: Channels</label>
+      </control>
+      <control type="list" id="305">
+        <description>Top games</description>
+        <posx>60</posx>
+        <posy>220</posy>
+        <width>1800</width>
+        <height>90</height>
+        <orientation>horizontal</orientation>
+        <onup>306</onup>
+        <ondown>301</ondown>
+        <onleft>305</onleft>
+        <onright>305</onright>
+        <itemlayout width="220" height="80">
+          <control type="label">
+            <width>220</width>
+            <height>80</height>
+            <font>font13</font>
+            <align>center</align>
+            <aligny>center</aligny>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+        </itemlayout>
+        <focusedlayout width="220" height="80">
+          <control type="label">
+            <width>220</width>
+            <height>80</height>
+            <font>font13</font>
+            <align>center</align>
+            <aligny>center</aligny>
+            <textcolor>ff9146ff</textcolor>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+        </focusedlayout>
+      </control>
+      <control type="list" id="301">
+        <description>Results</description>
+        <posx>60</posx>
+        <posy>330</posy>
+        <width>1800</width>
+        <height>670</height>
+        <onup>305</onup>
+        <ondown>301</ondown>
+        <itemlayout width="1800" height="120">
+          <control type="image">
+            <posx>10</posx>
+            <posy>0</posy>
+            <width>160</width>
+            <height>90</height>
+            <texture>$INFO[ListItem.Art(thumb)]</texture>
+            <aspectratio>scale</aspectratio>
+          </control>
+          <control type="label">
+            <posx>190</posx>
+            <width>1600</width>
+            <height>60</height>
+            <font>font20</font>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+          <control type="label">
+            <posx>190</posx>
+            <posy>65</posy>
+            <width>1600</width>
+            <height>40</height>
+            <font>font13</font>
+            <label>$INFO[ListItem.Label2]</label>
+          </control>
+        </itemlayout>
+        <focusedlayout width="1800" height="120">
+          <control type="image">
+            <posx>10</posx>
+            <posy>0</posy>
+            <width>160</width>
+            <height>90</height>
+            <texture>$INFO[ListItem.Art(thumb)]</texture>
+            <aspectratio>scale</aspectratio>
+          </control>
+          <control type="label">
+            <posx>190</posx>
+            <width>1600</width>
+            <height>60</height>
+            <font>font20</font>
+            <textcolor>ff9146ff</textcolor>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+          <control type="label">
+            <posx>190</posx>
+            <posy>65</posy>
+            <width>1600</width>
+            <height>40</height>
+            <font>font13</font>
+            <label>$INFO[ListItem.Label2]</label>
+          </control>
+        </focusedlayout>
+      </control>
+      <control type="label" id="302">
+        <description>Empty results message</description>
+        <posx>560</posx>
+        <posy>600</posy>
+        <width>800</width>
+        <height>60</height>
+        <font>font20</font>
+        <align>center</align>
+        <label></label>
+      </control>
+      <control type="label" id="303">
+        <description>Error / re-login message</description>
+        <posx>560</posx>
+        <posy>600</posy>
+        <width>800</width>
+        <height>60</height>
+        <font>font20</font>
+        <align>center</align>
+        <label></label>
+      </control>
+      <control type="button" id="304">
+        <description>Log in again</description>
+        <posx>760</posx>
+        <posy>680</posy>
+        <width>400</width>
+        <height>60</height>
+        <font>font13</font>
+        <align>center</align>
+        <onleft>308</onleft>
+        <ondown>305</ondown>
+        <label>Log in again</label>
+      </control>
+    </control>
+
+    <!-- ===================== SEARCH (400) ===================== -->
+    <control type="group" id="400">
+      <control type="image">
+        <posx>0</posx>
+        <posy>0</posy>
+        <width>1920</width>
+        <height>1080</height>
+        <texture>black.png</texture>
+        <colordiffuse>CC000000</colordiffuse>
+      </control>
+      <control type="group">
+        <posx>100</posx>
+        <posy>100</posy>
+        <width>1720</width>
+        <height>880</height>
+
+        <control type="edit" id="401">
+          <description>Search Input</description>
+          <posx>0</posx>
+          <posy>0</posy>
+          <width>1720</width>
+          <height>60</height>
+          <font>font20</font>
+          <align>center</align>
+          <aligny>center</aligny>
+          <textcolor>ffffff</textcolor>
+          <focusedcolor>ff9146ff</focusedcolor>
+          <label>Search channels or streams...</label>
+          <onup>401</onup>
+          <ondown>402</ondown>
+          <onleft>401</onleft>
+          <onright>401</onright>
+        </control>
+
+        <control type="label" id="403">
+          <description>Status</description>
+          <posx>0</posx>
+          <posy>70</posy>
+          <width>1720</width>
+          <height>40</height>
+          <font>font13</font>
+          <align>center</align>
+          <textcolor>aaaaaa</textcolor>
+          <label></label>
+        </control>
+
+        <control type="list" id="402">
+          <description>Results List</description>
+          <posx>0</posx>
+          <posy>120</posy>
+          <width>1720</width>
+          <height>760</height>
+          <onup>401</onup>
+          <ondown>404</ondown>
+          <itemlayout width="1720" height="80">
+            <control type="label">
+              <posx>20</posx>
+              <width>1680</width>
+              <height>80</height>
+              <font>font20</font>
+              <align>left</align>
+              <aligny>center</aligny>
+              <label>$INFO[ListItem.Label]</label>
+            </control>
+          </itemlayout>
+          <focusedlayout width="1720" height="80">
+            <control type="label">
+              <posx>20</posx>
+              <width>1680</width>
+              <height>80</height>
+              <font>font20</font>
+              <align>left</align>
+              <aligny>center</aligny>
+              <textcolor>ff9146ff</textcolor>
+              <label>$INFO[ListItem.Label]</label>
+            </control>
+          </focusedlayout>
+        </control>
+
+        <control type="button" id="404">
+          <description>Next Page</description>
+          <posx>0</posx>
+          <posy>890</posy>
+          <width>1720</width>
+          <height>60</height>
+          <font>font13</font>
+          <align>center</align>
+          <aligny>center</aligny>
+          <label>Next Page</label>
+          <onup>402</onup>
+          <ondown>402</ondown>
+          <visible>false</visible>
+        </control>
+      </control>
+    </control>
+
+  </controls>
+</window>
