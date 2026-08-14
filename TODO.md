@@ -40,6 +40,16 @@
   parse that message and prompt/auto-switch playback to the raided-into channel. No EventSub
   needed, just handling a message type that's already flowing through chat.
 
+- Migrate chat from IRC to EventSub: swap `lib/twitch/irc.py`'s raw-IRC socket client for a
+  WebSocket EventSub client (`wss://eventsub.wss.twitch.tv/ws`) subscribed to
+  `channel.chat.message`. Needs `user:read:chat` added to `SCOPES` in `lib/twitch/auth.py`, plus
+  resolving the target channel's numeric user ID (EventSub subscribes by ID, not login name).
+  Keep it as a new `lib/twitch/eventsub.py` module behind the same event shape
+  (`{"type": "message", "display_name", "text", "timestamp"}`) that `chat_overlay.py` already
+  consumes, so the overlay and its tests don't need to change - just the client swap. Tradeoff:
+  EventSub is the officially supported path (anon IRC chat can be flaky/rate-limited), but adds
+  keepalive/reconnect handshake complexity IRC didn't have.
+
 - Playback resolution was low on one stream after the v0.6.5 anonymous-playback-token fix, but
   fine on another (DatModz) - confirmed per-streamer difference (source bitrate/quality choice),
   not a regression from going anonymous. Anonymous requests are still capped at FULL_HD/12500kbps
