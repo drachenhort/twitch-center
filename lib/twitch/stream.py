@@ -32,7 +32,7 @@ def resolve_stream_url(channel_login, website_token=None):
         + quote(token["value"], safe="")
         + "&sig="
         + token["signature"]
-        + "&allow_source=true&fast_bread=true&player_backend=mediaplayer"
+        + "&allow_source=true&allow_audio_only=true&fast_bread=true&player_backend=mediaplayer"
         + "&acmb=e30="
         + "&p="
         + str(random.randint(1, 999999))
