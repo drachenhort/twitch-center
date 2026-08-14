@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<keymap>
+  <global>
+    <keyboard>
+      <a>RunScript(script.twitch.center,cycle_audio)</a>
+    </keyboard>
+    <remote>
+      <red>RunScript(script.twitch.center,cycle_audio)</red>
+    </remote>
+  </global>
+</keymap>
