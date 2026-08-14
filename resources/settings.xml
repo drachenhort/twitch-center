@@ -43,6 +43,22 @@
           </constraints>
           <control type="edit" format="string"/>
         </setting>
+        <setting id="audio_cycle_key" type="string" label="30010" help="30011">
+          <level>0</level>
+          <default>a</default>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="edit" format="string"/>
+        </setting>
+        <setting id="audio_cycle_remote" type="string" label="30012" help="30013">
+          <level>0</level>
+          <default>red</default>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="edit" format="string"/>
+        </setting>
       </group>
     </category>
   </section>

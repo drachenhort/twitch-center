@@ -41,3 +41,19 @@ msgstr ""
 msgctxt "#30009"
 msgid "Show offline channels on Home"
 msgstr ""
+
+msgctxt "#30010"
+msgid "Audio cycle key"
+msgstr ""
+
+msgctxt "#30011"
+msgid "Keyboard key that cycles to the next audio stream during playback. Leave empty to disable. Changes apply after reloading the addon."
+msgstr ""
+
+msgctxt "#30012"
+msgid "Audio cycle remote button"
+msgstr ""
+
+msgctxt "#30013"
+msgid "Remote button that cycles to the next audio stream during playback. Leave empty to disable. Common values: red, green, yellow, blue."
+msgstr ""

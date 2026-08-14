@@ -1,26 +1,44 @@
 import os
-import shutil
 import xbmc
 import xbmcaddon
 
 
+def _build_keymap(key, remote):
+    keyboard_line = ""
+    remote_line = ""
+    if key:
+        keyboard_line = "      <{}>RunScript(script.twitch.center,cycle_audio)</{}>".format(key, key)
+    if remote:
+        remote_line = "      <{}>RunScript(script.twitch.center,cycle_audio)</{}>".format(remote, remote)
+
+    return """<?xml version="1.0" encoding="UTF-8"?>
+<keymap>
+  <global>
+    <keyboard>
+{}
+    </keyboard>
+    <remote>
+{}
+    </remote>
+  </global>
+</keymap>
+""".format(keyboard_line, remote_line)
+
+
 def install():
     addon = xbmcaddon.Addon()
-    addon_path = addon.getAddonInfo("path")
     profile_path = xbmc.translatePath(addon.getAddonInfo("profile"))
 
-    src = os.path.join(addon_path, "resources", "keymaps", "keyboard.xml")
+    key = addon.getSetting("audio_cycle_key").strip()
+    remote = addon.getSetting("audio_cycle_remote").strip()
+
     dst_dir = os.path.join(profile_path, "..", "keymaps")
     dst = os.path.join(dst_dir, "script.twitch.center.xml")
-
-    if not os.path.isfile(src):
-        return
-
-    if os.path.isfile(dst):
-        return
 
     if not os.path.isdir(dst_dir):
         os.makedirs(dst_dir)
 
-    shutil.copyfile(src, dst)
+    with open(dst, "w") as f:
+        f.write(_build_keymap(key, remote))
+
     xbmc.executebuiltin("Action(reloadkeymaps)")
