@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="script.twitch.center" name="Twitch Center" version="0.15.1" provider-name="drachenhort">
+<addon id="script.twitch.center" name="Twitch Center" version="0.15.2" provider-name="drachenhort">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
     <import addon="script.module.requests" version="2.22.0"/>
@@ -21,6 +21,8 @@
       <icon>icon.png</icon>
     </assets>
     <news>
+      v0.15.2: Fixed chat overlay messages getting cut off mid-word - long messages now wrap
+      across lines instead of being cut off at the label's width.
       v0.15.1: No functional change - re-deploy marker for kodi.local install.
       v0.15.0: New landing Menu screen for navigating between Live Streams, Discover, and Search.
       Rebuilt the whole UI on a single persistent window with toggle-able view groups instead of

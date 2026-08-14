@@ -90,6 +90,68 @@ def test_pump_renders_messages_and_ignores_status_and_raid_events():
     assert control._items[1].getLabel2() == "hi there"
 
 
+def test_pump_wraps_long_messages_onto_multiple_lines():
+    FakeChatClient.instances.clear()
+
+    long_text = "or just download grimstash and make the item LOLW seriously it works great"
+
+    class ClientWithLongMessage(FakeChatClient):
+        def __init__(self, channel):
+            super().__init__(channel)
+            self._events = [_message_event("user", long_text, 1)]
+
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=ClientWithLongMessage,
+    )
+    win.onInit()
+    win._thread.join(timeout=1)
+    assert not win._thread.is_alive()
+
+    control = win.getControl(ChatOverlay.MESSAGE_LIST_ID)
+    rendered = control._items[0].getLabel2()
+    assert "\n" in rendered
+    assert all(len(line) <= 26 for line in rendered.split("\n"))
+    assert len(rendered.split("\n")) <= 5
+
+
+def test_pump_truncates_messages_that_would_wrap_past_the_label_height():
+    FakeChatClient.instances.clear()
+
+    # Long enough to wrap to more than 5 lines at the 26-char wrap width.
+    long_text = (
+        "which upcoming games are you looking forward to for the rest of this year, "
+        "modz? asking because I want to plan my backlog around the big releases"
+    )
+
+    class ClientWithVeryLongMessage(FakeChatClient):
+        def __init__(self, channel):
+            super().__init__(channel)
+            self._events = [_message_event("user", long_text, 1)]
+
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=ClientWithVeryLongMessage,
+    )
+    win.onInit()
+    win._thread.join(timeout=1)
+    assert not win._thread.is_alive()
+
+    control = win.getControl(ChatOverlay.MESSAGE_LIST_ID)
+    rendered = control._items[0].getLabel2()
+    lines = rendered.split("\n")
+    assert len(lines) == 5
+    assert lines[-1].endswith("...")
+
+
 def test_pump_caps_message_list_at_fifty_dropping_oldest():
     FakeChatClient.instances.clear()
 

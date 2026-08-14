@@ -4,6 +4,14 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.15.2] - 2026-08-14
+
+### Fixed
+- Chat overlay messages no longer get cut off mid-word. The skin's `wrapmultiline` label tag
+  isn't honored on this Kodi build, so long chat messages now get manually wrapped and capped
+  at a fixed number of lines (with a clean "..." if still too long) before being set on the
+  label, instead of relying on the skin to wrap them.
+
 ## [0.15.1] - 2026-08-14
 
 ### Changed

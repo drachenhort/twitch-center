@@ -1,4 +1,5 @@
 """Non-modal chat overlay shown during playback."""
+import textwrap
 import threading
 import time
 
@@ -13,10 +14,32 @@ from lib.twitch.irc import ChatClient
 # thread badly enough to delay it processing input (e.g. Back).
 _RENDER_THROTTLE_SECONDS = 0.25
 
+# The skin's <wrapmultiline> label tag isn't honored on this Kodi build (long
+# messages render as a single ellipsized line no matter how tall the label
+# is), so lines are wrapped by hand and joined with literal newlines, which
+# Kodi labels always render regardless of wrapmultiline support. Width is
+# chars-per-line for the message label at its skin font/box size - measured
+# against live rendering (a 39-char line still got ellipsized), not computed
+# from font metrics, since this build's actual glyph width per point is
+# wider than the font size alone would suggest.
+_MESSAGE_WRAP_WIDTH = 26
+
+# Caps wrapped lines to what the message label's fixed skin height can show.
+# Without this, a message that wraps to more lines than fit just gets cut off
+# mid-glyph at the label's bottom edge with no ellipsis (no "..." appears
+# because this is a hard clip, not the single-line width truncation that
+# does add one) - so the cutoff is done here instead, cleanly, with a
+# visible "..." marking that the message was cut.
+_MAX_MESSAGE_LINES = 5
+
 
 def _build_message_item(event):
     item = xbmcgui.ListItem(event["display_name"])
-    item.setLabel2(event["text"])
+    lines = textwrap.wrap(event["text"], _MESSAGE_WRAP_WIDTH)
+    if len(lines) > _MAX_MESSAGE_LINES:
+        lines = lines[:_MAX_MESSAGE_LINES]
+        lines[-1] = lines[-1][: max(0, _MESSAGE_WRAP_WIDTH - 3)].rstrip() + "..."
+    item.setLabel2("\n".join(lines))
     return item
 
 
