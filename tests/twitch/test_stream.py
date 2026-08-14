@@ -13,7 +13,7 @@ def test_resolve_stream_url_builds_usher_url_on_success():
     assert url.startswith(
         "https://usher.ttvnw.net/api/channel/hls/somechannel.m3u8"
         "?token=opaque-token-json&sig=abc123"
-        "&allow_source=true&fast_bread=true&player_backend=mediaplayer"
+        "&allow_source=true&allow_audio_only=true&fast_bread=true&player_backend=mediaplayer"
         "&acmb=e30=&p="
     )
 
