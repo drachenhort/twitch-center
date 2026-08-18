@@ -116,7 +116,12 @@ def _default_socket_factory():
 
 
 class ChatClient:
-    def __init__(self, channel, socket_factory=None, sleep_fn=None):
+    def __init__(self, channel, access_token=None, client_id=None, broadcaster_user_id=None,
+                 user_id=None, socket_factory=None, sleep_fn=None):
+        """access_token/client_id/broadcaster_user_id/user_id are accepted but unused - IRC stays
+        anonymous. They exist only so callers can construct either chat engine (see
+        lib/twitch/eventsub.py's ChatClient) through one shared keyword surface without an
+        if engine == "eventsub" branch at the call site."""
         self.channel = channel
         self._socket_factory = socket_factory or _default_socket_factory
         self._sleep_fn = sleep_fn or time.sleep
