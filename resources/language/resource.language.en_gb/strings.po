@@ -41,3 +41,15 @@ msgstr ""
 msgctxt "#30009"
 msgid "Show offline channels on Home"
 msgstr ""
+
+msgctxt "#30014"
+msgid "Chat engine"
+msgstr ""
+
+msgctxt "#30015"
+msgid "IRC (anonymous, no login required)"
+msgstr ""
+
+msgctxt "#30016"
+msgid "EventSub (requires login, official API)"
+msgstr ""

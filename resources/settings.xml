@@ -15,6 +15,17 @@
           </constraints>
           <control type="list" format="string"/>
         </setting>
+        <setting id="chat_engine" type="string" label="30014">
+          <level>0</level>
+          <default>irc</default>
+          <constraints>
+            <options>
+              <option label="30015">irc</option>
+              <option label="30016">eventsub</option>
+            </options>
+          </constraints>
+          <control type="list" format="string"/>
+        </setting>
         <setting id="show_offline_channels" type="boolean" label="30009">
           <level>0</level>
           <default>false</default>

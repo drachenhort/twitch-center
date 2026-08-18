@@ -4,6 +4,9 @@ import xbmcaddon
 VALID_CHAT_DISPLAY_MODES = ("overlay", "standalone", "both")
 DEFAULT_CHAT_DISPLAY_MODE = "both"
 
+VALID_CHAT_ENGINES = ("irc", "eventsub")
+DEFAULT_CHAT_ENGINE = "irc"
+
 
 class Settings:
     def __init__(self, addon=None):
@@ -15,6 +18,13 @@ class Settings:
         if value in VALID_CHAT_DISPLAY_MODES:
             return value
         return DEFAULT_CHAT_DISPLAY_MODE
+
+    @property
+    def chat_engine(self):
+        value = self._addon.getSetting("chat_engine")
+        if value in VALID_CHAT_ENGINES:
+            return value
+        return DEFAULT_CHAT_ENGINE
 
     @property
     def show_offline_channels(self):
