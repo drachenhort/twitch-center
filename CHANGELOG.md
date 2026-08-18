@@ -8,8 +8,10 @@ All notable changes to this project are documented here. Format loosely follows
 
 ### Added
 - EventSub chat messages now show a row of real emote images (up to 6 per message) beneath the
-  message text, sourced from Twitch's public emote CDN (static, dark theme, 1x scale). The IRC
-  chat engine is unaffected - it keeps rendering plain text exactly as before.
+  message text, sourced from Twitch's public emote CDN (static, dark theme, 1x scale). IRC chat
+  messages keep rendering as plain text exactly as before - the only shared side effect is that
+  each message row is now taller to fit the new emote strip's space, so slightly fewer messages
+  fit on screen at once for both chat engines.
 
 ## [0.16.0] - 2026-08-18
 

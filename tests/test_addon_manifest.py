@@ -2,6 +2,8 @@
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from lib.windows.chat_overlay import _MAX_EMOTE_SLOTS
+
 ADDON_XML = Path(__file__).resolve().parent.parent / "addon.xml"
 SETTINGS_XML = Path(__file__).resolve().parent.parent / "resources" / "settings.xml"
 CHAT_OVERLAY_SKIN_XML = (
@@ -140,7 +142,7 @@ def test_chat_overlay_skin_xml_declares_message_list_control_id():
 def test_chat_overlay_skin_xml_declares_six_emote_image_slots_per_layout():
     tree = ET.parse(CHAT_OVERLAY_SKIN_XML)
     root = tree.getroot()
-    expected_ids = {110, 111, 112, 113, 114, 115}
+    expected_ids = {110 + i for i in range(_MAX_EMOTE_SLOTS)}
 
     for layout_tag in ("itemlayout", "focusedlayout"):
         layout = root.find(f".//control[@id='101']/{layout_tag}")

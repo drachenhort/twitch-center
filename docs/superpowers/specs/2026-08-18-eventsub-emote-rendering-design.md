@@ -235,4 +235,7 @@ skin itemlayout
   already part of the message), no icon.
 - Animated emotes - `static` format only.
 - More than 6 emotes shown per message - silently capped, no "+N more" indicator.
-- A `chat_engine=irc`-visible difference of any kind - this task changes zero behavior for IRC.
+- IRC's rendered message *content* stays plain text, unchanged - the one shared side effect is
+  the skin's per-row height growing (165->197) to fit the new emote strip, which applies to both
+  engines since they share one skin file and reduces how many messages fit on screen at once for
+  IRC too, not just EventSub.

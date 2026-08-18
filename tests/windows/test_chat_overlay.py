@@ -290,6 +290,31 @@ def test_pump_caps_art_at_six_slots_even_with_more_emotes_in_event():
     assert item.getArt("emote_7") == ""
 
 
+def test_pump_sets_no_art_and_does_not_raise_when_emotes_is_none():
+    FakeChatClient.instances.clear()
+
+    class ClientWithNoneEmotes(FakeChatClient):
+        def __init__(self, channel, **kwargs):
+            super().__init__(channel, **kwargs)
+            self._events = [_message_event_with_emotes("bob", "hello", None, 1)]
+
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=ClientWithNoneEmotes,
+    )
+    win.onInit()
+    win._thread.join(timeout=1)
+
+    control = win.getControl(ChatOverlay.MESSAGE_LIST_ID)
+    item = control._items[0]
+    assert item.getArt("emote_0") == ""
+    assert item.getLabel2() == "hello"
+
+
 def test_pump_caps_message_list_at_fifty_dropping_oldest():
     FakeChatClient.instances.clear()
 

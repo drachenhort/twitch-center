@@ -46,9 +46,15 @@ def _build_message_item(event):
         lines = lines[:_MAX_MESSAGE_LINES]
         lines[-1] = lines[-1][: max(0, _MESSAGE_WRAP_WIDTH - 3)].rstrip() + "..."
     item.setLabel2("\n".join(lines))
-    emotes = event.get("emotes", [])[:_MAX_EMOTE_SLOTS]
+    emotes = (event.get("emotes") or [])[:_MAX_EMOTE_SLOTS]
     if emotes:
-        item.setArt({"emote_%d" % i: emote["url"] for i, emote in enumerate(emotes)})
+        art = {
+            "emote_%d" % i: emote.get("url")
+            for i, emote in enumerate(emotes)
+            if emote.get("url")
+        }
+        if art:
+            item.setArt(art)
     return item
 
 
