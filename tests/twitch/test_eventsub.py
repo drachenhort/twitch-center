@@ -1,5 +1,8 @@
 import base64
+import json
+import threading
 
+from lib.twitch.eventsub import ChatClient, _expected_accept
 from lib.twitch.eventsub import (
     _OPCODE_PING,
     _OPCODE_TEXT,
@@ -132,3 +135,298 @@ def test_parse_rfc3339_ms_falls_back_to_now_on_malformed_input():
     ms = _parse_rfc3339_ms("not-a-timestamp")
     after = int(time.time() * 1000)
     assert before <= ms <= after
+
+
+def _server_text_frame(payload_dict):
+    payload = json.dumps(payload_dict).encode("utf-8")
+    length = len(payload)
+    # The brief's original helper assumed length <= 125 always fits in the single length byte,
+    # but _WELCOME's JSON serializes to 126 bytes - over that limit. A raw `bytes([0x81, length])`
+    # with length=126 collides with the MASK bit range, so the decoder misreads it as a
+    # zero-length frame and desyncs the whole stream. Emit the real WS extended-length (126) form
+    # for anything over 125 bytes, matching _encode_client_frame's own length encoding.
+    if length <= 125:
+        header = bytes([0x81, length])
+    else:
+        import struct
+        header = bytes([0x81, 126]) + struct.pack(">H", length)
+    return header + payload
+
+
+def _handshake_response_bytes(key):
+    accept = _expected_accept(key)
+    return (
+        "HTTP/1.1 101 Switching Protocols\r\n"
+        "Upgrade: websocket\r\n"
+        "Connection: Upgrade\r\n"
+        "Sec-WebSocket-Accept: " + accept + "\r\n\r\n"
+    ).encode("ascii")
+
+
+_WELCOME = {
+    "metadata": {"message_type": "session_welcome"},
+    "payload": {"session": {"id": "session1", "keepalive_timeout_seconds": 10}},
+}
+
+
+class FakeSocket:
+    """Records sent bytes, replays queued recv() results. A queued item that is an Exception
+    instance is raised instead of returned. The handshake response bytes must be queued as the
+    *first* recv() chunk(s) by the test, since the client reads the raw HTTP response itself
+    (there's no separate "handshake socket")."""
+
+    def __init__(self, recv_queue=None):
+        self._recv_queue = list(recv_queue or [])
+        self.sent = []
+        self.closed = False
+
+    def sendall(self, data):
+        self.sent.append(data)
+
+    def recv(self, bufsize):
+        if not self._recv_queue:
+            return b""
+        item = self._recv_queue.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+    def close(self):
+        self.closed = True
+
+
+def _client_kwargs(**overrides):
+    kwargs = dict(
+        channel_login="somechannel",
+        access_token="tok",
+        client_id="cid",
+        broadcaster_user_id="1",
+        user_id="2",
+        sleep_fn=lambda s: None,
+        # Default to a no-op so tests that don't care about subscription behavior stay hermetic -
+        # without this, ChatClient falls back to the real api.create_eventsub_subscription and
+        # makes a live HTTPS call to Twitch on every test that doesn't override it explicitly.
+        create_subscription_fn=lambda *args, **kwargs: None,
+    )
+    kwargs.update(overrides)
+    return kwargs
+
+
+def test_connect_performs_handshake_then_subscribes_before_connected_status():
+    # The client generates its own Sec-WebSocket-Key, so the fake handshake response must accept
+    # whatever key it sends - capture it via a factory closure instead of hardcoding one.
+    responses = []
+
+    def socket_factory():
+        fake = FakeSocket()
+
+        def sendall(data):
+            fake.sent.append(data)
+            if data.startswith(b"GET "):
+                text = data.decode("ascii")
+                key_line = [l for l in text.split("\r\n") if l.startswith("Sec-WebSocket-Key:")][0]
+                key = key_line.split(":", 1)[1].strip()
+                fake._recv_queue.insert(0, _server_text_frame(_WELCOME))
+                fake._recv_queue.insert(0, _handshake_response_bytes(key))
+
+        fake.sendall = sendall
+        responses.append(fake)
+        return fake
+
+    subscribe_calls = []
+
+    def create_subscription_fn(access_token, client_id, session_id, sub_type, condition):
+        subscribe_calls.append((access_token, client_id, session_id, sub_type, condition))
+
+    client = ChatClient(
+        **_client_kwargs(
+            socket_factory=socket_factory, create_subscription_fn=create_subscription_fn
+        )
+    )
+    client.connect()
+
+    events = []
+    for event in client.read_messages():
+        events.append(event)
+        break  # first event must be "connected", proving subscribe happened before it
+    client.disconnect()
+
+    assert events[0] == {"type": "status", "state": "connected"}
+    assert len(subscribe_calls) == 2
+    types = {call[3] for call in subscribe_calls}
+    assert types == {"channel.chat.message", "channel.raid"}
+    chat_call = next(c for c in subscribe_calls if c[3] == "channel.chat.message")
+    assert chat_call[4] == {"broadcaster_user_id": "1", "user_id": "2"}
+    raid_call = next(c for c in subscribe_calls if c[3] == "channel.raid")
+    assert raid_call[4] == {"to_broadcaster_user_id": "1"}
+
+
+def _connected_fake_socket(extra_frames=b""):
+    """Builds a FakeSocket pre-loaded to complete a handshake with whatever key the client sends,
+    then serve extra_frames (raw bytes) after the welcome frame."""
+    fake = FakeSocket()
+
+    def sendall(data):
+        fake.sent.append(data)
+        if data.startswith(b"GET "):
+            text = data.decode("ascii")
+            key_line = [l for l in text.split("\r\n") if l.startswith("Sec-WebSocket-Key:")][0]
+            key = key_line.split(":", 1)[1].strip()
+            if extra_frames:
+                fake._recv_queue.insert(0, extra_frames)
+            fake._recv_queue.insert(0, _server_text_frame(_WELCOME))
+            fake._recv_queue.insert(0, _handshake_response_bytes(key))
+
+    fake.sendall = sendall
+    return fake
+
+
+def test_chat_message_notification_yields_message_event():
+    notification = {
+        "metadata": {
+            "message_type": "notification",
+            "subscription_type": "channel.chat.message",
+            "message_timestamp": "2026-08-18T00:00:00Z",
+        },
+        "payload": {
+            "event": {
+                "chatter_user_login": "bob",
+                "chatter_user_name": "Bob",
+                "message": {"text": "hello"},
+            }
+        },
+    }
+    fake = _connected_fake_socket(_server_text_frame(notification))
+    client = ChatClient(**_client_kwargs(socket_factory=lambda: fake))
+    client.connect()
+
+    events = []
+    for event in client.read_messages():
+        events.append(event)
+        if event["type"] == "message":
+            break
+    client.disconnect()
+
+    assert events[-1] == {
+        "type": "message",
+        "username": "bob",
+        "display_name": "Bob",
+        "text": "hello",
+        "timestamp": 1787011200000,
+    }
+
+
+def test_raid_notification_yields_raid_event():
+    notification = {
+        "metadata": {
+            "message_type": "notification",
+            "subscription_type": "channel.raid",
+            "message_timestamp": "2026-08-18T00:00:00Z",
+        },
+        "payload": {
+            "event": {
+                "from_broadcaster_user_login": "coolraider",
+                "from_broadcaster_user_name": "CoolRaider",
+                "viewers": 42,
+            }
+        },
+    }
+    fake = _connected_fake_socket(_server_text_frame(notification))
+    client = ChatClient(**_client_kwargs(socket_factory=lambda: fake))
+    client.connect()
+
+    events = []
+    for event in client.read_messages():
+        events.append(event)
+        if event["type"] == "raid":
+            break
+    client.disconnect()
+
+    assert events[-1] == {
+        "type": "raid",
+        "from_channel": "coolraider",
+        "display_name": "CoolRaider",
+        "viewer_count": 42,
+        "timestamp": 1787011200000,
+    }
+
+
+def test_ping_frame_is_answered_with_masked_pong_and_not_queued():
+    chat_notification = {
+        "metadata": {
+            "message_type": "notification",
+            "subscription_type": "channel.chat.message",
+            "message_timestamp": "2026-08-18T00:00:00Z",
+        },
+        "payload": {
+            "event": {
+                "chatter_user_login": "a",
+                "chatter_user_name": "A",
+                "message": {"text": "after ping"},
+            }
+        },
+    }
+    ping_frame = bytes([0x89, 0])  # opcode 0x9, empty payload
+    fake = _connected_fake_socket(ping_frame + _server_text_frame(chat_notification))
+    client = ChatClient(**_client_kwargs(socket_factory=lambda: fake))
+    client.connect()
+
+    events = []
+    for event in client.read_messages():
+        events.append(event)
+        if event["type"] == "message":
+            break
+    client.disconnect()
+
+    assert [e["type"] for e in events] == ["status", "message"]
+    pong_sent = [d for d in fake.sent if len(d) >= 1 and (d[0] & 0x0F) == 0xA]
+    assert len(pong_sent) == 1
+
+
+def test_subscription_failure_triggers_disconnected_status_and_retry():
+    good_fake = _connected_fake_socket()
+    call_count = [0]
+
+    def create_subscription_fn(*args, **kwargs):
+        call_count[0] += 1
+        if call_count[0] == 1:
+            raise RuntimeError("subscribe failed")
+
+    sockets = iter([_connected_fake_socket(), good_fake])
+    sleeps = []
+    client = ChatClient(
+        **_client_kwargs(
+            socket_factory=lambda: next(sockets),
+            create_subscription_fn=create_subscription_fn,
+            sleep_fn=lambda s: sleeps.append(s),
+        )
+    )
+    client.connect()
+
+    events = []
+    for event in client.read_messages():
+        events.append(event)
+        if event["type"] == "status" and event["state"] == "connected" and len(events) > 1:
+            break
+    client.disconnect()
+
+    states = [e["state"] for e in events if e["type"] == "status"]
+    assert states == ["disconnected", "connected"]
+    assert sleeps == [1]
+
+
+def test_disconnect_is_safe_to_call_twice():
+    fake = _connected_fake_socket()
+    client = ChatClient(**_client_kwargs(socket_factory=lambda: fake))
+    client.connect()
+    client.disconnect()
+    client.disconnect()  # must not raise
+
+
+def test_connect_raises_value_error_when_required_credentials_missing():
+    client = ChatClient(channel_login="somechannel")  # no access_token/client_id/broadcaster_user_id/user_id
+    try:
+        client.connect()
+        assert False, "expected ValueError"
+    except ValueError:
+        pass
