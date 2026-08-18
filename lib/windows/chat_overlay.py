@@ -47,9 +47,15 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
     MESSAGE_LIST_ID = 101
     _MAX_MESSAGES = 50
 
-    def __init__(self, *args, channel, chat_client_cls=None, time_fn=None, **kwargs):
+    def __init__(self, *args, channel, access_token=None, client_id=None,
+                 broadcaster_user_id=None, user_id=None, chat_client_cls=None, time_fn=None,
+                 **kwargs):
         super().__init__(*args, **kwargs)
         self.channel = channel
+        self._access_token = access_token
+        self._client_id = client_id
+        self._broadcaster_user_id = broadcaster_user_id
+        self._user_id = user_id
         self._chat_client_cls = chat_client_cls or ChatClient
         self._time_fn = time_fn or time.time
         self._client = None
@@ -59,7 +65,13 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
         self._last_render_at = None
 
     def onInit(self):
-        self._client = self._chat_client_cls(self.channel)
+        self._client = self._chat_client_cls(
+            self.channel,
+            access_token=self._access_token,
+            client_id=self._client_id,
+            broadcaster_user_id=self._broadcaster_user_id,
+            user_id=self._user_id,
+        )
         self._client.connect()
         self._thread = threading.Thread(target=self._pump_messages, daemon=True)
         self._thread.start()

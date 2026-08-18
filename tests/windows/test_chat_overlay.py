@@ -6,8 +6,13 @@ from lib.windows.chat_overlay import ChatOverlay
 class FakeChatClient:
     instances = []
 
-    def __init__(self, channel):
+    def __init__(self, channel, access_token=None, client_id=None, broadcaster_user_id=None,
+                 user_id=None):
         self.channel = channel
+        self.access_token = access_token
+        self.client_id = client_id
+        self.broadcaster_user_id = broadcaster_user_id
+        self.user_id = user_id
         self.connected = False
         self.disconnected = False
         self._events = []
@@ -57,12 +62,36 @@ def test_oninit_constructs_client_lazily_and_connects_it():
     assert client.connected is True
 
 
+def test_oninit_forwards_engine_credentials_to_chat_client_cls():
+    FakeChatClient.instances.clear()
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        access_token="tok",
+        client_id="cid",
+        broadcaster_user_id="123",
+        user_id="456",
+        chat_client_cls=FakeChatClient,
+    )
+    win.onInit()
+    win._thread.join(timeout=1)
+
+    client = FakeChatClient.instances[0]
+    assert client.access_token == "tok"
+    assert client.client_id == "cid"
+    assert client.broadcaster_user_id == "123"
+    assert client.user_id == "456"
+
+
 def test_pump_renders_messages_and_ignores_status_and_raid_events():
     FakeChatClient.instances.clear()
 
     class ClientWithMessages(FakeChatClient):
-        def __init__(self, channel):
-            super().__init__(channel)
+        def __init__(self, channel, **kwargs):
+            super().__init__(channel, **kwargs)
             self._events = [
                 _message_event("bob", "hello", 1),
                 {"type": "status", "state": "connected"},
@@ -96,8 +125,8 @@ def test_pump_wraps_long_messages_onto_multiple_lines():
     long_text = "or just download grimstash and make the item LOLW seriously it works great"
 
     class ClientWithLongMessage(FakeChatClient):
-        def __init__(self, channel):
-            super().__init__(channel)
+        def __init__(self, channel, **kwargs):
+            super().__init__(channel, **kwargs)
             self._events = [_message_event("user", long_text, 1)]
 
     win = ChatOverlay(
@@ -129,8 +158,8 @@ def test_pump_truncates_messages_that_would_wrap_past_the_label_height():
     )
 
     class ClientWithVeryLongMessage(FakeChatClient):
-        def __init__(self, channel):
-            super().__init__(channel)
+        def __init__(self, channel, **kwargs):
+            super().__init__(channel, **kwargs)
             self._events = [_message_event("user", long_text, 1)]
 
     win = ChatOverlay(
@@ -156,8 +185,8 @@ def test_pump_caps_message_list_at_fifty_dropping_oldest():
     FakeChatClient.instances.clear()
 
     class ClientWithManyMessages(FakeChatClient):
-        def __init__(self, channel):
-            super().__init__(channel)
+        def __init__(self, channel, **kwargs):
+            super().__init__(channel, **kwargs)
             self._events = [_message_event("user", "msg%d" % i, i) for i in range(60)]
 
     win = ChatOverlay(
@@ -182,8 +211,8 @@ def test_pump_selects_last_item_so_new_messages_are_visible_past_the_fold():
     FakeChatClient.instances.clear()
 
     class ClientWithManyMessages(FakeChatClient):
-        def __init__(self, channel):
-            super().__init__(channel)
+        def __init__(self, channel, **kwargs):
+            super().__init__(channel, **kwargs)
             self._events = [_message_event("user", "msg%d" % i, i) for i in range(20)]
 
     win = ChatOverlay(
@@ -211,8 +240,8 @@ def test_pump_throttles_rendering_under_rapid_messages_but_flushes_final_state()
     FakeChatClient.instances.clear()
 
     class ClientWithManyMessages(FakeChatClient):
-        def __init__(self, channel):
-            super().__init__(channel)
+        def __init__(self, channel, **kwargs):
+            super().__init__(channel, **kwargs)
             self._events = [_message_event("user", "msg%d" % i, i) for i in range(5)]
 
     # All 5 messages arrive well within one throttle window (0.25s apart is
