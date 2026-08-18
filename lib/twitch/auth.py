@@ -7,7 +7,7 @@ from lib.twitch import api
 
 DEVICE_CODE_URL = "https://id.twitch.tv/oauth2/device"
 TOKEN_URL = "https://id.twitch.tv/oauth2/token"
-SCOPES = ["user:read:follows"]
+SCOPES = ["user:read:follows", "user:read:chat"]
 
 _EXPIRED_MESSAGES = {"expired_token", "expired"}
 

@@ -7,6 +7,10 @@ import requests
 from lib.twitch import auth
 
 
+def test_scopes_include_chat_read():
+    assert "user:read:chat" in auth.SCOPES
+
+
 class FakeAddon:
     def __init__(self):
         self._settings = {}
