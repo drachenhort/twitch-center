@@ -57,3 +57,19 @@ msgstr ""
 msgctxt "#30013"
 msgid "Remote button that cycles to the next audio stream during playback. Leave empty to disable. Common values: red, green, yellow, blue."
 msgstr ""
+
+msgctxt "#30014"
+msgid "Chat engine"
+msgstr ""
+
+msgctxt "#30015"
+msgid "IRC (anonymous, no login required)"
+msgstr ""
+
+msgctxt "#30016"
+msgid "EventSub (requires login, official API)"
+msgstr ""
+
+msgctxt "#30017"
+msgid "EventSub requires being logged in and is not available for Search results playback (falls back to IRC there)."
+msgstr ""

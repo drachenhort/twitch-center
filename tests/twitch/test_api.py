@@ -209,3 +209,40 @@ def test_search_channels_raises_token_expired_on_401():
     with patch.object(api.requests, "get", return_value=_response({}, status_code=401)):
         with pytest.raises(api.TokenExpiredError):
             api.search_channels("token", "client-id", "someone")
+
+
+def test_get_user_by_login_returns_user_dict():
+    body = {"data": [{"id": "123", "login": "somechannel", "display_name": "SomeChannel"}]}
+    with patch.object(api.requests, "get", return_value=_response(body)):
+        result = api.get_user_by_login("token", "client123", "somechannel")
+    assert result == {"id": "123", "login": "somechannel", "display_name": "SomeChannel"}
+
+
+def test_get_user_by_login_returns_none_when_not_found():
+    body = {"data": []}
+    with patch.object(api.requests, "get", return_value=_response(body)):
+        result = api.get_user_by_login("token", "client123", "nosuchchannel")
+    assert result is None
+
+
+def test_create_eventsub_subscription_posts_expected_body():
+    body = {"data": [{"id": "sub1"}]}
+    with patch.object(api.requests, "post", return_value=_response(body, status_code=202)) as mock_post:
+        api.create_eventsub_subscription(
+            "token", "client123", "session1", "channel.chat.message",
+            {"broadcaster_user_id": "1", "user_id": "2"},
+        )
+    posted_body = mock_post.call_args.kwargs["json"]
+    assert posted_body["type"] == "channel.chat.message"
+    assert posted_body["version"] == "1"
+    assert posted_body["condition"] == {"broadcaster_user_id": "1", "user_id": "2"}
+    assert posted_body["transport"] == {"method": "websocket", "session_id": "session1"}
+
+
+def test_create_eventsub_subscription_raises_on_failure():
+    with patch.object(api.requests, "post", return_value=_response({}, status_code=400)):
+        with pytest.raises(requests.HTTPError):
+            api.create_eventsub_subscription(
+                "token", "client123", "session1", "channel.chat.message",
+                {"broadcaster_user_id": "1", "user_id": "2"},
+            )

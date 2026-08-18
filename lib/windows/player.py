@@ -8,10 +8,15 @@ import xbmcgui
 from inputstreamhelper import Helper
 
 from lib.settings import Settings
+from lib.twitch import api
+from lib.twitch import eventsub
+from lib.twitch import irc
 from lib.twitch import stream
 from lib.windows.chat_overlay import ChatOverlay
 
 _current_chat_watcher = None
+
+_CHAT_CLIENT_CLS_BY_ENGINE = {"irc": irc.ChatClient, "eventsub": eventsub.ChatClient}
 
 
 class AdBreakState:
@@ -199,7 +204,8 @@ def _website_token_from_settings(settings):
     return getattr(settings, "website_token", None) or None
 
 
-def play_stream(url, channel, settings=None, chat_overlay_cls=None, chat_client_cls=None):
+def play_stream(url, channel, settings=None, access_token=None, client_id=None, user_id=None,
+                 chat_overlay_cls=None, chat_client_cls=None):
     """Hand the resolved HLS URL to Kodi's player via inputstream.adaptive,
     which handles proper adaptive-bitrate switching for live multi-quality
     HLS (unlike Kodi's native demuxer playing the URL directly). Returns
@@ -212,7 +218,12 @@ def play_stream(url, channel, settings=None, chat_overlay_cls=None, chat_client_
     _ChatAwarePlayer alive at module level so its onPlaybackStopped/
     onPlaybackEnded callbacks close the overlay and disconnect its chat
     client when this stream ends - a locally-scoped instance would be
-    garbage-collected and stop receiving Kodi's callbacks."""
+    garbage-collected and stop receiving Kodi's callbacks.
+
+    access_token/client_id/user_id are the logged-in user's Helix
+    credentials - required only when settings.chat_engine == "eventsub"
+    (to resolve the channel's numeric id and subscribe); ignored for the
+    default "irc" engine."""
     global _current_chat_watcher
 
     is_helper = Helper("hls")
@@ -232,6 +243,33 @@ def play_stream(url, channel, settings=None, chat_overlay_cls=None, chat_client_
             if _current_chat_watcher is not None:
                 _current_chat_watcher._teardown()
                 _current_chat_watcher = None
+
+            engine = settings.chat_engine
+            broadcaster_user_id = None
+            if chat_client_cls is None and engine == "eventsub":
+                try:
+                    user = api.get_user_by_login(access_token, client_id, channel)
+                except Exception as exc:
+                    xbmc.log(
+                        "script.twitch.center: EventSub broadcaster-id lookup failed for "
+                        "%r (%r), falling back to IRC" % (channel, repr(exc)),
+                        xbmc.LOGWARNING,
+                    )
+                    user = None
+                if user is None:
+                    xbmc.log(
+                        "script.twitch.center: EventSub chat engine could not resolve "
+                        "broadcaster id for %r, falling back to IRC" % channel,
+                        xbmc.LOGWARNING,
+                    )
+                    engine = "irc"
+                else:
+                    broadcaster_user_id = user["id"]
+
+            resolved_chat_client_cls = chat_client_cls or _CHAT_CLIENT_CLS_BY_ENGINE.get(
+                engine, irc.ChatClient
+            )
+
             overlay_cls = chat_overlay_cls or ChatOverlay
             overlay = overlay_cls(
                 "script-twitch-center-chat-overlay.xml",
@@ -239,7 +277,11 @@ def play_stream(url, channel, settings=None, chat_overlay_cls=None, chat_client_
                 "Default",
                 "1080i",
                 channel=channel,
-                chat_client_cls=chat_client_cls,
+                access_token=access_token,
+                client_id=client_id,
+                broadcaster_user_id=broadcaster_user_id,
+                user_id=user_id,
+                chat_client_cls=resolved_chat_client_cls,
             )
             overlay.show()
             website_token = _website_token_from_settings(settings)

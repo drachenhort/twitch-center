@@ -518,7 +518,13 @@ def test_selecting_a_live_channel_plays_it():
         win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
     mock_resolve.assert_called_once_with("carol", "")
-    mock_play.assert_called_once_with("https://example.invalid/stream.m3u8", "carol")
+    mock_play.assert_called_once_with(
+        "https://example.invalid/stream.m3u8",
+        "carol",
+        access_token="tok",
+        client_id="",
+        user_id="u1",
+    )
 
 
 def test_selecting_a_live_channel_shows_error_when_resolution_fails():

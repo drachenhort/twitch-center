@@ -447,7 +447,13 @@ def test_selecting_a_live_result_plays_it():
         win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
     mock_resolve.assert_called_once_with(STREAMS[0]["user_login"], "")
-    mock_play.assert_called_once_with("https://example.invalid/stream.m3u8", STREAMS[0]["user_login"])
+    mock_play.assert_called_once_with(
+        "https://example.invalid/stream.m3u8",
+        STREAMS[0]["user_login"],
+        access_token="tok",
+        client_id="",
+        user_id="u1",
+    )
 
 
 def test_selecting_an_offline_search_result_does_nothing():

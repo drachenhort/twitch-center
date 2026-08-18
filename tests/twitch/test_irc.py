@@ -287,3 +287,19 @@ def test_ping_is_answered_with_pong_and_not_queued():
 
     assert [e["type"] for e in events] == ["status", "message"]
     assert "PONG :tmi.twitch.tv\r\n" in fake.sent
+
+
+def test_constructor_accepts_and_ignores_eventsub_style_kwargs():
+    fake = FakeSocket()
+    # Must not raise TypeError - chat_overlay.py constructs whichever engine is configured with
+    # the same full kwarg set, and irc.ChatClient must tolerate the ones it doesn't use.
+    client = ChatClient(
+        "somechannel",
+        access_token="tok",
+        client_id="cid",
+        broadcaster_user_id="1",
+        user_id="2",
+        socket_factory=lambda: fake,
+        sleep_fn=lambda s: None,
+    )
+    assert client.channel == "somechannel"

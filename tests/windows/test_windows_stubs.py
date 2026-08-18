@@ -3,7 +3,7 @@ from lib.windows.chat_window import ChatWindow
 
 
 class _FakeChatClient:
-    def __init__(self, channel):
+    def __init__(self, channel, **kwargs):
         self.channel = channel
 
     def connect(self):
