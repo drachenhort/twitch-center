@@ -317,9 +317,10 @@ class LiveStreamsView:
         if token is None:
             self._show_results_error(_MISSING_TOKEN_MESSAGE)
             return
+        client_id = addon.getSetting("client_id")
         broadcaster_login = selected.getProperty("broadcaster_login")
         try:
-            self._play_channel(broadcaster_login)
+            self._play_channel(broadcaster_login, token, client_id)
         except stream.StreamUnavailableError:
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
         except Exception as exc:
@@ -329,10 +330,16 @@ class LiveStreamsView:
             )
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
 
-    def _play_channel(self, broadcaster_login):
+    def _play_channel(self, broadcaster_login, token, client_id):
         website_token = xbmcaddon.Addon().getSetting("website_token")
         url = stream.resolve_stream_url(broadcaster_login, website_token)
-        if player.play_stream(url, broadcaster_login):
+        if player.play_stream(
+            url,
+            broadcaster_login,
+            access_token=token["access_token"],
+            client_id=client_id,
+            user_id=token["user_id"],
+        ):
             error_label = self._safe_control(self.ERROR_LABEL_ID)
             if error_label:
                 error_label.setLabel("")
