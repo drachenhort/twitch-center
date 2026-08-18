@@ -122,3 +122,35 @@ def search_channels(access_token, client_id, query, live_only=True, first=20):
         },
     )
     return body["data"]
+
+
+def get_user_by_login(access_token, client_id, login):
+    """Return {"id", "login", "display_name"} for the given login name, or None if no such user -
+    Twitch returns an empty data list rather than a 404 for an unknown login."""
+    body = _get(HELIX_BASE + "/users", access_token, client_id, params={"login": login})
+    users = body["data"]
+    if not users:
+        return None
+    user = users[0]
+    return {"id": user["id"], "login": user["login"], "display_name": user["display_name"]}
+
+
+def create_eventsub_subscription(access_token, client_id, session_id, sub_type, condition, version="1"):
+    """POST /helix/eventsub/subscriptions with transport {method: websocket, session_id}. Raises
+    requests.HTTPError on failure - unlike this module's other best-effort-on-decoration functions,
+    a failed chat subscription isn't decoration, so the caller (eventsub.ChatClient._run) needs to
+    see the failure and go through its own backoff-retry path rather than getting an empty/None
+    result it can't distinguish from "no subscription needed"."""
+    response = requests.post(
+        HELIX_BASE + "/eventsub/subscriptions",
+        headers=_headers(access_token, client_id),
+        json={
+            "type": sub_type,
+            "version": version,
+            "condition": condition,
+            "transport": {"method": "websocket", "session_id": session_id},
+        },
+        timeout=10,
+    )
+    response.raise_for_status()
+    return response.json()
