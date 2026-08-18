@@ -32,6 +32,12 @@ _MESSAGE_WRAP_WIDTH = 26
 # visible "..." marking that the message was cut.
 _MAX_MESSAGE_LINES = 5
 
+# Fixed number of emote image-control slots in the skin's per-item layout
+# (ids 110-115, see resources/skins/Default/1080i/script-twitch-center-chat-overlay.xml).
+# Re-capped here independently of eventsub.py's own _MAX_EMOTES_PER_MESSAGE cap - this
+# function must not assume its caller already enforced the limit.
+_MAX_EMOTE_SLOTS = 6
+
 
 def _build_message_item(event):
     item = xbmcgui.ListItem(event["display_name"])
@@ -40,6 +46,9 @@ def _build_message_item(event):
         lines = lines[:_MAX_MESSAGE_LINES]
         lines[-1] = lines[-1][: max(0, _MESSAGE_WRAP_WIDTH - 3)].rstrip() + "..."
     item.setLabel2("\n".join(lines))
+    emotes = event.get("emotes", [])[:_MAX_EMOTE_SLOTS]
+    if emotes:
+        item.setArt({"emote_%d" % i: emote["url"] for i, emote in enumerate(emotes)})
     return item
 
 

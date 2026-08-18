@@ -181,6 +181,115 @@ def test_pump_truncates_messages_that_would_wrap_past_the_label_height():
     assert lines[-1].endswith("...")
 
 
+def _message_event_with_emotes(username, text, emotes, index=0):
+    event = _message_event(username, text, index)
+    event["emotes"] = emotes
+    return event
+
+
+def test_pump_sets_no_art_when_event_has_no_emotes_key():
+    FakeChatClient.instances.clear()
+
+    class ClientWithMessage(FakeChatClient):
+        def __init__(self, channel, **kwargs):
+            super().__init__(channel, **kwargs)
+            self._events = [_message_event("bob", "hello", 1)]
+
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=ClientWithMessage,
+    )
+    win.onInit()
+    win._thread.join(timeout=1)
+
+    control = win.getControl(ChatOverlay.MESSAGE_LIST_ID)
+    assert control._items[0].getArt("emote_0") == ""
+
+
+def test_pump_sets_art_for_one_emote():
+    FakeChatClient.instances.clear()
+    emotes = [{"id": "25", "text": "Kappa", "url": "https://example.test/25.png"}]
+
+    class ClientWithEmote(FakeChatClient):
+        def __init__(self, channel, **kwargs):
+            super().__init__(channel, **kwargs)
+            self._events = [_message_event_with_emotes("bob", "Kappa", emotes, 1)]
+
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=ClientWithEmote,
+    )
+    win.onInit()
+    win._thread.join(timeout=1)
+
+    control = win.getControl(ChatOverlay.MESSAGE_LIST_ID)
+    item = control._items[0]
+    assert item.getArt("emote_0") == "https://example.test/25.png"
+    assert item.getArt("emote_1") == ""
+
+
+def test_pump_sets_art_for_six_emotes():
+    FakeChatClient.instances.clear()
+    emotes = [{"id": str(i), "text": "E%d" % i, "url": "https://example.test/%d.png" % i} for i in range(6)]
+
+    class ClientWithSixEmotes(FakeChatClient):
+        def __init__(self, channel, **kwargs):
+            super().__init__(channel, **kwargs)
+            self._events = [_message_event_with_emotes("bob", "many emotes", emotes, 1)]
+
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=ClientWithSixEmotes,
+    )
+    win.onInit()
+    win._thread.join(timeout=1)
+
+    control = win.getControl(ChatOverlay.MESSAGE_LIST_ID)
+    item = control._items[0]
+    for i in range(6):
+        assert item.getArt("emote_%d" % i) == "https://example.test/%d.png" % i
+
+
+def test_pump_caps_art_at_six_slots_even_with_more_emotes_in_event():
+    FakeChatClient.instances.clear()
+    emotes = [{"id": str(i), "text": "E%d" % i, "url": "https://example.test/%d.png" % i} for i in range(8)]
+
+    class ClientWithEightEmotes(FakeChatClient):
+        def __init__(self, channel, **kwargs):
+            super().__init__(channel, **kwargs)
+            self._events = [_message_event_with_emotes("bob", "too many emotes", emotes, 1)]
+
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=ClientWithEightEmotes,
+    )
+    win.onInit()
+    win._thread.join(timeout=1)
+
+    control = win.getControl(ChatOverlay.MESSAGE_LIST_ID)
+    item = control._items[0]
+    for i in range(6):
+        assert item.getArt("emote_%d" % i) == "https://example.test/%d.png" % i
+    assert item.getArt("emote_6") == ""
+    assert item.getArt("emote_7") == ""
+
+
 def test_pump_caps_message_list_at_fifty_dropping_oldest():
     FakeChatClient.instances.clear()
 
