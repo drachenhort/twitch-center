@@ -1,12 +1,20 @@
 from unittest.mock import patch
 
+from lib.twitch import eventsub as eventsub_module
+from lib.twitch import irc as irc_module
 from lib.twitch import stream
 from lib.windows import player
 
 
 class FakeSettings:
-    def __init__(self, chat_display_mode):
+    def __init__(self, chat_display_mode, chat_engine="irc"):
         self.chat_display_mode = chat_display_mode
+        self.chat_engine = chat_engine
+
+
+class FakeSettingsWithEngine(FakeSettings):
+    def __init__(self, chat_display_mode, chat_engine="irc"):
+        super().__init__(chat_display_mode, chat_engine=chat_engine)
 
 
 class FakeChatClient:
@@ -24,9 +32,16 @@ class FakeChatClient:
 class FakeChatOverlay:
     instances = []
 
-    def __init__(self, xml_filename, script_path, default_skin, default_res, channel=None, chat_client_cls=None):
+    def __init__(self, xml_filename, script_path, default_skin, default_res, channel=None,
+                 access_token=None, client_id=None, broadcaster_user_id=None, user_id=None,
+                 chat_client_cls=None):
         self.channel = channel
-        self._client = (chat_client_cls or FakeChatClient)(channel)
+        self.access_token = access_token
+        self.client_id = client_id
+        self.broadcaster_user_id = broadcaster_user_id
+        self.user_id = user_id
+        self._client_cls_used = chat_client_cls or FakeChatClient
+        self._client = self._client_cls_used(channel)
         self.shown = False
         self.closed = False
         FakeChatOverlay.instances.append(self)
@@ -426,6 +441,81 @@ def test_playback_watchdog_does_not_recover_while_position_advances():
             watchdog._check_once()
 
     mock_recover.assert_not_called()
+
+
+def test_play_stream_uses_irc_engine_by_default():
+    FakeChatOverlay.instances.clear()
+    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
+        "lib.windows.player.xbmc.Player"
+    ), patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog):
+        mock_helper_cls.return_value.check_inputstream.return_value = True
+        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
+
+        player.play_stream(
+            "https://example.invalid/stream.m3u8",
+            "somechannel",
+            settings=FakeSettingsWithEngine("overlay", chat_engine="irc"),
+            chat_overlay_cls=FakeChatOverlay,
+        )
+
+    overlay = FakeChatOverlay.instances[0]
+    assert overlay._client_cls_used is irc_module.ChatClient
+
+
+def test_play_stream_uses_eventsub_engine_and_resolves_broadcaster_id():
+    FakeChatOverlay.instances.clear()
+    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
+        "lib.windows.player.xbmc.Player"
+    ), patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog), patch(
+        "lib.windows.player.api.get_user_by_login",
+        return_value={"id": "999", "login": "somechannel", "display_name": "SomeChannel"},
+    ) as mock_get_user:
+        mock_helper_cls.return_value.check_inputstream.return_value = True
+        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
+
+        player.play_stream(
+            "https://example.invalid/stream.m3u8",
+            "somechannel",
+            settings=FakeSettingsWithEngine("overlay", chat_engine="eventsub"),
+            access_token="tok",
+            client_id="cid",
+            user_id="42",
+            chat_overlay_cls=FakeChatOverlay,
+        )
+
+    mock_get_user.assert_called_once_with("tok", "cid", "somechannel")
+    overlay = FakeChatOverlay.instances[0]
+    assert overlay._client_cls_used is eventsub_module.ChatClient
+    assert overlay.broadcaster_user_id == "999"
+    assert overlay.access_token == "tok"
+    assert overlay.client_id == "cid"
+    assert overlay.user_id == "42"
+
+
+def test_play_stream_falls_back_to_irc_when_broadcaster_id_resolution_fails():
+    FakeChatOverlay.instances.clear()
+    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
+        "lib.windows.player.xbmc.Player"
+    ), patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog), patch(
+        "lib.windows.player.api.get_user_by_login", return_value=None
+    ), patch("lib.windows.player.xbmc.log") as mock_log:
+        mock_helper_cls.return_value.check_inputstream.return_value = True
+        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
+
+        result = player.play_stream(
+            "https://example.invalid/stream.m3u8",
+            "somechannel",
+            settings=FakeSettingsWithEngine("overlay", chat_engine="eventsub"),
+            access_token="tok",
+            client_id="cid",
+            user_id="42",
+            chat_overlay_cls=FakeChatOverlay,
+        )
+
+    assert result is True
+    overlay = FakeChatOverlay.instances[0]
+    assert overlay._client_cls_used is irc_module.ChatClient
+    mock_log.assert_called_once()
 
 
 def test_playback_watchdog_does_not_recover_while_paused():
