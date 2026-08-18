@@ -385,6 +385,7 @@ class ChatClient:
                 "display_name": event["chatter_user_name"],
                 "text": event["message"]["text"],
                 "timestamp": timestamp,
+                "emotes": _extract_emotes(event.get("message", {}).get("fragments")),
             })
         elif subscription_type == "channel.raid":
             self._enqueue({

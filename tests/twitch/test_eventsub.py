@@ -376,7 +376,45 @@ def test_chat_message_notification_yields_message_event():
         "display_name": "Bob",
         "text": "hello",
         "timestamp": 1787011200000,
+        "emotes": [],
     }
+
+
+def test_chat_message_notification_extracts_emotes_from_fragments():
+    notification = {
+        "metadata": {
+            "message_type": "notification",
+            "subscription_type": "channel.chat.message",
+            "message_timestamp": "2026-08-18T00:00:00Z",
+        },
+        "payload": {
+            "event": {
+                "chatter_user_login": "bob",
+                "chatter_user_name": "Bob",
+                "message": {
+                    "text": "hello Kappa",
+                    "fragments": [
+                        {"type": "text", "text": "hello "},
+                        {"type": "emote", "text": "Kappa", "emote": {"id": "25"}},
+                    ],
+                },
+            }
+        },
+    }
+    fake = _connected_fake_socket(_server_text_frame(notification))
+    client = ChatClient(**_client_kwargs(socket_factory=lambda: fake))
+    client.connect()
+
+    events = []
+    for event in client.read_messages():
+        events.append(event)
+        if event["type"] == "message":
+            break
+    client.disconnect()
+
+    assert events[-1]["emotes"] == [
+        {"id": "25", "text": "Kappa", "url": "https://static-cdn.jtvnw.net/emoticons/v2/25/static/dark/1.0"}
+    ]
 
 
 def test_raid_notification_yields_raid_event():
