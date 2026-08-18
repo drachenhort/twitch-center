@@ -1,11 +1,11 @@
 import base64
 import json
-import threading
+import socket
 
-from lib.twitch.eventsub import ChatClient, _expected_accept
 from lib.twitch.eventsub import (
     _OPCODE_PING,
     _OPCODE_TEXT,
+    ChatClient,
     _build_handshake_key,
     _build_handshake_request,
     _decode_frame,
@@ -413,6 +413,82 @@ def test_subscription_failure_triggers_disconnected_status_and_retry():
     states = [e["state"] for e in events if e["type"] == "status"]
     assert states == ["disconnected", "connected"]
     assert sleeps == [1]
+
+
+def test_session_reconnect_message_triggers_reconnect_cycle():
+    # A session_reconnect message (Twitch asking the client to open a fresh connection and
+    # re-subscribe) must trigger a reconnect cycle - not be swallowed as an unrecognized message
+    # and not propagate as an exception out to the consumer.
+    reconnect_message = {
+        "metadata": {"message_type": "session_reconnect"},
+        "payload": {
+            "session": {"id": "session1", "reconnect_url": "wss://eventsub.wss.twitch.tv/ws"}
+        },
+    }
+    first_fake = _connected_fake_socket(_server_text_frame(reconnect_message))
+    second_fake = _connected_fake_socket()
+    sockets = iter([first_fake, second_fake])
+
+    client = ChatClient(
+        **_client_kwargs(socket_factory=lambda: next(sockets))
+    )
+    client.connect()
+
+    events = []
+    for event in client.read_messages():
+        events.append(event)
+        if event["type"] == "status" and event["state"] == "connected" and len(events) > 1:
+            break
+    client.disconnect()
+
+    states = [e["state"] for e in events if e["type"] == "status"]
+    assert states == ["connected", "disconnected", "connected"]
+
+
+def test_stalled_connection_triggers_reconnect_after_double_keepalive_timeout():
+    # No frames arrive after the welcome (a real socket.recv() times out repeatedly). The stall
+    # threshold is 2 * keepalive_timeout_seconds from _WELCOME (10s), i.e. 20. Drive it with an
+    # injectable time_fn instead of real sleeping: three calls happen before the stall fires -
+    # one to set _last_message_at at the end of the handshake, then two inside _recv_more's
+    # timeout handler (an under-threshold check that returns b"" and loops, then an
+    # over-threshold check that raises).
+    def _socket_that_always_times_out(fake):
+        def recv_with_timeout(bufsize):
+            data = fake_recv(bufsize)
+            if data == b"":
+                raise socket.timeout()
+            return data
+
+        fake_recv = fake.recv
+        fake.recv = recv_with_timeout
+        return fake
+
+    first_fake = _socket_that_always_times_out(_connected_fake_socket())
+    second_fake = _connected_fake_socket()
+    sockets = iter([first_fake, second_fake])
+
+    times = iter([0, 5, 25])
+
+    def time_fn():
+        try:
+            return next(times)
+        except StopIteration:
+            return 1000
+
+    client = ChatClient(
+        **_client_kwargs(socket_factory=lambda: next(sockets), time_fn=time_fn)
+    )
+    client.connect()
+
+    events = []
+    for event in client.read_messages():
+        events.append(event)
+        if event["type"] == "status" and event["state"] == "connected" and len(events) > 1:
+            break
+    client.disconnect()
+
+    states = [e["state"] for e in events if e["type"] == "status"]
+    assert states == ["connected", "disconnected", "connected"]
 
 
 def test_disconnect_is_safe_to_call_twice():
