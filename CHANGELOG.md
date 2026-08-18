@@ -4,6 +4,13 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.16.1] - 2026-08-18
+
+### Added
+- EventSub chat messages now show a row of real emote images (up to 6 per message) beneath the
+  message text, sourced from Twitch's public emote CDN (static, dark theme, 1x scale). The IRC
+  chat engine is unaffected - it keeps rendering plain text exactly as before.
+
 ## [0.16.0] - 2026-08-18
 
 ### Added
