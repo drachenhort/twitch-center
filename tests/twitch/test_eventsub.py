@@ -10,8 +10,10 @@ from lib.twitch.eventsub import (
     _decode_frame,
     _encode_client_frame,
     _expected_accept,
+    _extract_emotes,
     _parse_handshake_response,
     _parse_rfc3339_ms,
+    EMOTE_IMAGE_URL_TEMPLATE,
 )
 
 
@@ -145,6 +147,57 @@ def test_parse_rfc3339_ms_falls_back_to_now_on_malformed_input():
     ms = _parse_rfc3339_ms("not-a-timestamp")
     after = int(time.time() * 1000)
     assert before <= ms <= after
+
+
+def test_extract_emotes_returns_one_entry_for_single_emote_fragment():
+    fragments = [{"type": "emote", "text": "Kappa", "emote": {"id": "25"}}]
+    assert _extract_emotes(fragments) == [
+        {"id": "25", "text": "Kappa", "url": EMOTE_IMAGE_URL_TEMPLATE.format(id="25")}
+    ]
+
+
+def test_extract_emotes_returns_empty_list_for_text_only_message():
+    fragments = [{"type": "text", "text": "hello there"}]
+    assert _extract_emotes(fragments) == []
+
+
+def test_extract_emotes_skips_non_emote_fragment_types_in_order():
+    fragments = [
+        {"type": "text", "text": "hi "},
+        {"type": "cheermote", "text": "Cheer100", "cheermote": {"prefix": "Cheer", "bits": 100, "tier": 1}},
+        {"type": "emote", "text": "Kappa", "emote": {"id": "25"}},
+        {"type": "mention", "text": "@bob", "mention": {"user_id": "1", "user_login": "bob", "user_name": "Bob"}},
+        {"type": "emote", "text": "PogChamp", "emote": {"id": "88"}},
+    ]
+    assert _extract_emotes(fragments) == [
+        {"id": "25", "text": "Kappa", "url": EMOTE_IMAGE_URL_TEMPLATE.format(id="25")},
+        {"id": "88", "text": "PogChamp", "url": EMOTE_IMAGE_URL_TEMPLATE.format(id="88")},
+    ]
+
+
+def test_extract_emotes_caps_at_six():
+    fragments = [
+        {"type": "emote", "text": "E%d" % i, "emote": {"id": str(i)}} for i in range(8)
+    ]
+    result = _extract_emotes(fragments)
+    assert len(result) == 6
+    assert [e["id"] for e in result] == ["0", "1", "2", "3", "4", "5"]
+
+
+def test_extract_emotes_skips_fragment_missing_emote_key():
+    fragments = [{"type": "emote", "text": "broken"}]
+    assert _extract_emotes(fragments) == []
+
+
+def test_extract_emotes_skips_emote_with_missing_id():
+    fragments = [{"type": "emote", "text": "broken", "emote": {}}]
+    assert _extract_emotes(fragments) == []
+
+
+def test_extract_emotes_returns_empty_list_when_fragments_not_a_list():
+    assert _extract_emotes(None) == []
+    assert _extract_emotes("not a list") == []
+    assert _extract_emotes({}) == []
 
 
 def _server_text_frame(payload_dict):

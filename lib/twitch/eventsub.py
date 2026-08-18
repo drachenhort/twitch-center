@@ -32,6 +32,36 @@ _RFC3339_RE = re.compile(
     r"^(?P<date>\d{4}-\d{2}-\d{2})T(?P<time>\d{2}:\d{2}:\d{2})(\.(?P<frac>\d+))?Z$"
 )
 
+EMOTE_IMAGE_URL_TEMPLATE = "https://static-cdn.jtvnw.net/emoticons/v2/{id}/static/dark/1.0"
+_MAX_EMOTES_PER_MESSAGE = 6
+
+
+def _extract_emotes(fragments):
+    """Return up to _MAX_EMOTES_PER_MESSAGE {"id", "text", "url"} dicts, one per "emote"-type
+    fragment in Twitch's channel.chat.message event.message.fragments list, in order. Never
+    raises: a missing/non-list fragments value, or an individual fragment missing "type"/"id"/
+    "emote", is treated as contributing no emote (skipped, not fatal)."""
+    if not isinstance(fragments, list):
+        return []
+    emotes = []
+    for fragment in fragments:
+        if len(emotes) >= _MAX_EMOTES_PER_MESSAGE:
+            break
+        if not isinstance(fragment, dict) or fragment.get("type") != "emote":
+            continue
+        emote = fragment.get("emote")
+        if not isinstance(emote, dict):
+            continue
+        emote_id = emote.get("id")
+        if not emote_id:
+            continue
+        emotes.append({
+            "id": emote_id,
+            "text": fragment.get("text", ""),
+            "url": EMOTE_IMAGE_URL_TEMPLATE.format(id=emote_id),
+        })
+    return emotes
+
 
 def _build_handshake_key():
     return base64.b64encode(os.urandom(16)).decode("ascii")
