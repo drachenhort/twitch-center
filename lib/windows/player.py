@@ -247,7 +247,15 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
             engine = settings.chat_engine
             broadcaster_user_id = None
             if chat_client_cls is None and engine == "eventsub":
-                user = api.get_user_by_login(access_token, client_id, channel)
+                try:
+                    user = api.get_user_by_login(access_token, client_id, channel)
+                except Exception as exc:
+                    xbmc.log(
+                        "script.twitch.center: EventSub broadcaster-id lookup failed for "
+                        "%r (%r), falling back to IRC" % (channel, repr(exc)),
+                        xbmc.LOGWARNING,
+                    )
+                    user = None
                 if user is None:
                     xbmc.log(
                         "script.twitch.center: EventSub chat engine could not resolve "
@@ -258,7 +266,9 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
                 else:
                     broadcaster_user_id = user["id"]
 
-            resolved_chat_client_cls = chat_client_cls or _CHAT_CLIENT_CLS_BY_ENGINE[engine]
+            resolved_chat_client_cls = chat_client_cls or _CHAT_CLIENT_CLS_BY_ENGINE.get(
+                engine, irc.ChatClient
+            )
 
             overlay_cls = chat_overlay_cls or ChatOverlay
             overlay = overlay_cls(

@@ -9,9 +9,11 @@ All notable changes to this project are documented here. Format loosely follows
 ### Added
 - New "Chat engine" setting (Settings > General): choose between the existing anonymous IRC chat
   (default, no login needed) and Twitch's officially-supported EventSub chat API (requires login).
-  EventSub is available on Live Streams and Discover tabs; if broadcaster ID resolution or
-  subscription fails, chat falls back to IRC automatically. Search results don't support EventSub
-  (unauthenticated feature) - chat won't be shown when EventSub is selected for Search playback.
+  EventSub is available on Live Streams and Discover tabs; if broadcaster ID resolution fails,
+  chat falls back to IRC automatically. If the EventSub subscription itself fails (e.g. a saved
+  login predates this version's chat scope), chat stays empty and keeps retrying - use "Log in
+  again" to refresh your login. Search results don't support EventSub (unauthenticated feature) -
+  chat won't be shown when EventSub is selected for Search playback.
 
 ## [0.15.2] - 2026-08-14
 

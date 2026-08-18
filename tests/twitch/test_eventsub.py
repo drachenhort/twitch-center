@@ -3,7 +3,6 @@ import json
 import socket
 
 from lib.twitch.eventsub import (
-    _OPCODE_PING,
     _OPCODE_TEXT,
     ChatClient,
     _build_handshake_key,
@@ -80,12 +79,23 @@ def test_decode_frame_returns_none_on_incomplete_buffer():
     assert remaining == b"\x81"
 
 
-def test_encode_decode_round_trip_small_payload():
+def test_encode_client_frame_round_trips_through_manual_unmask():
+    # _decode_frame only handles unmasked server->client frames (see its docstring), so it can't
+    # be used to decode _encode_client_frame's (masked) output directly. Unmask it by hand here
+    # instead, to prove the masking _encode_client_frame applies is actually reversible.
     encoded = _encode_client_frame("hello", opcode=_OPCODE_TEXT)
-    # Server frames are unmasked in real traffic; strip the mask like a
-    # server would never need to, just to prove decode reads an unmasked
-    # frame back correctly - build one directly instead of via encode here.
-    import struct
+    assert encoded[0] == 0x80 | _OPCODE_TEXT
+    length = encoded[1] & 0x7F
+    assert length == 5
+    mask_key = encoded[2:6]
+    masked_payload = encoded[6:6 + length]
+    unmasked_payload = bytes(b ^ mask_key[i % 4] for i, b in enumerate(masked_payload))
+    assert unmasked_payload == b"hello"
+
+
+def test_decode_frame_reads_short_unmasked_text_frame():
+    # Real server->client traffic is unmasked; build one directly to prove decode reads it back
+    # correctly.
     unmasked = bytes([0x81, 5]) + b"hello"
     frame, remaining = _decode_frame(unmasked)
     assert frame["opcode"] == _OPCODE_TEXT

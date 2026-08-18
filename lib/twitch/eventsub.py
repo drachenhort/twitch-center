@@ -229,8 +229,10 @@ class ChatClient:
                 connected_at = time.time()
                 self._enqueue({"type": "status", "state": "connected"})
                 self._read_loop()
-            except Exception:
-                pass
+            except Exception as exc:
+                last_error = repr(exc)
+            else:
+                last_error = None
             finally:
                 if self._sock is not None:
                     try:
@@ -242,7 +244,10 @@ class ChatClient:
             if self._cancel_event.wait(_DISCONNECT_GRACE):
                 break
 
-            self._enqueue({"type": "status", "state": "disconnected"})
+            status_event = {"type": "status", "state": "disconnected"}
+            if last_error is not None:
+                status_event["error"] = last_error
+            self._enqueue(status_event)
             if connected_at is not None and (time.time() - connected_at) > _BACKOFF_RESET_AFTER:
                 backoff = _BACKOFF_START
             self._sleep_fn(backoff)
@@ -256,6 +261,15 @@ class ChatClient:
 
         while True:
             frame = self._read_one_frame_blocking()
+            if frame["opcode"] == _OPCODE_PING:
+                self._sock.sendall(_encode_client_frame(frame["payload"], opcode=_OPCODE_PONG))
+                continue
+            if frame["opcode"] == _OPCODE_CLOSE:
+                raise ConnectionError("EventSub server closed the connection")
+            if frame["opcode"] != _OPCODE_TEXT:
+                continue
+            if not frame["fin"]:
+                raise ConnectionError("EventSub: fragmented messages are not supported")
             payload = json.loads(frame["payload"].decode("utf-8"))
             if payload["metadata"]["message_type"] == "session_welcome":
                 session = payload["payload"]["session"]
@@ -315,6 +329,8 @@ class ChatClient:
                 raise ConnectionError("EventSub server closed the connection")
             if frame["opcode"] != _OPCODE_TEXT:
                 continue
+            if not frame["fin"]:
+                raise ConnectionError("EventSub: fragmented messages are not supported")
             payload = json.loads(frame["payload"].decode("utf-8"))
             self._handle_payload(payload)
 

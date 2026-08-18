@@ -356,12 +356,12 @@ def test_decode_frame_leaves_extra_bytes_in_remaining_buffer():
 
 def test_parse_rfc3339_ms_converts_to_epoch_millis():
     ms = _parse_rfc3339_ms("2026-08-18T00:00:00Z")
-    assert ms == 1786060800000
+    assert ms == 1787011200000
 
 
 def test_parse_rfc3339_ms_handles_fractional_seconds():
     ms = _parse_rfc3339_ms("2026-08-18T00:00:00.123456789Z")
-    assert ms == 1786060800123
+    assert ms == 1787011200123
 
 
 def test_parse_rfc3339_ms_falls_back_to_now_on_malformed_input():
@@ -372,7 +372,7 @@ def test_parse_rfc3339_ms_falls_back_to_now_on_malformed_input():
     assert before <= ms <= after
 ```
 
-Verify `1786060800000` is in fact the correct epoch-ms for `2026-08-18T00:00:00Z` before pasting
+Verify `1787011200000` is in fact the correct epoch-ms for `2026-08-18T00:00:00Z` before pasting
 this into the test (compute it, don't guess) - e.g. `python3 -c "import datetime;
 print(int(datetime.datetime(2026,8,18,tzinfo=datetime.timezone.utc).timestamp()*1000))"`.
 
@@ -726,7 +726,7 @@ def test_chat_message_notification_yields_message_event():
         "username": "bob",
         "display_name": "Bob",
         "text": "hello",
-        "timestamp": 1786060800000,
+        "timestamp": 1787011200000,
     }
 
 
@@ -761,7 +761,7 @@ def test_raid_notification_yields_raid_event():
         "from_channel": "coolraider",
         "display_name": "CoolRaider",
         "viewer_count": 42,
-        "timestamp": 1786060800000,
+        "timestamp": 1787011200000,
     }
 
 

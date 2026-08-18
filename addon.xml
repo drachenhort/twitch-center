@@ -24,9 +24,11 @@
       v0.16.0: New "Chat engine" setting (Settings > General) - choose between the existing
       anonymous IRC chat (default, no login needed) and Twitch's officially-supported EventSub
       chat API (requires login; available on Live Streams and Discover tabs only). EventSub falls
-      back to IRC automatically if the channel's id can't be resolved or subscription fails. Search
-      results don't support EventSub (unauthenticated feature) - chat won't be shown when EventSub
-      is selected for Search playback.
+      back to IRC automatically if the channel's id can't be resolved. If the EventSub subscription
+      itself fails (e.g. a saved login predates this version's chat scope), chat stays empty and
+      keeps retrying - use the "Log in again" menu entry to refresh your login. Search results
+      don't support EventSub (unauthenticated feature) - chat won't be shown when EventSub is
+      selected for Search playback.
       v0.15.2: Fixed chat overlay messages getting cut off mid-word - long messages now wrap
       across lines instead of being cut off at the label's width.
       v0.15.1: No functional change - re-deploy marker for kodi.local install.

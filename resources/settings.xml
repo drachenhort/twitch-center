@@ -15,7 +15,7 @@
           </constraints>
           <control type="list" format="string"/>
         </setting>
-        <setting id="chat_engine" type="string" label="30014">
+        <setting id="chat_engine" type="string" label="30014" help="30017">
           <level>0</level>
           <default>irc</default>
           <constraints>
