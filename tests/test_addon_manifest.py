@@ -137,6 +137,27 @@ def test_chat_overlay_skin_xml_declares_message_list_control_id():
     assert 101 in control_ids
 
 
+def test_chat_overlay_skin_xml_declares_six_emote_image_slots_per_layout():
+    tree = ET.parse(CHAT_OVERLAY_SKIN_XML)
+    root = tree.getroot()
+    expected_ids = {110, 111, 112, 113, 114, 115}
+
+    for layout_tag in ("itemlayout", "focusedlayout"):
+        layout = root.find(f".//control[@id='101']/{layout_tag}")
+        assert layout is not None, f"{layout_tag} not found under control id 101"
+
+        image_controls = [c for c in layout.findall("control") if c.attrib.get("type") == "image"]
+        found_ids = {int(c.attrib["id"]) for c in image_controls}
+        assert found_ids == expected_ids, f"{layout_tag}: expected {expected_ids}, got {found_ids}"
+
+        for control in image_controls:
+            index = int(control.attrib["id"]) - 110
+            texture = control.find("texture").text
+            visible = control.find("visible").text
+            assert texture == f"$INFO[ListItem.Art(emote_{index})]"
+            assert visible == f"!String.IsEmpty(ListItem.Art(emote_{index}))"
+
+
 def _main_skin_control_ids():
     """Every control id declared anywhere in the merged skin file, including
     inside nested <group> blocks - Kodi resolves ids window-wide regardless
