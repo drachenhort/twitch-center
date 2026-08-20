@@ -4,6 +4,16 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.16.2] - 2026-08-20
+
+### Fixed
+- Chat overlay message list is now updated incrementally (append new rows, drop evicted ones)
+  instead of a full reset()+addItems() rebuild on every render tick. Previously, every new
+  message caused the entire list to be rebuilt, which re-created already-displayed messages'
+  list items and re-triggered their EventSub emote art loads - visible as an emote image popping
+  in several renders after its message had already appeared, once its underlying Kodi texture
+  finally finished loading.
+
 ## [0.16.1] - 2026-08-18
 
 ### Added

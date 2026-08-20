@@ -92,6 +92,9 @@ class ControlLabel:
         self._items = []
         self._selected_index = 0
 
+    def removeItem(self, index):
+        del self._items[index]
+
     def size(self):
         return len(self._items)
 

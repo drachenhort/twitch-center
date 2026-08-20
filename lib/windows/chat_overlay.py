@@ -78,6 +78,8 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
         self._cancel_event = threading.Event()
         self._thread = None
         self._last_render_at = None
+        self._total_evicted = 0
+        self._control_evicted = 0
 
     def onInit(self):
         self._client = self._chat_client_cls(
@@ -98,8 +100,10 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
                     break
                 if event["type"] != "message":
                     continue
+                before = len(self._messages)
                 self._messages.append(event)
                 del self._messages[:-self._MAX_MESSAGES]
+                self._total_evicted += (before + 1) - len(self._messages)
                 now = self._time_fn()
                 if self._last_render_at is None or now - self._last_render_at >= _RENDER_THROTTLE_SECONDS:
                     self._render()
@@ -114,12 +118,28 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
             )
 
     def _render(self):
+        # Incremental: only remove items evicted from the front and append
+        # items new since the last render, instead of reset()+addItems() of
+        # the whole list. A full rebuild recreates every ListItem on every
+        # tick, which re-triggers async emote art loading for messages
+        # already on screen (visible as emote art popping in several
+        # renders after the message first appeared).
         control = self._safe_control(self.MESSAGE_LIST_ID)
-        if control:
-            control.reset()
-            control.addItems([_build_message_item(event) for event in self._messages])
-            if self._messages:
-                control.selectItem(len(self._messages) - 1)
+        if not control:
+            return
+        pending_evictions = self._total_evicted - self._control_evicted
+        for _ in range(pending_evictions):
+            if control.size() <= 0:
+                break
+            control.removeItem(0)
+        self._control_evicted = self._total_evicted
+
+        to_add = len(self._messages) - control.size()
+        if to_add > 0:
+            control.addItems([_build_message_item(event) for event in self._messages[-to_add:]])
+
+        if self._messages:
+            control.selectItem(control.size() - 1)
 
     def _safe_control(self, control_id):
         try:
