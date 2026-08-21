@@ -4,6 +4,14 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.16.4] - 2026-08-22
+
+### Fixed
+- Chat overlay message label now explicitly sets `<aligny>top</aligny>`. Without it, some Kodi
+  builds anchor a short single-line label vertically (bottom/center) within its allotted box
+  instead of the top, which reads as a blank line above the message text - most visible on
+  single-line messages, since multi-line messages already nearly fill the box height.
+
 ## [0.16.3] - 2026-08-22
 
 ### Fixed

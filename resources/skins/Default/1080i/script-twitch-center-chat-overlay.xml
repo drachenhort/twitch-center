@@ -23,6 +23,7 @@
           <width>360</width>
           <height>140</height>
           <font>font13</font>
+          <aligny>top</aligny>
           <label>$INFO[ListItem.Label2]</label>
         </control>
         <control type="image" id="110">
@@ -96,6 +97,7 @@
           <width>360</width>
           <height>140</height>
           <font>font13</font>
+          <aligny>top</aligny>
           <label>$INFO[ListItem.Label2]</label>
         </control>
         <control type="image" id="110">
