@@ -7,7 +7,7 @@
       <posy>60</posy>
       <width>380</width>
       <height>960</height>
-      <itemlayout width="380" height="197">
+      <itemlayout width="380" height="270">
         <control type="label">
           <posx>10</posx>
           <posy>0</posy>
@@ -21,14 +21,14 @@
           <posx>10</posx>
           <posy>26</posy>
           <width>360</width>
-          <height>140</height>
+          <height>210</height>
           <font>font13</font>
           <aligny>top</aligny>
           <label>$INFO[ListItem.Label2]</label>
         </control>
         <control type="image" id="110">
           <posx>10</posx>
-          <posy>168</posy>
+          <posy>236</posy>
           <width>28</width>
           <height>28</height>
           <aspectratio>keep</aspectratio>
@@ -37,7 +37,7 @@
         </control>
         <control type="image" id="111">
           <posx>40</posx>
-          <posy>168</posy>
+          <posy>236</posy>
           <width>28</width>
           <height>28</height>
           <aspectratio>keep</aspectratio>
@@ -46,7 +46,7 @@
         </control>
         <control type="image" id="112">
           <posx>70</posx>
-          <posy>168</posy>
+          <posy>236</posy>
           <width>28</width>
           <height>28</height>
           <aspectratio>keep</aspectratio>
@@ -55,7 +55,7 @@
         </control>
         <control type="image" id="113">
           <posx>100</posx>
-          <posy>168</posy>
+          <posy>236</posy>
           <width>28</width>
           <height>28</height>
           <aspectratio>keep</aspectratio>
@@ -64,7 +64,7 @@
         </control>
         <control type="image" id="114">
           <posx>130</posx>
-          <posy>168</posy>
+          <posy>236</posy>
           <width>28</width>
           <height>28</height>
           <aspectratio>keep</aspectratio>
@@ -73,7 +73,7 @@
         </control>
         <control type="image" id="115">
           <posx>160</posx>
-          <posy>168</posy>
+          <posy>236</posy>
           <width>28</width>
           <height>28</height>
           <aspectratio>keep</aspectratio>
@@ -81,7 +81,7 @@
           <visible>!String.IsEmpty(ListItem.Art(emote_5))</visible>
         </control>
       </itemlayout>
-      <focusedlayout width="380" height="197">
+      <focusedlayout width="380" height="270">
         <control type="label">
           <posx>10</posx>
           <posy>0</posy>
@@ -95,14 +95,14 @@
           <posx>10</posx>
           <posy>26</posy>
           <width>360</width>
-          <height>140</height>
+          <height>210</height>
           <font>font13</font>
           <aligny>top</aligny>
           <label>$INFO[ListItem.Label2]</label>
         </control>
         <control type="image" id="110">
           <posx>10</posx>
-          <posy>168</posy>
+          <posy>236</posy>
           <width>28</width>
           <height>28</height>
           <aspectratio>keep</aspectratio>
@@ -111,7 +111,7 @@
         </control>
         <control type="image" id="111">
           <posx>40</posx>
-          <posy>168</posy>
+          <posy>236</posy>
           <width>28</width>
           <height>28</height>
           <aspectratio>keep</aspectratio>
@@ -120,7 +120,7 @@
         </control>
         <control type="image" id="112">
           <posx>70</posx>
-          <posy>168</posy>
+          <posy>236</posy>
           <width>28</width>
           <height>28</height>
           <aspectratio>keep</aspectratio>
@@ -129,7 +129,7 @@
         </control>
         <control type="image" id="113">
           <posx>100</posx>
-          <posy>168</posy>
+          <posy>236</posy>
           <width>28</width>
           <height>28</height>
           <aspectratio>keep</aspectratio>
@@ -138,7 +138,7 @@
         </control>
         <control type="image" id="114">
           <posx>130</posx>
-          <posy>168</posy>
+          <posy>236</posy>
           <width>28</width>
           <height>28</height>
           <aspectratio>keep</aspectratio>
@@ -147,7 +147,7 @@
         </control>
         <control type="image" id="115">
           <posx>160</posx>
-          <posy>168</posy>
+          <posy>236</posy>
           <width>28</width>
           <height>28</height>
           <aspectratio>keep</aspectratio>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="script.twitch.center" name="Twitch Center" version="0.16.4" provider-name="drachenhort">
+<addon id="script.twitch.center" name="Twitch Center" version="0.16.5" provider-name="drachenhort">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
     <import addon="script.module.requests" version="2.22.0"/>
@@ -21,6 +21,10 @@
       <icon>icon.png</icon>
     </assets>
     <news>
+      v0.16.5: Chat overlay message box was too short for the 5-line message cap - a 4th or 5th
+      wrapped line spilled past the label's bottom edge into the emote-icon row below it. Grew the
+      message box and pushed the per-item row layout (and emote icons) down to fit all 5 lines
+      cleanly.
       v0.16.4: Fixed chat overlay message text still rendering with a blank line above it on some
       Kodi builds even after v0.16.3 - the message label had no explicit vertical alignment, so a
       short single-line message could render bottom/center-anchored in its box on those builds.

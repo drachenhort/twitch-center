@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.16.5] - 2026-08-22
+
+### Fixed
+- Chat overlay message box was undersized for the message-wrapping cap: `_MAX_MESSAGE_LINES` (5)
+  needed roughly 200px at the message label's line height, but the label was only 140px tall, so
+  a 4th/5th line could spill past its bottom edge into the emote-icon row. Grew the message label
+  to 210px and moved the emote row and per-item row height down to match, so all 5 possible lines
+  render inside their own box.
+
 ## [0.16.4] - 2026-08-22
 
 ### Fixed
