@@ -4,6 +4,13 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.16.3] - 2026-08-22
+
+### Fixed
+- Chat overlay message label no longer sets both a manual `\n`-wrapped label and the skin's
+  `wrapmultiline` flag on the same control. Kodi's own wrap pass, layered on top of the already
+  hand-wrapped text, could add a stray blank line above the first line of a message.
+
 ## [0.16.2] - 2026-08-20
 
 ### Fixed
