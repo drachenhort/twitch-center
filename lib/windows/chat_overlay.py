@@ -39,12 +39,17 @@ _MAX_MESSAGE_LINES = 5
 _MAX_EMOTE_SLOTS = 6
 
 
-def _build_message_item(event):
-    item = xbmcgui.ListItem(event["display_name"])
-    lines = textwrap.wrap(event["text"], _MESSAGE_WRAP_WIDTH)
+def _wrap_message_lines(text):
+    lines = textwrap.wrap(text, _MESSAGE_WRAP_WIDTH)
     if len(lines) > _MAX_MESSAGE_LINES:
         lines = lines[:_MAX_MESSAGE_LINES]
         lines[-1] = lines[-1][: max(0, _MESSAGE_WRAP_WIDTH - 3)].rstrip() + "..."
+    return lines
+
+
+def _build_message_item(event):
+    item = xbmcgui.ListItem(event["display_name"])
+    lines = _wrap_message_lines(event["text"])
     item.setLabel2("\n".join(lines))
     emotes = (event.get("emotes") or [])[:_MAX_EMOTE_SLOTS]
     if emotes:
