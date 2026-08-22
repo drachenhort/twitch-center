@@ -104,6 +104,9 @@ class FakeListControl:
         index = min(self._selected_index, len(self._items) - 1)
         return self._items[index]
 
+    def getListItem(self, index):
+        return self._items[index]
+
     def selectItem(self, index):
         self._selected_index = index
 

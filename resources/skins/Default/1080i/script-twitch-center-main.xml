@@ -359,6 +359,16 @@
             <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
             <label>$INFO[ListItem.Property(viewer_count)]</label>
           </control>
+          <control type="label">
+            <posx>16</posx>
+            <posy>251</posy>
+            <width>270</width>
+            <height>20</height>
+            <font>CardLabel</font>
+            <textcolor>ff53fc18</textcolor>
+            <visible>String.IsEqual(ListItem.Property(platform),kick)</visible>
+            <label>KICK</label>
+          </control>
         </itemlayout>
 
         <focusedlayout width="415" height="275">
@@ -425,6 +435,16 @@
             <aligny>center</aligny>
             <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
             <label>$INFO[ListItem.Property(viewer_count)]</label>
+          </control>
+          <control type="label">
+            <posx>16</posx>
+            <posy>251</posy>
+            <width>270</width>
+            <height>20</height>
+            <font>CardLabel</font>
+            <textcolor>ff53fc18</textcolor>
+            <visible>String.IsEqual(ListItem.Property(platform),kick)</visible>
+            <label>KICK</label>
           </control>
         </focusedlayout>
       </control>

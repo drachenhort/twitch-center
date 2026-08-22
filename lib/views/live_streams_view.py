@@ -4,8 +4,9 @@ import xbmc
 import xbmcaddon
 import xbmcgui
 
+from lib import providers
 from lib.settings import Settings
-from lib.twitch import api, auth, gql, stream
+from lib.twitch import api, auth, gql
 from lib.windows import player
 
 CHANNEL_LIST_ID = 201
@@ -68,7 +69,46 @@ def _build_list_item(channel, stream_data=None):
         item.setProperty("subtitle", "Offline")
     item.setProperty("broadcaster_id", channel["broadcaster_id"])
     item.setProperty("broadcaster_login", channel["broadcaster_login"])
+    item.setProperty("platform", "twitch")
     return item
+
+
+def _build_kick_list_item(normalized):
+    item = xbmcgui.ListItem(normalized["display_name"])
+    item.setLabel2(
+        normalized["game_name"] + " - " + str(normalized["viewer_count"]) + " viewers"
+    )
+    item.setArt({"thumb": normalized["thumbnail_url"]})
+    item.setProperty("is_live", "true")
+    item.setProperty("viewer_count", str(normalized["viewer_count"]))
+    item.setProperty("game_name", normalized["game_name"])
+    item.setProperty(
+        "subtitle",
+        str(normalized["viewer_count"]) + " viewers · " + normalized["game_name"],
+    )
+    item.setProperty("broadcaster_id", normalized["id"])
+    item.setProperty("broadcaster_login", normalized["login"])
+    item.setProperty("platform", "kick")
+    return item
+
+
+def _interleave_live_items(twitch_live, kick_live):
+    """twitch_live: list of (channel, stream_data) tuples, already live-only
+    (from _merge_channels). kick_live: list of normalized Kick dicts, already
+    live-only (from providers.get_kick_live_favorites). Returns built
+    ListItems, interleaved by viewer_count descending, without needing
+    _build_list_item's or providers' shapes to match each other."""
+    tagged = [("twitch", stream_data["viewer_count"], (channel, stream_data)) for channel, stream_data in twitch_live]
+    tagged += [("kick", normalized["viewer_count"], normalized) for normalized in kick_live]
+    tagged.sort(key=lambda entry: entry[1], reverse=True)
+    items = []
+    for entry_platform, _viewer_count, payload in tagged:
+        if entry_platform == "twitch":
+            channel, stream_data = payload
+            items.append(_build_list_item(channel, stream_data))
+        else:
+            items.append(_build_kick_list_item(payload))
+    return items
 
 
 class LiveStreamsView:
@@ -87,6 +127,7 @@ class LiveStreamsView:
         self._followed = []
         self._live = []
         self._games = []
+        self._kick_live = []
         self._selected_game = None
 
     def _safe_control(self, control_id):
@@ -130,12 +171,14 @@ class LiveStreamsView:
         broadcaster_ids = [c["broadcaster_id"] for c in followed]
         live_list = api.get_live_status(token["access_token"], client_id, broadcaster_ids)
         games = gql.get_followed_live_games(addon.getSetting("website_token"))
+        kick_live = providers.get_kick_live_favorites(addon)
         self._followed = followed
         self._live = live_list
         self._games = games
+        self._kick_live = kick_live
         self._selected_game = None
         self._populate_games(games)
-        self._populate(followed, live_list)
+        self._populate(followed, live_list, kick_live)
         # MainWindow focuses a view's DEFAULT_FOCUS_ID (if any) before
         # activate() runs; claim the channel list explicitly now that it is
         # actually populated, so a leftover keypress can't trigger an
@@ -217,7 +260,7 @@ class LiveStreamsView:
                 items.append(item)
             control.addItems(items)
 
-    def _populate(self, followed, live_list, game_filter=None):
+    def _populate(self, followed, live_list, kick_live, game_filter=None):
         empty_label = self._safe_control(self.EMPTY_LABEL_ID)
         if empty_label:
             empty_label.setLabel("")
@@ -227,7 +270,7 @@ class LiveStreamsView:
         control = self._safe_control(self.CHANNEL_LIST_ID)
         if control:
             control.reset()
-            if not followed:
+            if not followed and not kick_live:
                 if empty_label:
                     empty_label.setLabel(_EMPTY_FOLLOWED_MESSAGE)
                 return
@@ -239,9 +282,13 @@ class LiveStreamsView:
                     if stream_data["game_name"] == game_filter
                 ]
                 offline = []
+                # The games filter is Twitch-only - Kick has no equivalent
+                # taxonomy, so a selected filter hides Kick results entirely
+                # rather than showing them unfiltered (documented decision).
+                kick_live = []
             elif not self._settings.show_offline_channels:
                 offline = []
-            items = [_build_list_item(channel, stream_data) for channel, stream_data in live]
+            items = _interleave_live_items(live, kick_live)
             items += [_build_list_item(channel) for channel in offline]
             if not items:
                 if empty_label:
@@ -303,7 +350,7 @@ class LiveStreamsView:
             return
         game_name = selected.getProperty("game_name")
         self._selected_game = game_name or None
-        self._populate(self._followed, self._live, game_filter=self._selected_game)
+        self._populate(self._followed, self._live, self._kick_live, game_filter=self._selected_game)
 
     def _on_channel_selected(self):
         control = self._safe_control(self.CHANNEL_LIST_ID)
@@ -312,34 +359,39 @@ class LiveStreamsView:
         selected = control.getSelectedItem()
         if selected is None or selected.getProperty("is_live") != "true":
             return
+        platform = selected.getProperty("platform") or "twitch"
+        broadcaster_login = selected.getProperty("broadcaster_login")
+        if platform == "kick":
+            self._play_channel("kick", broadcaster_login)
+            return
         addon = xbmcaddon.Addon()
         token = auth.load_token(addon)
         if token is None:
             self._show_results_error(_MISSING_TOKEN_MESSAGE)
             return
         client_id = addon.getSetting("client_id")
-        broadcaster_login = selected.getProperty("broadcaster_login")
+        self._play_channel("twitch", broadcaster_login, token=token, client_id=client_id)
+
+    def _play_channel(self, platform, broadcaster_login, token=None, client_id=None):
+        addon = xbmcaddon.Addon()
         try:
-            self._play_channel(broadcaster_login, token, client_id)
-        except stream.StreamUnavailableError:
+            url = providers.resolve_stream_url(addon, platform, broadcaster_login)
+        except providers.StreamUnavailableError:
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
+            return
         except Exception as exc:
             xbmc.log(
-                "script.twitch.center: Home channel selection failed: " + repr(exc),
+                "script.twitch.center: Live Streams channel selection failed: " + repr(exc),
                 xbmc.LOGERROR,
             )
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
-
-    def _play_channel(self, broadcaster_login, token, client_id):
-        website_token = xbmcaddon.Addon().getSetting("website_token")
-        url = stream.resolve_stream_url(broadcaster_login, website_token)
-        if player.play_stream(
-            url,
-            broadcaster_login,
-            access_token=token["access_token"],
-            client_id=client_id,
-            user_id=token["user_id"],
-        ):
+            return
+        play_kwargs = {"platform": platform}
+        if platform == "twitch":
+            play_kwargs.update(
+                access_token=token["access_token"], client_id=client_id, user_id=token["user_id"]
+            )
+        if player.play_stream(url, broadcaster_login, **play_kwargs):
             error_label = self._safe_control(self.ERROR_LABEL_ID)
             if error_label:
                 error_label.setLabel("")

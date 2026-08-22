@@ -6,7 +6,6 @@ import xbmcgui
 from lib.twitch import api, gql
 from lib.twitch.auth import save_token
 from lib.views.live_streams_view import LiveStreamsView, _NO_LIVE_MESSAGE, _build_list_item, _merge_channels
-from lib.twitch import stream
 
 FakeAddon = xbmcaddon.Addon
 
@@ -503,9 +502,8 @@ def test_selecting_a_live_channel_plays_it():
         api, "get_followed_channels", return_value=FOLLOWED
     ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
         gql, "get_followed_live_games", return_value=[]
-    ), patch(
-        "lib.views.live_streams_view.stream.resolve_stream_url",
-        return_value="https://example.invalid/stream.m3u8",
+    ), patch.object(
+        providers, "resolve_stream_url", return_value="https://example.invalid/stream.m3u8"
     ) as mock_resolve, patch(
         "lib.views.live_streams_view.player.play_stream", return_value=True
     ) as mock_play:
@@ -517,10 +515,14 @@ def test_selecting_a_live_channel_plays_it():
         win.window.setFocusId(LiveStreamsView.CHANNEL_LIST_ID)
         win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
-    mock_resolve.assert_called_once_with("carol", "")
+    mock_resolve.assert_called_once()
+    call_args = mock_resolve.call_args
+    assert call_args.args[1] == "twitch"
+    assert call_args.args[2] == "carol"
     mock_play.assert_called_once_with(
         "https://example.invalid/stream.m3u8",
         "carol",
+        platform="twitch",
         access_token="tok",
         client_id="",
         user_id="u1",
@@ -533,9 +535,8 @@ def test_selecting_a_live_channel_shows_error_when_resolution_fails():
         api, "get_followed_channels", return_value=FOLLOWED
     ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
         gql, "get_followed_live_games", return_value=[]
-    ), patch(
-        "lib.views.live_streams_view.stream.resolve_stream_url",
-        side_effect=stream.StreamUnavailableError("carol"),
+    ), patch.object(
+        providers, "resolve_stream_url", side_effect=providers.StreamUnavailableError("carol"),
     ):
         win = LiveStreamsView(FakeWindow())
         win.activate()
@@ -554,9 +555,8 @@ def test_selecting_a_live_channel_shows_error_when_playback_declined():
         api, "get_followed_channels", return_value=FOLLOWED
     ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
         gql, "get_followed_live_games", return_value=[]
-    ), patch(
-        "lib.views.live_streams_view.stream.resolve_stream_url",
-        return_value="https://example.invalid/stream.m3u8",
+    ), patch.object(
+        providers, "resolve_stream_url", return_value="https://example.invalid/stream.m3u8"
     ), patch("lib.views.live_streams_view.player.play_stream", return_value=False):
         win = LiveStreamsView(FakeWindow())
         win.activate()
@@ -578,9 +578,8 @@ def test_populate_clears_stale_playback_error_on_next_populate():
         api, "get_followed_channels", return_value=FOLLOWED
     ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
         gql, "get_followed_live_games", return_value=GAMES
-    ), patch(
-        "lib.views.live_streams_view.stream.resolve_stream_url",
-        side_effect=stream.StreamUnavailableError("carol"),
+    ), patch.object(
+        providers, "resolve_stream_url", side_effect=providers.StreamUnavailableError("carol"),
     ):
         win = LiveStreamsView(FakeWindow())
         win.activate()
@@ -605,9 +604,8 @@ def test_selecting_a_live_channel_clears_stale_error_on_successful_retry():
         api, "get_followed_channels", return_value=FOLLOWED
     ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
         gql, "get_followed_live_games", return_value=[]
-    ), patch(
-        "lib.views.live_streams_view.stream.resolve_stream_url",
-        side_effect=stream.StreamUnavailableError("carol"),
+    ), patch.object(
+        providers, "resolve_stream_url", side_effect=providers.StreamUnavailableError("carol"),
     ):
         win = LiveStreamsView(FakeWindow())
         win.activate()
@@ -618,9 +616,8 @@ def test_selecting_a_live_channel_clears_stale_error_on_successful_retry():
 
     assert win.window.getControl(LiveStreamsView.ERROR_LABEL_ID).getLabel() != ""
 
-    with patch("xbmcaddon.Addon", return_value=addon), patch(
-        "lib.views.live_streams_view.stream.resolve_stream_url",
-        return_value="https://example.invalid/stream.m3u8",
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        providers, "resolve_stream_url", return_value="https://example.invalid/stream.m3u8"
     ), patch("lib.views.live_streams_view.player.play_stream", return_value=True):
         win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
@@ -633,10 +630,7 @@ def test_selecting_a_live_channel_shows_error_on_unexpected_exception():
         api, "get_followed_channels", return_value=FOLLOWED
     ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
         gql, "get_followed_live_games", return_value=[]
-    ), patch(
-        "lib.views.live_streams_view.stream.resolve_stream_url",
-        side_effect=RuntimeError("boom"),
-    ):
+    ), patch.object(providers, "resolve_stream_url", side_effect=RuntimeError("boom")):
         win = LiveStreamsView(FakeWindow())
         win.activate()
         channel_control = win.window.getControl(LiveStreamsView.CHANNEL_LIST_ID)
@@ -668,3 +662,158 @@ def test_missing_token_at_click_time_shows_an_error_instead_of_no_op():
 
     assert win.window.getControl(LiveStreamsView.ERROR_LABEL_ID).getLabel() != ""
     assert win.window.getControl(LiveStreamsView.CHANNEL_LIST_ID).size() == 2
+
+
+from lib import providers
+
+
+KICK_LIVE_FAVORITE = {
+    "platform": "kick",
+    "id": "42",
+    "login": "kickchannel",
+    "display_name": "kickchannel",
+    "is_live": True,
+    "viewer_count": 120,
+    "game_name": "Slots",
+    "thumbnail_url": "https://example.invalid/kickthumb.jpg",
+}
+
+
+def test_oninit_merges_kick_favorites_into_the_channel_list():
+    # Twitch live: Carol (200), Bob (50). Kick live favorite: 120 viewers.
+    # Interleaved by viewer count: Carol (200), kickchannel (120), Bob (50).
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch.object(
+        providers, "get_kick_live_favorites", return_value=[KICK_LIVE_FAVORITE]
+    ):
+        win = LiveStreamsView(FakeWindow())
+        win.activate()
+
+    channel_control = win.window.getControl(LiveStreamsView.CHANNEL_LIST_ID)
+    logins = [
+        channel_control.getListItem(i).getProperty("broadcaster_login")
+        for i in range(channel_control.size())
+    ]
+    platforms = [
+        channel_control.getListItem(i).getProperty("platform")
+        for i in range(channel_control.size())
+    ]
+    assert logins[:3] == ["carol", "kickchannel", "bob"]
+    assert platforms[:3] == ["twitch", "kick", "twitch"]
+
+
+def test_oninit_shows_kick_favorites_alone_when_no_twitch_channels_are_live():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=[]
+    ), patch.object(api, "get_live_status", return_value=[]), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch.object(
+        providers, "get_kick_live_favorites", return_value=[KICK_LIVE_FAVORITE]
+    ):
+        win = LiveStreamsView(FakeWindow())
+        win.activate()
+
+    channel_control = win.window.getControl(LiveStreamsView.CHANNEL_LIST_ID)
+    assert channel_control.size() == 1
+    assert channel_control.getListItem(0).getProperty("broadcaster_login") == "kickchannel"
+    assert win.window.getControl(LiveStreamsView.EMPTY_LABEL_ID).getLabel() == ""
+
+
+def test_oninit_shows_empty_message_when_no_twitch_followed_and_no_kick_favorites():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=[]
+    ), patch.object(api, "get_live_status", return_value=[]), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch.object(providers, "get_kick_live_favorites", return_value=[]):
+        win = LiveStreamsView(FakeWindow())
+        win.activate()
+
+    assert win.window.getControl(LiveStreamsView.EMPTY_LABEL_ID).getLabel() != ""
+
+
+def test_selecting_a_game_filter_hides_kick_favorites():
+    # The games filter is Twitch-only - Kick has no equivalent taxonomy, so
+    # selecting a specific game hides Kick results rather than showing them
+    # unfiltered alongside a filtered Twitch list (documented spec decision).
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=GAMES
+    ), patch.object(
+        providers, "get_kick_live_favorites", return_value=[KICK_LIVE_FAVORITE]
+    ):
+        win = LiveStreamsView(FakeWindow())
+        win.activate()
+        games_control = win.window.getControl(LiveStreamsView.GAMES_LIST_ID)
+        # GAMES[0]["displayName"] must be "Programming" (Carol's game) for
+        # this assertion to isolate her alone - see GAMES' definition.
+        for i in range(games_control.size()):
+            if games_control.getListItem(i).getProperty("game_name") == "Programming":
+                games_control.selectItem(i)
+                break
+        win.window.setFocusId(LiveStreamsView.GAMES_LIST_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    channel_control = win.window.getControl(LiveStreamsView.CHANNEL_LIST_ID)
+    logins = [
+        channel_control.getListItem(i).getProperty("broadcaster_login")
+        for i in range(channel_control.size())
+    ]
+    assert "kickchannel" not in logins
+
+
+def test_selecting_a_live_kick_channel_plays_it():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=[]
+    ), patch.object(api, "get_live_status", return_value=[]), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch.object(
+        providers, "get_kick_live_favorites", return_value=[KICK_LIVE_FAVORITE]
+    ), patch.object(
+        providers, "resolve_stream_url", return_value="https://kick.example/x.m3u8"
+    ) as mock_resolve, patch(
+        "lib.views.live_streams_view.player.play_stream", return_value=True
+    ) as mock_play:
+        win = LiveStreamsView(FakeWindow())
+        win.activate()
+        channel_control = win.window.getControl(LiveStreamsView.CHANNEL_LIST_ID)
+        channel_control.selectItem(0)
+        win.window.setFocusId(LiveStreamsView.CHANNEL_LIST_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    mock_resolve.assert_called_once()
+    call_args = mock_resolve.call_args
+    assert call_args.args[1] == "kick"
+    assert call_args.args[2] == "kickchannel"
+    mock_play.assert_called_once_with(
+        "https://kick.example/x.m3u8", "kickchannel", platform="kick"
+    )
+
+
+def test_selecting_a_live_kick_channel_shows_error_when_resolution_fails():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=[]
+    ), patch.object(api, "get_live_status", return_value=[]), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch.object(
+        providers, "get_kick_live_favorites", return_value=[KICK_LIVE_FAVORITE]
+    ), patch.object(
+        providers, "resolve_stream_url", side_effect=providers.StreamUnavailableError("x")
+    ):
+        win = LiveStreamsView(FakeWindow())
+        win.activate()
+        channel_control = win.window.getControl(LiveStreamsView.CHANNEL_LIST_ID)
+        channel_control.selectItem(0)
+        win.window.setFocusId(LiveStreamsView.CHANNEL_LIST_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    assert win.window.getControl(LiveStreamsView.ERROR_LABEL_ID).getLabel() != ""
