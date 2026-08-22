@@ -975,11 +975,18 @@ class FakeSettings:
         self.chat_overlay_variable_height = chat_overlay_variable_height
 ```
 
+**Note:** `FakeChatOverlay.__init__` hardcodes `FakeChatOverlay.instances.append(self)` rather than
+`type(self).instances.append(self)`. A bare `class FakeVariableChatOverlay(FakeChatOverlay): pass`
+would share `FakeChatOverlay`'s `instances` list instead of tracking its own, breaking 3 of the 4
+tests below. Fix: change that existing line to `type(self).instances.append(self)` (a no-op for
+plain `FakeChatOverlay()` instances - `type(self)` is still `FakeChatOverlay` there), and give
+`FakeVariableChatOverlay` its own `instances = []` class attribute, shown below.
+
 Then add a fake variable overlay class and the new tests:
 
 ```python
 class FakeVariableChatOverlay(FakeChatOverlay):
-    pass
+    instances = []
 
 
 def test_play_stream_uses_variable_overlay_when_enabled_and_eventsub():
