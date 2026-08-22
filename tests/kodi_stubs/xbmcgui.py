@@ -66,7 +66,7 @@ class ListItem:
         return self._content_lookup
 
 
-class ControlLabel:
+class FakeListControl:
     def __init__(self):
         self._label = ""
         self._items = []
@@ -120,12 +120,54 @@ class ControlLabel:
         return getattr(self, "_enabled", True)
 
 
+class ControlLabel:
+    def __init__(self, x, y, width, height, label, font=None, textColor=None):
+        self._x = x
+        self._y = y
+        self._width = width
+        self._height = height
+        self._label = label
+        self._font = font
+        self._text_color = textColor
+
+    def getLabel(self):
+        return self._label
+
+    def setPosition(self, x, y):
+        self._x = x
+        self._y = y
+
+    def getPosition(self):
+        return (self._x, self._y)
+
+
+class ControlImage:
+    def __init__(self, x, y, width, height, filename, aspectRatio=0):
+        self._x = x
+        self._y = y
+        self._width = width
+        self._height = height
+        self._filename = filename
+        self._aspect_ratio = aspectRatio
+
+    def getFileName(self):
+        return self._filename
+
+    def setPosition(self, x, y):
+        self._x = x
+        self._y = y
+
+    def getPosition(self):
+        return (self._x, self._y)
+
+
 class WindowXML:
     def __init__(self, xml_filename, script_path, default_skin="Default", default_res="1080i"):
         self.xml_filename = xml_filename
         self.script_path = script_path
         self._controls = {}
         self._focus_id = None
+        self._added_controls = []
 
     def show(self):
         pass
@@ -135,8 +177,14 @@ class WindowXML:
 
     def getControl(self, control_id):
         if control_id not in self._controls:
-            self._controls[control_id] = ControlLabel()
+            self._controls[control_id] = FakeListControl()
         return self._controls[control_id]
+
+    def addControl(self, control):
+        self._added_controls.append(control)
+
+    def removeControl(self, control):
+        self._added_controls.remove(control)
 
     def setFocusId(self, control_id):
         self._focus_id = control_id

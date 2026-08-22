@@ -73,3 +73,11 @@ msgstr ""
 msgctxt "#30017"
 msgid "EventSub requires being logged in and is not available for Search results playback (falls back to IRC there)."
 msgstr ""
+
+msgctxt "#30018"
+msgid "Variable-size chat overlay (EventSub only)"
+msgstr ""
+
+msgctxt "#30019"
+msgid "Sizes each chat overlay message's box to its actual length instead of a fixed maximum. Only takes effect when the EventSub chat engine is selected above."
+msgstr ""

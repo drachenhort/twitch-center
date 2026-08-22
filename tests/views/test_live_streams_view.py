@@ -18,10 +18,10 @@ class FakeWindow:
         self.switched_to = []
 
     def getControl(self, control_id):
-        from xbmcgui import ControlLabel
+        from xbmcgui import FakeListControl
 
         if control_id not in self._controls:
-            self._controls[control_id] = ControlLabel()
+            self._controls[control_id] = FakeListControl()
         return self._controls[control_id]
 
     def setFocusId(self, control_id):

@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from lib.windows.chat_overlay import ChatOverlay
+from lib.windows.chat_overlay import ChatOverlay, _wrap_message_lines
 
 
 class FakeChatClient:
@@ -459,3 +459,18 @@ def test_close_disconnects_client_and_is_idempotent():
 
     client = FakeChatClient.instances[0]
     assert client.disconnected is True
+
+
+def test_wrap_message_lines_returns_single_line_for_short_text():
+    assert _wrap_message_lines("hello") == ["hello"]
+
+
+def test_wrap_message_lines_truncates_and_ellipsizes_past_five_lines():
+    long_text = (
+        "which upcoming games are you looking forward to for the rest of this year, "
+        "modz? asking because I want to plan my backlog around the big releases"
+    )
+    lines = _wrap_message_lines(long_text)
+    assert len(lines) == 5
+    assert lines[-1].endswith("...")
+    assert all(len(line) <= 26 for line in lines)

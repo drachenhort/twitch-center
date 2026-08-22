@@ -31,6 +31,11 @@
           <default>false</default>
           <control type="toggle"/>
         </setting>
+        <setting id="chat_overlay_variable_height" type="boolean" label="30018" help="30019">
+          <level>0</level>
+          <default>false</default>
+          <control type="toggle"/>
+        </setting>
         <setting id="client_id" type="string" label="30005" help="">
           <level>2</level>
           <default>f6exkvelsf4gmy83b8zat5i10t3gy6</default>

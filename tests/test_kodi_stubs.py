@@ -36,7 +36,7 @@ def test_xbmcgui_stub_action_constants_and_getid():
 
 def test_xbmcgui_stub_control_label_set_and_get():
     import xbmcgui
-    label = xbmcgui.ControlLabel()
+    label = xbmcgui.FakeListControl()
     label.setLabel("hello")
     assert label.getLabel() == "hello"
 

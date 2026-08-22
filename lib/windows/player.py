@@ -13,6 +13,7 @@ from lib.twitch import eventsub
 from lib.twitch import irc
 from lib.twitch import stream
 from lib.windows.chat_overlay import ChatOverlay
+from lib.windows.variable_chat_overlay import VariableChatOverlay
 
 _current_chat_watcher = None
 
@@ -270,7 +271,12 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
                 engine, irc.ChatClient
             )
 
-            overlay_cls = chat_overlay_cls or ChatOverlay
+            if chat_overlay_cls is not None:
+                overlay_cls = chat_overlay_cls
+            elif engine == "eventsub" and settings.chat_overlay_variable_height:
+                overlay_cls = VariableChatOverlay
+            else:
+                overlay_cls = ChatOverlay
             overlay = overlay_cls(
                 "script-twitch-center-chat-overlay.xml",
                 xbmcaddon.Addon().getAddonInfo("path"),

@@ -675,7 +675,7 @@ def test_single_message_block_is_positioned_at_the_bottom_of_the_column():
     assert username_control.getPosition()[1] == expected_top
 
 
-def test_newer_message_is_positioned_above_older_message():
+def test_newer_message_is_positioned_below_older_message():
     FakeChatClient.instances.clear()
     win = _make_overlay([
         _message_event("bob", "hi", 1),
@@ -686,7 +686,7 @@ def test_newer_message_is_positioned_above_older_message():
     older_block, newer_block = win._blocks
     older_y = older_block["items"][0][0].getPosition()[1]
     newer_y = newer_block["items"][0][0].getPosition()[1]
-    assert newer_y < older_y
+    assert newer_y > older_y
 
 
 def test_controls_from_earlier_render_are_repositioned_not_recreated():
@@ -975,11 +975,18 @@ class FakeSettings:
         self.chat_overlay_variable_height = chat_overlay_variable_height
 ```
 
+**Note:** `FakeChatOverlay.__init__` hardcodes `FakeChatOverlay.instances.append(self)` rather than
+`type(self).instances.append(self)`. A bare `class FakeVariableChatOverlay(FakeChatOverlay): pass`
+would share `FakeChatOverlay`'s `instances` list instead of tracking its own, breaking 3 of the 4
+tests below. Fix: change that existing line to `type(self).instances.append(self)` (a no-op for
+plain `FakeChatOverlay()` instances - `type(self)` is still `FakeChatOverlay` there), and give
+`FakeVariableChatOverlay` its own `instances = []` class attribute, shown below.
+
 Then add a fake variable overlay class and the new tests:
 
 ```python
 class FakeVariableChatOverlay(FakeChatOverlay):
-    pass
+    instances = []
 
 
 def test_play_stream_uses_variable_overlay_when_enabled_and_eventsub():
