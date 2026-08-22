@@ -56,10 +56,11 @@ Twitch Center is distributed alongside other Kodi addons in the shared
 [jellyfin-kodi-plex](https://github.com/drachenhort/jellyfin-kodi-plex) repository:
 
 1. Download the repository addon zip:
-   [`repository.jellyfinplex-1.0.0.zip`](https://drachenhort.github.io/jellyfin-kodi-plex/repository.jellyfinplex/repository.jellyfinplex-1.0.0.zip)
+   [`repository.jellyfinplex-1.0.1.zip`](https://drachenhort.github.io/jellyfin-kodi-plex/repository.jellyfinplex/repository.jellyfinplex-1.0.1.zip)
 2. In Kodi: **Add-ons → Install from zip file**, select the downloaded file.
-3. Then **Add-ons → Install from repository → \<repository name\> → Program add-ons →
-   Twitch Center**, and install it from there.
+3. Then **Add-ons → Install from repository → Jellyfin (Plex-style) Repository →
+   Program add-ons → Twitch Center**, and install it from there. (The repository is shared with
+   an unrelated Jellyfin client addon — the name is a historical artifact, not a dependency.)
 
 Kodi then checks the repository for new versions and can auto-update the addon like any other.
 
