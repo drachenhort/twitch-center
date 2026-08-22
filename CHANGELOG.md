@@ -4,18 +4,6 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
-## [0.17.4] - 2026-08-22
-
-### Changed
-- Variable-size chat overlay: flipped the stacking direction. Newest message is now pinned to the
-  top of the column, older messages pushed down, oldest evicted from the bottom - the opposite of
-  the fixed-box overlay's (and this overlay's own previous) bottom-anchored layout. This is a
-  mitigation, not a fix, for the open top-edge rendering glitch (see
-  `project_variable_chat_overlay_top_edge_bug` in project memory): whichever message sits at the
-  column's exposed edge shows the glitch, so pinning newest-at-top keeps that edge on the oldest,
-  about-to-be-evicted message instead of on freshly-arrived messages the user is actively reading.
-  The underlying cause is still unresolved.
-
 ## [0.17.3] - 2026-08-22
 
 ### Fixed

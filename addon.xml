@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="script.twitch.center" name="Twitch Center" version="0.17.4" provider-name="drachenhort">
+<addon id="script.twitch.center" name="Twitch Center" version="0.17.3" provider-name="drachenhort">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
     <import addon="script.module.requests" version="2.22.0"/>
@@ -21,12 +21,6 @@
       <icon>icon.png</icon>
     </assets>
     <news>
-      v0.17.4: Flipped the variable-size chat overlay's stacking direction - newest message now
-      pinned to the top of the column, older ones pushed down, oldest evicted from the bottom.
-      A residual rendering glitch (open issue, see project memory) always appears at whichever
-      message sits at the column's exposed edge; this ordering keeps that edge on the oldest,
-      about-to-be-evicted message rather than on freshly-arrived, actively-read ones. Does not
-      claim to fix the underlying cause, only relocates its visible impact.
       v0.17.3: Live re-test of v0.17.2 found the remaining garbling wasn't a sizing issue at all -
       it always appeared at whatever message currently sat at the column's top edge, with content
       bleeding in from an already-evicted message. Root cause: a burst of messages arriving in one

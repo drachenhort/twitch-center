@@ -135,17 +135,18 @@ def _make_overlay(events):
     return win
 
 
-def test_single_message_block_is_positioned_at_the_top_of_the_column():
+def test_single_message_block_is_positioned_at_the_bottom_of_the_column():
     FakeChatClient.instances.clear()
     win = _make_overlay([_message_event("bob", "hi", 1)])
 
     assert len(win._blocks) == 1
     block = win._blocks[0]
     username_control = block["items"][0][0]
-    assert username_control.getPosition()[1] == _COLUMN_Y
+    expected_top = _COLUMN_Y + _COLUMN_HEIGHT - block["height"]
+    assert username_control.getPosition()[1] == expected_top
 
 
-def test_newer_message_is_positioned_above_older_message():
+def test_newer_message_is_positioned_below_older_message():
     FakeChatClient.instances.clear()
     win = _make_overlay([
         _message_event("bob", "hi", 1),
@@ -156,7 +157,7 @@ def test_newer_message_is_positioned_above_older_message():
     older_block, newer_block = win._blocks
     older_y = older_block["items"][0][0].getPosition()[1]
     newer_y = newer_block["items"][0][0].getPosition()[1]
-    assert newer_y < older_y
+    assert newer_y > older_y
 
 
 def test_controls_from_earlier_render_are_repositioned_not_recreated():
