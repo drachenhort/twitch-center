@@ -162,12 +162,17 @@ class VariableChatOverlay(ChatOverlay):
                 self.addControl(control)
             self._blocks.append(block)
 
-        # Position every surviving block, newest at the bottom - eviction already decided who
-        # survives, so this pass never needs to remove anything.
-        cursor = _COLUMN_Y + _COLUMN_HEIGHT
+        # Position every surviving block, newest at the top and growing downward - eviction
+        # already decided who survives, so this pass never needs to remove anything. Newest
+        # pinned to _COLUMN_Y (rather than the bottom) so that if a block's real rendered text
+        # overflows its declared height (no clipping container sits between these controls and
+        # the window), the overflow lands on the OLDEST block at the bottom edge - the one
+        # about to be evicted anyway - rather than on freshly-arrived, actively-read messages.
+        # See the top-edge garbling entry in project memory for why this ordering was chosen.
+        cursor = _COLUMN_Y
         for block in reversed(self._blocks):
-            cursor -= block["height"]
             _position_block(block, cursor)
+            cursor += block["height"]
 
     def close(self):
         for block in self._blocks:
