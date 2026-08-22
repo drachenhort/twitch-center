@@ -83,7 +83,7 @@ def _build_block(event, lines, emotes, height):
 
     message_label = xbmcgui.ControlLabel(
         _COLUMN_X + 10, 0, _COLUMN_WIDTH - 20, message_height,
-        "\n".join(lines), font=_FONT, wrapmultiline=True,
+        "\n".join(lines), font=_FONT,
     )
     items.append((message_label, _COLUMN_X + 10, _USERNAME_ROW_HEIGHT))
 
