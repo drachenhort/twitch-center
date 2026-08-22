@@ -2,10 +2,13 @@
 Python, pytest-testable."""
 import base64
 import hashlib
+import json
 import queue
 import secrets
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlencode, urlparse
+
+import requests
 
 AUTHORIZE_URL = "https://id.kick.com/oauth/authorize"
 TOKEN_URL = "https://id.kick.com/oauth/token"
@@ -75,3 +78,72 @@ def await_callback(port, timeout_seconds):
         return {"status": "timeout"}
     finally:
         server.server_close()
+
+
+def exchange_code_for_token(client_id, redirect_uri, code, code_verifier):
+    """Exchange an authorization code for a token dict. Raises
+    requests.RequestException on network/HTTP failure."""
+    response = requests.post(
+        TOKEN_URL,
+        data={
+            "grant_type": "authorization_code",
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "code": code,
+            "code_verifier": code_verifier,
+        },
+        timeout=10,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def refresh_access_token(client_id, refresh_token, on_error=None):
+    """Exchange a refresh_token for a new token dict. Returns None on any
+    failure (network error, non-200, unparseable body) rather than raising -
+    mirrors lib.twitch.auth.refresh_access_token's contract."""
+    try:
+        response = requests.post(
+            TOKEN_URL,
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token,
+                "client_id": client_id,
+            },
+            timeout=10,
+        )
+    except requests.RequestException as exc:
+        if on_error:
+            on_error("network error: " + repr(exc))
+        return None
+    if response.status_code != 200:
+        if on_error:
+            on_error("HTTP " + str(response.status_code) + ": " + response.text[:200])
+        return None
+    try:
+        return response.json()
+    except ValueError as exc:
+        if on_error:
+            on_error("unparseable response body: " + repr(exc))
+        return None
+
+
+def save_token(token, addon):
+    """Persist a token dict to the addon's hidden kick_token setting."""
+    addon.setSetting("kick_token", json.dumps(token))
+
+
+def load_token(addon):
+    """Load a previously saved token dict, or None if none saved / invalid JSON."""
+    raw = addon.getSetting("kick_token")
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return None
+
+
+def clear_token(addon):
+    """Remove the saved token, e.g. after a failed refresh forces re-login."""
+    addon.setSetting("kick_token", "")
