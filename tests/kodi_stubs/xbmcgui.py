@@ -88,9 +88,17 @@ class FakeListControl:
     def addItems(self, items):
         self._items.extend(items)
 
+    def addItem(self, item):
+        self._items.append(item)
+
     def reset(self):
         self._items = []
         self._selected_index = 0
+
+    def getSelectedPosition(self):
+        if not self._items:
+            return -1
+        return min(self._selected_index, len(self._items) - 1)
 
     def removeItem(self, index):
         del self._items[index]

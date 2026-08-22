@@ -1,9 +1,10 @@
-"""Search view: finding Twitch channels and streams. Not a Window subclass -
-see MainWindow."""
+"""Search view: finding Twitch and Kick channels/streams. Not a Window
+subclass - see MainWindow."""
 import threading
 import xbmcaddon
 import xbmcgui
-from lib.twitch import gql, stream
+from lib import providers
+from lib.twitch import gql
 from lib.windows import player
 
 
@@ -62,8 +63,10 @@ class SearchView:
         self._update_next_page_button()
 
         def search_task():
-            results, cursor = gql.search(query, search_type="all")
-            self._update_queue.append(("update_results", results, cursor))
+            twitch_results, cursor = gql.search(query, search_type="all")
+            addon = xbmcaddon.Addon()
+            kick_results = providers.get_kick_search_results(addon, query)
+            self._update_queue.append(("update_results", twitch_results, kick_results, cursor))
 
         threading.Thread(target=search_task, daemon=True).start()
 
@@ -74,30 +77,36 @@ class SearchView:
         self.window.getControl(self.NEXT_PAGE_BUTTON_ID).setEnabled(False)
 
         def search_task():
-            results, cursor = gql.search(
+            twitch_results, cursor = gql.search(
                 query=self.window.getControl(self.SEARCH_INPUT_ID).getLabel(),
                 search_type="all",
                 cursor=self._next_cursor
             )
-            self._update_queue.append(("update_results", results, cursor))
+            # No new Kick fetch on later pages - Kick's search has no
+            # pagination, and re-fetching here would duplicate the Kick
+            # results already merged in from the first page.
+            self._update_queue.append(("update_results", twitch_results, [], cursor))
 
         threading.Thread(target=search_task, daemon=True).start()
 
     def _process_updates(self):
         if not self._update_queue:
             return
-        action, data, cursor = self._update_queue.pop(0)
+        action, twitch_results, kick_results, cursor = self._update_queue.pop(0)
         if action == "update_results":
-            self._render_results(data, cursor)
+            self._render_results(twitch_results, kick_results, cursor)
 
-    def _render_results(self, results, cursor):
-        self.search_results.extend(results)
+    def _render_results(self, twitch_results, kick_results, cursor):
+        twitch_normalized = [providers.normalize_twitch_search_result(r) for r in twitch_results]
+        merged = providers.merge_by_viewer_count(twitch_normalized, kick_results)
+        self.search_results.extend(merged)
         self._next_cursor = cursor
         self.window.getControl(self.STATUS_LABEL_ID).setLabel("")
         list_control = self.window.getControl(self.RESULTS_LIST_ID)
-        for item in results:
-            name = item.get("display_name") or item.get("name") or item.get("user_name") or "Unknown"
-            list_control.addItem(name)
+        for normalized in merged:
+            item = xbmcgui.ListItem(normalized["display_name"])
+            item.setProperty("platform", normalized["platform"])
+            list_control.addItem(item)
         self._update_next_page_button()
 
     def _update_next_page_button(self):
@@ -111,8 +120,9 @@ class SearchView:
         if idx < 0 or idx >= len(self.search_results):
             return
         result = self.search_results[idx]
-        login = result.get("login") or result.get("user_login") or result.get("name")
-        if login:
-            website_token = xbmcaddon.Addon().getSetting("website_token")
-            url = stream.resolve_stream_url(login, website_token)
-            player.play_stream(url, login)
+        login = result.get("login")
+        if not login:
+            return
+        addon = xbmcaddon.Addon()
+        url = providers.resolve_stream_url(addon, result["platform"], login)
+        player.play_stream(url, login, platform=result["platform"])
