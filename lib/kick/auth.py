@@ -147,3 +147,93 @@ def load_token(addon):
 def clear_token(addon):
     """Remove the saved token, e.g. after a failed refresh forces re-login."""
     addon.setSetting("kick_token", "")
+
+
+def run_pkce_login(
+    client_id,
+    redirect_port,
+    addon,
+    on_code,
+    on_status,
+    cancel_event,
+    scopes=None,
+    callback_timeout_seconds=300,
+    await_callback_fn=await_callback,
+    exchange_fn=exchange_code_for_token,
+    get_current_user_fn=None,
+):
+    """Orchestrates the full PKCE login flow: build the authorize URL, report
+    it via on_code, wait for the loopback callback, exchange the code for a
+    token, cache the current user onto it, and save. Returns True on success,
+    False otherwise. Mirrors lib.twitch.auth.run_device_code_login's
+    callback/cancellation contract so login_view.py can drive both flows
+    uniformly.
+
+    Unlike the device-code flow there's no polling loop - await_callback_fn
+    blocks (with its own timeout) waiting for the loopback server to receive
+    the redirect, so cancellation is checked before starting and after the
+    callback returns, rather than on every poll tick."""
+    if scopes is None:
+        scopes = SCOPES
+    if get_current_user_fn is None:
+        from lib.kick import api
+
+        get_current_user_fn = api.get_current_user
+
+    if cancel_event.is_set():
+        return False
+
+    try:
+        redirect_uri = f"http://127.0.0.1:{redirect_port}/callback"
+        verifier, challenge = generate_pkce_pair()
+        state = secrets.token_urlsafe(16)
+        url = build_authorize_url(client_id, redirect_uri, challenge, scopes, state)
+
+        on_code(url)
+        on_status("pending")
+
+        result = await_callback_fn(redirect_port, callback_timeout_seconds)
+
+        if cancel_event.is_set():
+            return False
+
+        status = result["status"]
+        if status == "timeout":
+            on_status("expired")
+            return False
+        if status == "error":
+            on_status("denied")
+            return False
+
+        if result.get("state") != state:
+            on_status("error")
+            return False
+
+        try:
+            token = exchange_fn(client_id, redirect_uri, result["code"], verifier)
+        except requests.RequestException:
+            on_status("error")
+            return False
+
+        if cancel_event.is_set():
+            return False
+
+        try:
+            user_info = get_current_user_fn(token["access_token"])
+        except Exception:
+            on_status("error")
+            return False
+
+        token["user_id"] = user_info["id"]
+        token["login"] = user_info["login"]
+        token["display_name"] = user_info["display_name"]
+
+        if cancel_event.is_set():
+            return False
+
+        save_token(token, addon)
+        on_status("success")
+        return True
+    except Exception:
+        on_status("error")
+        return False

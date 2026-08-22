@@ -166,3 +166,133 @@ def test_load_token_returns_none_for_invalid_json():
     addon = FakeAddon()
     addon.setSetting("kick_token", "not-json")
     assert auth.load_token(addon) is None
+
+
+def test_run_pkce_login_success_flow():
+    addon = FakeAddon()
+    codes_shown = []
+    statuses = []
+
+    def fake_await_callback(port, timeout_seconds):
+        return {"status": "success", "code": "auth-code", "state": codes_shown[-1][1]}
+
+    def fake_exchange(client_id, redirect_uri, code, code_verifier):
+        assert code == "auth-code"
+        return {"access_token": "tok", "refresh_token": "ref", "expires_in": 3600}
+
+    def fake_get_current_user(access_token):
+        return {"id": "42", "login": "someuser", "display_name": "SomeUser"}
+
+    def on_code(url):
+        # state is embedded in the URL as a query param; capture it so the
+        # fake callback can "echo" the right one back.
+        from urllib.parse import urlparse, parse_qs
+        state = parse_qs(urlparse(url).query)["state"][0]
+        codes_shown.append((url, state))
+
+    result = auth.run_pkce_login(
+        client_id="client-id",
+        redirect_port=18922,
+        addon=addon,
+        on_code=on_code,
+        on_status=statuses.append,
+        cancel_event=threading.Event(),
+        await_callback_fn=fake_await_callback,
+        exchange_fn=fake_exchange,
+        get_current_user_fn=fake_get_current_user,
+    )
+
+    assert result is True
+    assert statuses == ["pending", "success"]
+    assert len(codes_shown) == 1
+    saved = auth.load_token(addon)
+    assert saved["access_token"] == "tok"
+    assert saved["user_id"] == "42"
+    assert saved["login"] == "someuser"
+    assert saved["display_name"] == "SomeUser"
+
+
+def test_run_pkce_login_reports_denied_and_saves_nothing():
+    addon = FakeAddon()
+    statuses = []
+
+    def fake_await_callback(port, timeout_seconds):
+        return {"status": "error", "error": "access_denied"}
+
+    result = auth.run_pkce_login(
+        client_id="client-id",
+        redirect_port=18923,
+        addon=addon,
+        on_code=lambda url: None,
+        on_status=statuses.append,
+        cancel_event=threading.Event(),
+        await_callback_fn=fake_await_callback,
+        exchange_fn=lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not exchange")),
+        get_current_user_fn=lambda token: (_ for _ in ()).throw(AssertionError("should not fetch user")),
+    )
+
+    assert result is False
+    assert statuses == ["pending", "denied"]
+    assert auth.load_token(addon) is None
+
+
+def test_run_pkce_login_reports_expired_on_timeout():
+    addon = FakeAddon()
+    statuses = []
+
+    result = auth.run_pkce_login(
+        client_id="client-id",
+        redirect_port=18924,
+        addon=addon,
+        on_code=lambda url: None,
+        on_status=statuses.append,
+        cancel_event=threading.Event(),
+        await_callback_fn=lambda port, timeout_seconds: {"status": "timeout"},
+        exchange_fn=lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not exchange")),
+        get_current_user_fn=lambda token: (_ for _ in ()).throw(AssertionError("should not fetch user")),
+    )
+
+    assert result is False
+    assert statuses == ["pending", "expired"]
+
+
+def test_run_pkce_login_reports_error_when_user_fetch_raises():
+    addon = FakeAddon()
+    statuses = []
+
+    result = auth.run_pkce_login(
+        client_id="client-id",
+        redirect_port=18925,
+        addon=addon,
+        on_code=lambda url: None,
+        on_status=statuses.append,
+        cancel_event=threading.Event(),
+        await_callback_fn=lambda port, timeout_seconds: {"status": "success", "code": "c", "state": "s"},
+        exchange_fn=lambda *a, **k: {"access_token": "tok", "refresh_token": "ref"},
+        get_current_user_fn=lambda token: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+
+    assert result is False
+    assert statuses == ["pending", "error"]
+    assert auth.load_token(addon) is None
+
+
+def test_run_pkce_login_returns_false_immediately_if_cancelled_before_start():
+    addon = FakeAddon()
+    statuses = []
+    cancel_event = threading.Event()
+    cancel_event.set()
+
+    result = auth.run_pkce_login(
+        client_id="client-id",
+        redirect_port=18926,
+        addon=addon,
+        on_code=lambda url: None,
+        on_status=statuses.append,
+        cancel_event=cancel_event,
+        await_callback_fn=lambda port, timeout_seconds: (_ for _ in ()).throw(AssertionError("should not await")),
+        exchange_fn=lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not exchange")),
+        get_current_user_fn=lambda token: (_ for _ in ()).throw(AssertionError("should not fetch user")),
+    )
+
+    assert result is False
