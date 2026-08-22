@@ -44,3 +44,15 @@ def test_chat_engine_falls_back_to_default_on_invalid_value():
     addon.setSetting("chat_engine", "not-a-real-engine")
     settings = Settings(addon=addon)
     assert settings.chat_engine == "irc"
+
+
+def test_chat_overlay_variable_height_defaults_to_false():
+    settings = Settings()
+    assert settings.chat_overlay_variable_height is False
+
+
+def test_chat_overlay_variable_height_reads_addon_setting():
+    addon = xbmcaddon.Addon()
+    addon.setSetting("chat_overlay_variable_height", True)
+    settings = Settings(addon=addon)
+    assert settings.chat_overlay_variable_height is True

@@ -29,3 +29,7 @@ class Settings:
     @property
     def show_offline_channels(self):
         return self._addon.getSettingBool("show_offline_channels")
+
+    @property
+    def chat_overlay_variable_height(self):
+        return self._addon.getSettingBool("chat_overlay_variable_height")
