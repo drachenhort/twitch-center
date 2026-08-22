@@ -214,8 +214,8 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
     available and the user declined installing it (Helper.check_inputstream
     handles that install-prompt UI itself).
 
-    If playback started and chat_display_mode includes "overlay", also
-    creates and shows a ChatOverlay for `channel`, and keeps a
+    If playback started and chat_overlay_enabled is set, also creates and
+    shows a ChatOverlay for `channel`, and keeps a
     _ChatAwarePlayer alive at module level so its onPlaybackStopped/
     onPlaybackEnded callbacks close the overlay and disconnect its chat
     client when this stream ends - a locally-scoped instance would be
@@ -238,7 +238,7 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
     list_item.setContentLookup(False)
 
     settings = settings or Settings()
-    if settings.chat_display_mode in ("overlay", "both"):
+    if settings.chat_overlay_enabled:
         try:
             if _current_chat_watcher is not None:
                 _current_chat_watcher._teardown()

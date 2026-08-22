@@ -15,6 +15,8 @@ class FakeAddon:
     def getAddonInfo(self, id):
         if id == "path":
             return "/fake/addon/path"
+        if id == "version":
+            return "9.9.9"
         return ""
 
 
@@ -26,10 +28,12 @@ class FakeMonitor:
 class FakeMainWindow:
     instances = []
 
-    def __init__(self, xml_filename, script_path, *args, initial_view="login", closed_event=None, **kwargs):
+    def __init__(self, xml_filename, script_path, *args, initial_view="login", closed_event=None,
+                 version_text=None, **kwargs):
         self.xml_filename = xml_filename
         self.script_path = script_path
         self.initial_view = initial_view
+        self.version_text = version_text
         self.shown = False
         self.close_calls = 0
         self.closed_event = closed_event or threading.Event()
@@ -54,6 +58,12 @@ def test_run_shows_login_view_first_when_no_token_saved():
     assert len(FakeMainWindow.instances) == 1
     assert FakeMainWindow.instances[0].initial_view == "login"
     assert FakeMainWindow.instances[0].shown is True
+
+
+def test_run_passes_version_and_release_date_to_main_window():
+    FakeMainWindow.instances.clear()
+    main.run([], addon=FakeAddon(token=None), main_window_cls=FakeMainWindow, monitor_cls=FakeMonitor)
+    assert FakeMainWindow.instances[0].version_text == "v9.9.9 (%s)" % main.VERSION_DATE
 
 
 def test_run_shows_menu_view_first_when_token_saved():

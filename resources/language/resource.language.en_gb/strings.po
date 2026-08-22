@@ -7,19 +7,7 @@ msgid "General"
 msgstr ""
 
 msgctxt "#30001"
-msgid "Chat display mode"
-msgstr ""
-
-msgctxt "#30002"
-msgid "Overlay during playback"
-msgstr ""
-
-msgctxt "#30003"
-msgid "Standalone chat window"
-msgstr ""
-
-msgctxt "#30004"
-msgid "Both"
+msgid "Show chat overlay while playing"
 msgstr ""
 
 msgctxt "#30005"

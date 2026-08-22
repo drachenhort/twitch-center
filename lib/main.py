@@ -16,6 +16,11 @@ import xbmcgui
 from lib.twitch import auth
 from lib.windows.main_window import MainWindow
 
+# Release date of the version in addon.xml - bump this alongside the version number and
+# CHANGELOG.md entry for every shipped feature/fix, so the on-screen label always matches
+# the most recent changelog entry rather than drifting out of sync.
+VERSION_DATE = "2026-08-22"
+
 
 def show_quit_prompt():
     """Display a confirmation dialog when the user attempts to quit."""
@@ -44,12 +49,14 @@ def run(argv, addon=None, main_window_cls=None, monitor_cls=None):
 
     token = auth.load_token(addon)
     initial_view = "menu" if token else "login"
+    version_text = "v%s (%s)" % (addon.getAddonInfo("version"), VERSION_DATE)
     window = main_window_cls(
         "script-twitch-center-main.xml",
         addon.getAddonInfo("path"),
         "Default",
         "1080i",
         initial_view=initial_view,
+        version_text=version_text,
     )
     window.show()
 

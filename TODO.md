@@ -1,19 +1,20 @@
 # TODO
 
 - ~~Tackle chat~~ DONE (v0.10.0): `lib/twitch/irc.py`'s `ChatClient` and `lib/windows/chat_overlay.py`
-  are real and live-tested (Quin69, busy chat). `chat_display_mode`'s "overlay"/"both" show it
+  are real and live-tested (Quin69, busy chat). The `chat_overlay_enabled` setting shows it
   automatically during playback; auto-reconnects, auto-scrolls, throttled rendering, closes on
-  stop/end/error. Remaining gap: "standalone" mode does nothing - `lib/windows/chat_window.py` is
-  still a stub.
+  stop/end/error. The old "standalone" full-screen chat mode (never implemented beyond a stub) was
+  removed - `chat_display_mode`'s three-way overlay/standalone/both choice is gone, replaced by
+  this single boolean.
 
 - Picture-in-picture: no system-level PiP (small floating video while browsing OTHER Kodi
   screens/menus) - not a thing Kodi's addon API supports.
 
   What the user actually wants: video playing in a SMALL BOX with chat laid out around/beside it
   in the SAME screen, when chat is toggled on - not fullscreen video with a dialog on top. Would be
-  a new 4th `chat_display_mode` value (e.g. "pip"), separate from and not touching the already-
-  shipped "overlay"/"standalone"/"both" - video large on the left, chat strip on the right, Back
-  stops playback and returns to Home (same as today's fullscreen Back behavior).
+  a separate mode alongside `chat_overlay_enabled`, not replacing it - video large on the left,
+  chat strip on the right, Back stops playback and returns to Home (same as today's fullscreen
+  Back behavior).
 
   **Blocked on an unresolved core-mechanism question, live-tested 2026-08-12, not solved:**
   - A custom `WindowXMLDialog` with a `<control type="videowindow">` sized as a box, with

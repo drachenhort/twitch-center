@@ -49,6 +49,16 @@ def _make_window(initial_view="menu", view_classes=None):
     )
 
 
+def test_oninit_sets_the_version_label():
+    views = {name: FakeView for name in ("login", "menu", "live_streams", "discover", "search")}
+    win = MainWindow(
+        "script-twitch-center-main.xml", "/tmp", initial_view="menu", view_classes=views,
+        version_text="v0.18.0 (2026-08-22)",
+    )
+    win.onInit()
+    assert win.getControl(win.VERSION_LABEL_ID).getLabel() == "v0.18.0 (2026-08-22)"
+
+
 def test_oninit_activates_the_initial_view_and_shows_only_its_group():
     win = _make_window(initial_view="menu")
     win.onInit()

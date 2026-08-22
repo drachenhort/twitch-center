@@ -7,8 +7,8 @@ from lib.windows import player
 
 
 class FakeSettings:
-    def __init__(self, chat_display_mode, chat_engine="irc", chat_overlay_variable_height=False):
-        self.chat_display_mode = chat_display_mode
+    def __init__(self, chat_overlay_enabled, chat_engine="irc", chat_overlay_variable_height=False):
+        self.chat_overlay_enabled = chat_overlay_enabled
         self.chat_engine = chat_engine
         self.chat_overlay_variable_height = chat_overlay_variable_height
 
@@ -74,7 +74,7 @@ def test_play_stream_returns_true_and_plays_when_inputstream_available():
         mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
 
         result = player.play_stream(
-            "https://example.invalid/stream.m3u8", "somechannel", settings=FakeSettings("standalone")
+            "https://example.invalid/stream.m3u8", "somechannel", settings=FakeSettings(False)
         )
 
     assert result is True
@@ -97,14 +97,14 @@ def test_play_stream_returns_false_when_inputstream_declined():
         mock_helper_cls.return_value.check_inputstream.return_value = False
 
         result = player.play_stream(
-            "https://example.invalid/stream.m3u8", "somechannel", settings=FakeSettings("standalone")
+            "https://example.invalid/stream.m3u8", "somechannel", settings=FakeSettings(False)
         )
 
     assert result is False
     mock_player_cls.return_value.play.assert_not_called()
 
 
-def test_play_stream_creates_and_shows_overlay_when_mode_is_overlay():
+def test_play_stream_creates_and_shows_overlay_when_enabled():
     FakeChatOverlay.instances.clear()
     with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
         "lib.windows.player.xbmc.Player"
@@ -115,7 +115,7 @@ def test_play_stream_creates_and_shows_overlay_when_mode_is_overlay():
         result = player.play_stream(
             "https://example.invalid/stream.m3u8",
             "somechannel",
-            settings=FakeSettings("overlay"),
+            settings=FakeSettings(True),
             chat_overlay_cls=FakeChatOverlay,
             chat_client_cls=FakeChatClient,
         )
@@ -127,7 +127,7 @@ def test_play_stream_creates_and_shows_overlay_when_mode_is_overlay():
     assert overlay.shown is True
 
 
-def test_play_stream_creates_overlay_when_mode_is_both():
+def test_play_stream_skips_overlay_when_disabled():
     FakeChatOverlay.instances.clear()
     with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
         "lib.windows.player.xbmc.Player"
@@ -138,26 +138,7 @@ def test_play_stream_creates_overlay_when_mode_is_both():
         player.play_stream(
             "https://example.invalid/stream.m3u8",
             "somechannel",
-            settings=FakeSettings("both"),
-            chat_overlay_cls=FakeChatOverlay,
-            chat_client_cls=FakeChatClient,
-        )
-
-    assert len(FakeChatOverlay.instances) == 1
-
-
-def test_play_stream_skips_overlay_when_mode_is_standalone():
-    FakeChatOverlay.instances.clear()
-    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
-        "lib.windows.player.xbmc.Player"
-    ) as mock_player_cls, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog):
-        mock_helper_cls.return_value.check_inputstream.return_value = True
-        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
-
-        player.play_stream(
-            "https://example.invalid/stream.m3u8",
-            "somechannel",
-            settings=FakeSettings("standalone"),
+            settings=FakeSettings(False),
             chat_overlay_cls=FakeChatOverlay,
             chat_client_cls=FakeChatClient,
         )
@@ -175,7 +156,7 @@ def test_play_stream_skips_overlay_when_inputstream_declined():
         result = player.play_stream(
             "https://example.invalid/stream.m3u8",
             "somechannel",
-            settings=FakeSettings("overlay"),
+            settings=FakeSettings(True),
             chat_overlay_cls=FakeChatOverlay,
             chat_client_cls=FakeChatClient,
         )
@@ -199,7 +180,7 @@ def test_play_stream_returns_true_even_if_chat_overlay_construction_raises():
         result = player.play_stream(
             "https://example.invalid/stream.m3u8",
             "somechannel",
-            settings=FakeSettings("overlay"),
+            settings=FakeSettings(True),
             chat_overlay_cls=_raising_overlay_cls,
             chat_client_cls=FakeChatClient,
         )
@@ -282,7 +263,7 @@ def test_play_stream_tears_down_previous_watcher_when_called_again():
         player.play_stream(
             "https://example.invalid/stream1.m3u8",
             "channel1",
-            settings=FakeSettings("overlay"),
+            settings=FakeSettings(True),
             chat_overlay_cls=FakeChatOverlay,
             chat_client_cls=FakeChatClient,
         )
@@ -292,7 +273,7 @@ def test_play_stream_tears_down_previous_watcher_when_called_again():
         player.play_stream(
             "https://example.invalid/stream2.m3u8",
             "channel2",
-            settings=FakeSettings("overlay"),
+            settings=FakeSettings(True),
             chat_overlay_cls=FakeChatOverlay,
             chat_client_cls=FakeChatClient,
         )
@@ -455,7 +436,7 @@ def test_play_stream_uses_irc_engine_by_default():
         player.play_stream(
             "https://example.invalid/stream.m3u8",
             "somechannel",
-            settings=FakeSettings("overlay", chat_engine="irc"),
+            settings=FakeSettings(True, chat_engine="irc"),
             chat_overlay_cls=FakeChatOverlay,
         )
 
@@ -478,7 +459,7 @@ def test_play_stream_uses_eventsub_engine_and_resolves_broadcaster_id():
         player.play_stream(
             "https://example.invalid/stream.m3u8",
             "somechannel",
-            settings=FakeSettings("overlay", chat_engine="eventsub"),
+            settings=FakeSettings(True, chat_engine="eventsub"),
             access_token="tok",
             client_id="cid",
             user_id="42",
@@ -507,7 +488,7 @@ def test_play_stream_falls_back_to_irc_when_broadcaster_id_resolution_fails():
         result = player.play_stream(
             "https://example.invalid/stream.m3u8",
             "somechannel",
-            settings=FakeSettings("overlay", chat_engine="eventsub"),
+            settings=FakeSettings(True, chat_engine="eventsub"),
             access_token="tok",
             client_id="cid",
             user_id="42",
@@ -536,7 +517,7 @@ def test_play_stream_falls_back_to_irc_when_broadcaster_id_lookup_raises():
         result = player.play_stream(
             "https://example.invalid/stream.m3u8",
             "somechannel",
-            settings=FakeSettings("overlay", chat_engine="eventsub"),
+            settings=FakeSettings(True, chat_engine="eventsub"),
             access_token=None,
             client_id=None,
             user_id=None,
@@ -572,7 +553,7 @@ def test_play_stream_uses_variable_overlay_when_enabled_and_eventsub():
             "https://example.invalid/stream.m3u8",
             "somechannel",
             settings=FakeSettings(
-                "overlay", chat_engine="eventsub", chat_overlay_variable_height=True
+                True, chat_engine="eventsub", chat_overlay_variable_height=True
             ),
             access_token="tok",
             client_id="cid",
@@ -602,7 +583,7 @@ def test_play_stream_uses_default_overlay_when_variable_setting_disabled():
             "https://example.invalid/stream.m3u8",
             "somechannel",
             settings=FakeSettings(
-                "overlay", chat_engine="eventsub", chat_overlay_variable_height=False
+                True, chat_engine="eventsub", chat_overlay_variable_height=False
             ),
             access_token="tok",
             client_id="cid",
@@ -630,7 +611,7 @@ def test_play_stream_uses_default_overlay_when_variable_setting_enabled_but_irc_
             "https://example.invalid/stream.m3u8",
             "somechannel",
             settings=FakeSettings(
-                "overlay", chat_engine="irc", chat_overlay_variable_height=True
+                True, chat_engine="irc", chat_overlay_variable_height=True
             ),
         )
 
@@ -657,7 +638,7 @@ def test_play_stream_uses_default_overlay_when_eventsub_falls_back_to_irc():
             "https://example.invalid/stream.m3u8",
             "somechannel",
             settings=FakeSettings(
-                "overlay", chat_engine="eventsub", chat_overlay_variable_height=True
+                True, chat_engine="eventsub", chat_overlay_variable_height=True
             ),
             access_token="tok",
             client_id="cid",

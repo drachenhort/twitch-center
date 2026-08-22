@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="script.twitch.center" name="Twitch Center" version="0.18.0" provider-name="drachenhort">
+<addon id="script.twitch.center" name="Twitch Center" version="0.20.0" provider-name="drachenhort">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
     <import addon="script.module.requests" version="2.22.0"/>
@@ -21,6 +21,14 @@
       <icon>icon.png</icon>
     </assets>
     <news>
+      v0.20.0: Removed the "standalone chat window" and "both" chat display modes - neither did
+      anything beyond what "overlay" already does ("standalone" was never implemented past a stub,
+      "both" behaved identically to "overlay"). The "Chat display mode" setting is now a single
+      "Show chat overlay while playing" toggle, defaulting on. If you had "standalone" selected
+      (previously no chat during playback), you'll now see the chat overlay by default - turn the
+      new toggle off in Settings if you don't want that.
+      v0.19.0: Version number and release date now shown in the top-left corner of the main
+      window, on every screen.
       v0.18.0: Variable-size chat overlay is now on by default for EventSub chat (still off for
       IRC chat, unchanged). Also fixed two bugs found during review: VariableChatOverlay's 9-line
       message cap wasn't actually being applied (could produce oversized message blocks for very

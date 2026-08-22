@@ -1,9 +1,6 @@
 """Typed wrapper over xbmcaddon settings. Only lib/windows/* and this module import Kodi's xbmc* modules."""
 import xbmcaddon
 
-VALID_CHAT_DISPLAY_MODES = ("overlay", "standalone", "both")
-DEFAULT_CHAT_DISPLAY_MODE = "both"
-
 VALID_CHAT_ENGINES = ("irc", "eventsub")
 DEFAULT_CHAT_ENGINE = "irc"
 
@@ -13,11 +10,8 @@ class Settings:
         self._addon = addon or xbmcaddon.Addon()
 
     @property
-    def chat_display_mode(self):
-        value = self._addon.getSetting("chat_display_mode")
-        if value in VALID_CHAT_DISPLAY_MODES:
-            return value
-        return DEFAULT_CHAT_DISPLAY_MODE
+    def chat_overlay_enabled(self):
+        return self._addon.getSettingBool("chat_overlay_enabled")
 
     @property
     def chat_engine(self):

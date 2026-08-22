@@ -4,6 +4,24 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.20.0] - 2026-08-22
+
+### Removed
+- The "standalone chat window" and "both" chat display modes. `standalone` was never implemented
+  beyond a stub (`lib/windows/chat_window.py`, now deleted) and always showed no chat at all;
+  `both` behaved identically to `overlay` since nothing else consumed the third mode. Replaced the
+  three-way `chat_display_mode` string setting with a single `chat_overlay_enabled` boolean
+  ("Show chat overlay while playing"), defaulting on. Anyone previously on `standalone` will now
+  see the chat overlay by default during playback - turn the new setting off to keep it hidden.
+
+## [0.19.0] - 2026-08-22
+
+### Added
+- Version number and release date now shown in the top-left corner of the main window, across
+  every screen (Login/Menu/Live Streams/Discover/Search) - a persistent label outside the
+  view-toggling groups, set once from `addon.xml`'s version plus a release-date constant kept in
+  sync with it in `lib/main.py`.
+
 ## [0.18.0] - 2026-08-22
 
 ### Changed

@@ -17,12 +17,16 @@ class MainWindow(xbmcgui.WindowXML):
         "search": 400,
     }
 
-    def __init__(self, *args, initial_view="login", closed_event=None, view_classes=None, **kwargs):
+    VERSION_LABEL_ID = 900
+
+    def __init__(self, *args, initial_view="login", closed_event=None, view_classes=None,
+                 version_text=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.closed_event = closed_event or threading.Event()
         if not hasattr(self.closed_event, "quit_requested"):
             self.closed_event.quit_requested = False
         self._initial_view = initial_view
+        self._version_text = version_text or ""
         view_classes = view_classes or self._default_view_classes()
         self._views = {
             name: cls(self, closed_event=self.closed_event) for name, cls in view_classes.items()
@@ -50,6 +54,9 @@ class MainWindow(xbmcgui.WindowXML):
         # current view keeps a user who's deep in Discover/Search from being
         # snapped back to the initial view.
         self._switch_view(self._active_name or self._initial_view)
+        version_label = self._safe_control(self.VERSION_LABEL_ID)
+        if version_label:
+            version_label.setLabel(self._version_text)
 
     def _switch_view(self, name):
         old_view = self._views.get(self._active_name)

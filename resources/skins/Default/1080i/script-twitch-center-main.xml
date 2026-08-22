@@ -295,6 +295,7 @@
             <width>415</width>
             <height>275</height>
             <texture>card_surface_focus.png</texture>
+            <colordiffuse>ff0a6ed3</colordiffuse>
           </control>
           <control type="image">
             <posx>16</posx>
@@ -667,6 +668,20 @@
           <visible>false</visible>
         </control>
       </control>
+    </control>
+
+    <!-- ===================== VERSION LABEL (900) ===================== -->
+    <!-- Outside every view group (100/500/200/300/400) so it stays visible across
+         every view switch instead of being toggled with them - see MainWindow._switch_view. -->
+    <control type="label" id="900">
+      <description>Version and release date</description>
+      <posx>20</posx>
+      <posy>10</posy>
+      <width>500</width>
+      <height>30</height>
+      <font>font13</font>
+      <textcolor>grey</textcolor>
+      <label></label>
     </control>
 
   </controls>

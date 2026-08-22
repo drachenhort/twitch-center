@@ -10,7 +10,6 @@ MODULES = [
     "lib.windows.main_window",
     "lib.windows.player",
     "lib.windows.chat_overlay",
-    "lib.windows.chat_window",
     "lib.views.login_view",
     "lib.views.menu_view",
     "lib.views.live_streams_view",

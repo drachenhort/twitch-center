@@ -3,17 +3,10 @@
   <section id="script.twitch.center">
     <category id="general" label="30000">
       <group id="1">
-        <setting id="chat_display_mode" type="string" label="30001">
+        <setting id="chat_overlay_enabled" type="boolean" label="30001">
           <level>0</level>
-          <default>both</default>
-          <constraints>
-            <options>
-              <option label="30002">overlay</option>
-              <option label="30003">standalone</option>
-              <option label="30004">both</option>
-            </options>
-          </constraints>
-          <control type="list" format="string"/>
+          <default>true</default>
+          <control type="toggle"/>
         </setting>
         <setting id="chat_engine" type="string" label="30014" help="30017">
           <level>0</level>

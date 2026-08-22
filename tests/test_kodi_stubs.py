@@ -21,7 +21,7 @@ def test_xbmcgui_stub_windowxmldialog_constructible():
 def test_xbmcaddon_stub_addon_getters():
     import xbmcaddon
     addon = xbmcaddon.Addon()
-    assert addon.getSetting("chat_display_mode") == ""
+    assert addon.getSetting("chat_overlay_enabled") == ""
     assert addon.getSettingBool("does_not_exist") is False
     assert addon.getAddonInfo("id") == "script.twitch.center"
 
