@@ -4,6 +4,16 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.17.0] - 2026-08-22
+
+### Added
+- New "Variable-size chat overlay" setting (Settings > General), off by default. When enabled and
+  the EventSub chat engine is selected, chat messages size their on-screen box to their actual
+  wrapped line count instead of the fixed-box overlay's 270px slot reserved for the worst-case
+  5-line message. Built by placing Kodi controls directly rather than through the skin's `<list>`
+  control, which can't vary row height per item - see
+  `docs/superpowers/specs/2026-08-22-variable-height-chat-overlay-design.md`.
+
 ## [0.16.5] - 2026-08-22
 
 ### Fixed

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="script.twitch.center" name="Twitch Center" version="0.16.5" provider-name="drachenhort">
+<addon id="script.twitch.center" name="Twitch Center" version="0.17.0" provider-name="drachenhort">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
     <import addon="script.module.requests" version="2.22.0"/>
@@ -21,6 +21,10 @@
       <icon>icon.png</icon>
     </assets>
     <news>
+      v0.17.0: New "Variable-size chat overlay" setting (Settings > General, EventSub only) -
+      sizes each chat overlay message's box to its actual length instead of always reserving
+      space for the maximum 5-line message. Off by default; the existing fixed-box overlay
+      stays the default for both chat engines.
       v0.16.5: Chat overlay message box was too short for the 5-line message cap - a 4th or 5th
       wrapped line spilled past the label's bottom edge into the emote-icon row below it. Grew the
       message box and pushed the per-item row layout (and emote icons) down to fit all 5 lines
