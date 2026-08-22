@@ -4,6 +4,20 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.21.0] - 2026-08-22
+
+### Added
+- First sub-project of Kick.com integration (not usable yet - unwired): a new `lib/kick/`
+  package providing OAuth 2.1 Authorization Code + PKCE login (via a local loopback HTTP
+  server since Kick has no device-code flow like Twitch), a Public API client
+  (channel/live-streams/categories/user lookups, plus an isolated unofficial search
+  fallback), and stream URL resolution - mirroring `lib/twitch/`'s shape so a later
+  sub-project can wire both platforms through the same UI with minimal branching. Adds
+  four new Settings entries (Kick Client ID, Client Secret, OAuth redirect port, saved
+  token) - all advanced/hidden except Client ID, which needs a value from a
+  self-registered Kick OAuth app to eventually work. Nothing in the running app calls this
+  package yet; login/browsing/playback/chat for Kick land in follow-up releases.
+
 ## [0.20.0] - 2026-08-22
 
 ### Removed
