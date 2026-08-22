@@ -133,3 +133,19 @@ def test_play_selected_dispatches_to_the_selected_results_platform():
     assert call_args.args[1] == "kick"
     assert call_args.args[2] == "kickuser"
     mock_play.assert_called_once_with("https://kick.example/x.m3u8", "kickuser", platform="kick")
+
+
+def test_play_selected_shows_error_and_does_not_raise_when_stream_unavailable():
+    with patch.object(
+        providers, "resolve_stream_url", side_effect=providers.StreamUnavailableError("kickuser")
+    ), patch("lib.views.search_view.player.play_stream") as mock_play:
+        win = SearchView(FakeWindow())
+        win.search_results = [
+            {"platform": "kick", "login": "kickuser", "display_name": "kickuser"},
+        ]
+        win.window.getControl(SearchView.RESULTS_LIST_ID).addItem("kickuser")
+        win.window.getControl(SearchView.RESULTS_LIST_ID).selectItem(0)
+        win.play_selected()  # must not raise
+
+    assert win.window.getControl(SearchView.STATUS_LABEL_ID).getLabel() != ""
+    mock_play.assert_not_called()

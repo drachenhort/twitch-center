@@ -1,11 +1,14 @@
 """Search view: finding Twitch and Kick channels/streams. Not a Window
 subclass - see MainWindow."""
 import threading
+import xbmc
 import xbmcaddon
 import xbmcgui
 from lib import providers
 from lib.twitch import gql
 from lib.windows import player
+
+_PLAYBACK_ERROR_MESSAGE = "Couldn't start playback. Try again."
 
 
 class SearchView:
@@ -124,5 +127,25 @@ class SearchView:
         if not login:
             return
         addon = xbmcaddon.Addon()
-        url = providers.resolve_stream_url(addon, result["platform"], login)
+        try:
+            url = providers.resolve_stream_url(addon, result["platform"], login)
+        except providers.StreamUnavailableError:
+            self._show_error(_PLAYBACK_ERROR_MESSAGE)
+            return
+        except Exception as exc:
+            xbmc.log(
+                "script.twitch.center: Search channel selection failed: " + repr(exc),
+                xbmc.LOGERROR,
+            )
+            self._show_error(_PLAYBACK_ERROR_MESSAGE)
+            return
         player.play_stream(url, login, platform=result["platform"])
+
+    def _show_error(self, message):
+        """Transient failure (e.g. one playback attempt): mirrors this
+        file's existing pattern of writing status text directly to
+        STATUS_LABEL_ID (see start_search/load_next_page), rather than a
+        separate error label."""
+        status_label = self._safe_control(self.STATUS_LABEL_ID)
+        if status_label:
+            status_label.setLabel(message)
