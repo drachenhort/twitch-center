@@ -272,3 +272,101 @@ def test_get_kick_category_streams_returns_empty_list_on_error():
 
     result = providers.get_kick_category_streams(addon, category_id=7, get_live_streams_fn=failing)
     assert result == []
+
+
+def test_normalize_twitch_search_result_from_channel_shape():
+    item = {
+        "id": "1",
+        "broadcaster_login": "alice",
+        "display_name": "Alice",
+        "is_live": True,
+        "game_name": "Just Chatting",
+        "thumbnail_url": "https://example.invalid/thumb.jpg",
+    }
+    result = providers.normalize_twitch_search_result(item)
+    assert result == {
+        "platform": "twitch",
+        "id": "1",
+        "login": "alice",
+        "display_name": "Alice",
+        "is_live": True,
+        "viewer_count": 0,
+        "game_name": "Just Chatting",
+        "thumbnail_url": "https://example.invalid/thumb.jpg",
+    }
+
+
+def test_normalize_twitch_search_result_from_stream_shape():
+    item = {
+        "user_id": "2",
+        "user_login": "bob",
+        "user_name": "Bob",
+        "viewer_count": 77,
+        "game_name": "Games",
+        "thumbnail_url": "https://example.invalid/{width}x{height}.jpg",
+    }
+    result = providers.normalize_twitch_search_result(item)
+    assert result == {
+        "platform": "twitch",
+        "id": "2",
+        "login": "bob",
+        "display_name": "Bob",
+        "is_live": True,
+        "viewer_count": 77,
+        "game_name": "Games",
+        "thumbnail_url": "https://example.invalid/320x180.jpg",
+    }
+
+
+def test_normalize_twitch_search_result_defensive_on_missing_fields():
+    result = providers.normalize_twitch_search_result({})
+    assert result == {
+        "platform": "twitch",
+        "id": "",
+        "login": "",
+        "display_name": "Unknown",
+        "is_live": False,
+        "viewer_count": 0,
+        "game_name": "",
+        "thumbnail_url": "",
+    }
+
+
+def test_get_kick_search_results_returns_empty_list_when_no_kick_token():
+    addon = xbmcaddon.Addon()
+    assert providers.get_kick_search_results(addon, "query") == []
+
+
+def test_get_kick_search_results_normalizes_results():
+    addon = xbmcaddon.Addon()
+    addon.setSetting("kick_token", '{"access_token": "tok"}')
+
+    def fake_search(access_token, query, first=20):
+        assert access_token == "tok"
+        assert query == "somequery"
+        return [{"slug": "somechannel"}]
+
+    result = providers.get_kick_search_results(addon, "somequery", search_channels_fn=fake_search)
+    assert result == [
+        {
+            "platform": "kick",
+            "id": "",
+            "login": "somechannel",
+            "display_name": "somechannel",
+            "is_live": False,
+            "viewer_count": 0,
+            "game_name": "",
+            "thumbnail_url": "",
+        }
+    ]
+
+
+def test_get_kick_search_results_returns_empty_list_on_error():
+    addon = xbmcaddon.Addon()
+    addon.setSetting("kick_token", '{"access_token": "tok"}')
+
+    def failing(access_token, query, first=20):
+        raise Exception("boom")
+
+    result = providers.get_kick_search_results(addon, "q", search_channels_fn=failing)
+    assert result == []

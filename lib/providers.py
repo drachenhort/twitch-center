@@ -8,6 +8,7 @@ import json
 from lib.kick import auth as kick_auth
 from lib.kick.api import get_channel as _kick_get_channel
 from lib.kick.api import get_live_streams as _kick_get_live_streams, get_top_categories as _kick_get_top_categories
+from lib.kick.api import search_channels as _kick_search_channels
 
 
 def get_kick_favorites(addon):
@@ -171,6 +172,63 @@ def get_kick_category_streams(addon, category_id, get_live_streams_fn=None):
     except Exception:
         return []
     return [_normalize_kick_live_stream_entry(entry) for entry in entries]
+
+
+def normalize_twitch_search_result(item):
+    """Convert one raw dict from lib.twitch.gql.search() - which returns a
+    mix of Twitch's search/channels shape (broadcaster_login, display_name,
+    is_live, no viewer_count) and search/streams shape (user_login,
+    user_name, viewer_count, always live) - into the shared normalized dict.
+    Mirrors the .get() fallback chain lib/views/search_view.py's
+    _render_results/play_selected already use for display/login, extended to
+    the full normalized shape."""
+    display_name = item.get("display_name") or item.get("user_name") or "Unknown"
+    login = item.get("broadcaster_login") or item.get("user_login") or item.get("login") or ""
+    viewer_count = item.get("viewer_count", 0)
+    return {
+        "platform": "twitch",
+        "id": item.get("id") or item.get("user_id") or "",
+        "login": login,
+        "display_name": display_name,
+        "is_live": bool(item.get("is_live", False)) or "viewer_count" in item,
+        "viewer_count": viewer_count,
+        "game_name": item.get("game_name", ""),
+        "thumbnail_url": _twitch_thumbnail_url(item["thumbnail_url"]) if item.get("thumbnail_url") else "",
+    }
+
+
+def get_kick_search_results(addon, query, search_channels_fn=None):
+    """Return normalized Kick search results, or [] if there's no saved Kick
+    token or the call fails - never raises. Kick's search endpoint has no
+    anonymous/app-token path (see this feature's design spec), so a
+    logged-out-of-Kick user's searches simply never surface Kick results,
+    with no error shown - this is the documented, accepted asymmetry with
+    Twitch search (which needs no login at all)."""
+    if search_channels_fn is None:
+        search_channels_fn = _kick_search_channels
+    token = kick_auth.load_token(addon)
+    if token is None:
+        return []
+    try:
+        entries = search_channels_fn(token["access_token"], query)
+    except Exception:
+        return []
+    results = []
+    for entry in entries:
+        slug = entry.get("slug", "")
+        results.append(
+            {
+                "platform": "kick",
+                "id": str(entry["broadcaster_user_id"]) if entry.get("broadcaster_user_id") else "",
+                "login": slug,
+                "display_name": slug,
+                "is_live": bool(entry.get("is_live", False)),
+                "viewer_count": entry.get("viewer_count", 0),
+                "game_name": entry.get("game_name", ""),
+                "thumbnail_url": entry.get("thumbnail_url", ""),
+            }
+        )
+    return results
 
 
 def merge_by_viewer_count(*lists):
