@@ -21,19 +21,29 @@ _COLUMN_HEIGHT = 960
 _FONT = "font13"
 _USERNAME_HEIGHT = 24
 _USERNAME_COLOR = "ff9146ff"
-# Offset from a message block's top to its message-text row, matching the skin's label2 posy=26.
-_USERNAME_ROW_HEIGHT = 26
-# Skin px per wrapped message line - same value ChatOverlay's fixed label2 box is sized from
-# (210px / 5 lines; see the v0.16.5 CHANGELOG entry for how it was measured against live
-# rendering on a real Kodi build).
-_LINE_PITCH = 42
-_EMOTE_ROW_HEIGHT = 28
+# Offset from a message block's top to its message-text row. Deliberately larger than
+# ChatOverlay's skin-declared label2 posy=26: this renderer places controls directly rather
+# than through a skin-parsed <list> control, and live testing (see CHANGELOG) found real text
+# renders taller on some Kodi builds/platforms than on others even at the same declared font
+# size, enough to overlap adjacent message blocks when using tight spacing. Because each
+# block's position is computed from the cumulative height of the blocks above it (unlike
+# ChatOverlay's independently-sized fixed rows), any per-line underestimate compounds across
+# the handful of blocks simultaneously visible - so these constants carry a large deliberate
+# margin rather than the tightest value that worked on any single device.
+_USERNAME_ROW_HEIGHT = 40
+# Generously-padded skin px per wrapped message line - see _USERNAME_ROW_HEIGHT for why this
+# is padded well past the tightest value measured on any one Kodi build.
+_LINE_PITCH = 60
+_EMOTE_ROW_HEIGHT = 36
 _EMOTE_SIZE = 28
 _EMOTE_X_OFFSETS = (10, 40, 70, 100, 130, 160)
+# Extra fixed padding added to every block's height on top of its content, as a further
+# cross-build safety margin against the compounding-overlap failure mode above.
+_BLOCK_MARGIN = 10
 
 
 def _block_height(line_count, has_emotes):
-    height = _USERNAME_ROW_HEIGHT + line_count * _LINE_PITCH
+    height = _USERNAME_ROW_HEIGHT + line_count * _LINE_PITCH + _BLOCK_MARGIN
     if has_emotes:
         height += _EMOTE_ROW_HEIGHT
     return height

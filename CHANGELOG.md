@@ -4,6 +4,21 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.17.1] - 2026-08-22
+
+### Fixed
+- The new variable-size chat overlay (v0.17.0) rendered with overlapping, garbled text on kodi.local
+  (LibreELEC, Kodi 22) even though it rendered correctly on a Kodi 21.3 dev machine - real text
+  height for the same declared font size differed enough between the two builds/platforms to matter.
+  Because each message block's position is computed from the cumulative height of the blocks above
+  it (unlike `ChatOverlay`'s independently fixed-size rows), this per-line error compounded across
+  the handful of messages simultaneously visible, producing severe overlap after a few messages
+  arrived rather than a small, easy-to-miss drift. `_USERNAME_ROW_HEIGHT` (26→40), `_LINE_PITCH`
+  (42→60), and `_EMOTE_ROW_HEIGHT` (28→36) in `lib/windows/variable_chat_overlay.py` are now
+  deliberately padded well past the tightest value that worked on any single tested device, plus a
+  new fixed `_BLOCK_MARGIN` (10px) added to every block, trading some of the feature's space-saving
+  benefit for correctness across builds.
+
 ## [0.17.0] - 2026-08-22
 
 ### Added
