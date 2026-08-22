@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 from lib.twitch import eventsub as eventsub_module
 from lib.twitch import irc as irc_module
@@ -206,6 +206,9 @@ def test_play_stream_returns_true_even_if_chat_overlay_construction_raises():
 
     assert result is True
     mock_log.assert_called_once()
+    mock_player_cls.return_value.play.assert_called_once_with(
+        "https://example.invalid/stream.m3u8", ANY
+    )
 
 
 def test_chat_aware_player_teardown_closes_overlay_and_disconnects_client_on_stop():

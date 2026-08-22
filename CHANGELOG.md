@@ -4,6 +4,24 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.18.0] - 2026-08-22
+
+### Changed
+- Variable-size chat overlay (`chat_overlay_variable_height`) now defaults to `true` - still only
+  takes effect when `chat_engine` is `eventsub`, same as before.
+
+### Fixed
+- `VariableChatOverlay`'s message wrapping had silently dropped its own line cap: `_wrap_message_lines()`
+  no longer applied `_MAX_MESSAGE_LINES` (9), so an unusually long chat message could wrap to far more
+  lines than intended, producing an oversized block that could exceed the column height outright.
+  Restored truncation at 9 lines (with a trailing `...`), matching `ChatOverlay`'s existing pattern.
+- `play_stream()` could silently fail to start playback at all: when the chat-overlay setup path
+  (`chat_display_mode` is `overlay`/`both`) raised partway through - broadcaster-id lookup, overlay
+  construction, `overlay.show()`, or the player callback wiring - the exception was logged but nothing
+  played the stream, since the `xbmc.Player().play()` call had been moved inside that same `try` block.
+  Added a fallback `xbmc.Player().play()` call in the exception handler so playback still starts
+  without chat if overlay setup fails.
+
 ## [0.17.3] - 2026-08-22
 
 ### Fixed

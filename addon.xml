@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="script.twitch.center" name="Twitch Center" version="0.17.3" provider-name="drachenhort">
+<addon id="script.twitch.center" name="Twitch Center" version="0.18.0" provider-name="drachenhort">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
     <import addon="script.module.requests" version="2.22.0"/>
@@ -21,6 +21,11 @@
       <icon>icon.png</icon>
     </assets>
     <news>
+      v0.18.0: Variable-size chat overlay is now on by default for EventSub chat (still off for
+      IRC chat, unchanged). Also fixed two bugs found during review: VariableChatOverlay's 9-line
+      message cap wasn't actually being applied (could produce oversized message blocks for very
+      long messages), and playback could silently fail to start at all if chat-overlay setup threw
+      partway through - both now fixed, with a fallback so the stream always plays.
       v0.17.3: Live re-test of v0.17.2 found the remaining garbling wasn't a sizing issue at all -
       it always appeared at whatever message currently sat at the column's top edge, with content
       bleeding in from an already-evicted message. Root cause: a burst of messages arriving in one

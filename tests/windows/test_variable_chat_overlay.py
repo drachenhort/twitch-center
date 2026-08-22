@@ -75,6 +75,18 @@ def test_build_block_allows_up_to_nine_lines():
     assert block["height"] == _block_height(6, has_emotes=False)
 
 
+def test_build_block_truncates_beyond_nine_lines():
+    long_text = " ".join("word%d" % i for i in range(80))
+    event = {"display_name": "Bob", "text": long_text, "emotes": []}
+    block = _build_block_for(event)
+    controls = _block_controls(block)
+    message_label = controls[1]
+    lines = message_label.getLabel().split("\n")
+    assert len(lines) == 9
+    assert lines[-1].endswith("...")
+    assert block["height"] == _block_height(9, has_emotes=False)
+
+
 from unittest.mock import patch
 
 from lib.windows.variable_chat_overlay import (

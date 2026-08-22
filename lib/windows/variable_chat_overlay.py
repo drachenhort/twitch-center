@@ -15,7 +15,11 @@ from lib.windows.chat_overlay import ChatOverlay, _MAX_EMOTE_SLOTS, _MESSAGE_WRA
 _MAX_MESSAGE_LINES = 9
 
 def _wrap_message_lines(text):
-    return textwrap.wrap(text, _MESSAGE_WRAP_WIDTH)
+    lines = textwrap.wrap(text, _MESSAGE_WRAP_WIDTH)
+    if len(lines) > _MAX_MESSAGE_LINES:
+        lines = lines[:_MAX_MESSAGE_LINES]
+        lines[-1] = lines[-1][: max(0, _MESSAGE_WRAP_WIDTH - 3)].rstrip() + "..."
+    return lines
 
 # Column geometry, matching resources/skins/Default/1080i/script-twitch-center-chat-overlay.xml's
 # <list id="101"> position/size - this overlay doesn't use that control, but keeps the same
