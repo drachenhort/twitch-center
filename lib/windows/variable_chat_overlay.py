@@ -39,7 +39,7 @@ _EMOTE_SIZE = 28
 _EMOTE_X_OFFSETS = (10, 40, 70, 100, 130, 160)
 # Extra fixed padding added to every block's height on top of its content, as a further
 # cross-build safety margin against the compounding-overlap failure mode above.
-_BLOCK_MARGIN = 10
+_BLOCK_MARGIN = 34
 
 
 def _block_height(line_count, has_emotes):

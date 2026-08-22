@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.17.2] - 2026-08-22
+
+### Fixed
+- Live re-test of v0.17.1's cross-build safety margins on kodi.local found the overlap reduced but
+  not eliminated: a residual ~1-line-tall graze remained specifically at the boundary between one
+  message's last line and the next message's username, never within a single message's own wrapped
+  lines. Increased `_BLOCK_MARGIN` in `lib/windows/variable_chat_overlay.py` from 10px to 34px - the
+  constant that exists specifically to pad inter-message spacing.
+
 ## [0.17.1] - 2026-08-22
 
 ### Fixed

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="script.twitch.center" name="Twitch Center" version="0.17.1" provider-name="drachenhort">
+<addon id="script.twitch.center" name="Twitch Center" version="0.17.2" provider-name="drachenhort">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
     <import addon="script.module.requests" version="2.22.0"/>
@@ -21,6 +21,11 @@
       <icon>icon.png</icon>
     </assets>
     <news>
+      v0.17.2: Live re-test of v0.17.1's fix on kodi.local found the overlap was reduced but not
+      eliminated - a remaining ~1-line-tall graze specifically at block-to-block boundaries
+      (previous message's last line vs the next message's username), not within a message's own
+      wrapped lines. Increased _BLOCK_MARGIN (10px -> 34px), the constant meant to absorb exactly
+      this kind of gap, and re-verified live.
       v0.17.1: Fixed the new variable-size chat overlay (v0.17.0) rendering with overlapping,
       garbled text on some Kodi builds/platforms - live testing found real text rendering taller
       than expected on at least one device, and because each message's position is computed from
