@@ -236,7 +236,6 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
     list_item.setProperty("inputstream.adaptive.manifest_type", "hls")
     list_item.setMimeType("application/x-mpegURL")
     list_item.setContentLookup(False)
-    xbmc.Player().play(url, list_item)
 
     settings = settings or Settings()
     if settings.chat_display_mode in ("overlay", "both"):
@@ -294,6 +293,7 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
             _current_chat_watcher = _ChatAwarePlayer(
                 overlay, url=url, channel=channel, website_token=website_token
             )
+            _current_chat_watcher.play(url, list_item)
         except Exception as exc:
             xbmc.log(
                 "script.twitch.center: chat overlay failed to start: " + repr(exc),

@@ -120,7 +120,6 @@ class VariableChatOverlay(ChatOverlay):
         total_seen = self._total_evicted + len(self._messages)
         new_count = total_seen - self._blocks_built
         new_events = self._messages[-new_count:] if new_count > 0 else []
-        self._blocks_built = total_seen
 
         new_metrics = [_message_metrics(event) for event in new_events]
 
@@ -168,6 +167,8 @@ class VariableChatOverlay(ChatOverlay):
         for block in reversed(self._blocks):
             cursor -= block["height"]
             _position_block(block, cursor)
+
+        self._blocks_built = total_seen
 
     def close(self):
         for block in self._blocks:
