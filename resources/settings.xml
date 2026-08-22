@@ -68,6 +68,28 @@
           </constraints>
           <control type="edit" format="string"/>
         </setting>
+        <setting id="kick_client_id" type="string" label="30020" help="">
+          <level>2</level>
+          <default></default>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="edit" format="string"/>
+        </setting>
+        <setting id="kick_redirect_port" type="integer" label="30021" help="30023">
+          <level>2</level>
+          <default>8919</default>
+          <control type="edit" format="integer"/>
+        </setting>
+        <setting id="kick_token" type="string" label="30022" help="">
+          <level>2</level>
+          <default></default>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="edit" format="string"/>
+          <visible>false</visible>
+        </setting>
       </group>
     </category>
   </section>

@@ -56,3 +56,22 @@ def test_chat_overlay_variable_height_reads_addon_setting():
     addon.setSetting("chat_overlay_variable_height", True)
     settings = Settings(addon=addon)
     assert settings.chat_overlay_variable_height is True
+
+
+def test_kick_client_id_setting_is_readable_and_defaults_empty():
+    addon = xbmcaddon.Addon()
+    assert addon.getSetting("kick_client_id") == ""
+    addon.setSetting("kick_client_id", "my-kick-client-id")
+    assert addon.getSetting("kick_client_id") == "my-kick-client-id"
+
+
+def test_kick_redirect_port_setting_is_readable():
+    addon = xbmcaddon.Addon()
+    addon.setSetting("kick_redirect_port", "9000")
+    assert addon.getSetting("kick_redirect_port") == "9000"
+
+
+def test_kick_token_setting_round_trips():
+    addon = xbmcaddon.Addon()
+    addon.setSetting("kick_token", '{"access_token": "tok"}')
+    assert addon.getSetting("kick_token") == '{"access_token": "tok"}'

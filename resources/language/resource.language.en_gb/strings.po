@@ -69,3 +69,19 @@ msgstr ""
 msgctxt "#30019"
 msgid "Sizes each chat overlay message's box to its actual length instead of a fixed maximum. Only takes effect when the EventSub chat engine is selected above."
 msgstr ""
+
+msgctxt "#30020"
+msgid "Kick Client ID"
+msgstr ""
+
+msgctxt "#30021"
+msgid "Kick OAuth redirect port"
+msgstr ""
+
+msgctxt "#30022"
+msgid "Kick Token"
+msgstr ""
+
+msgctxt "#30023"
+msgid "Local port used to receive the OAuth redirect during Kick login. Must match the redirect URI registered with your Kick app (http://127.0.0.1:<port>/callback)."
+msgstr ""
