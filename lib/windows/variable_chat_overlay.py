@@ -6,9 +6,20 @@ v0.16.4/v0.16.5 CHANGELOG entries. VariableChatOverlay instead sizes each messag
 space to its actual wrapped line count, by placing xbmcgui controls directly rather than using
 Kodi's <list> control (which can't vary row height per item - see
 docs/superpowers/specs/2026-08-22-variable-height-chat-overlay-design.md for why)."""
+import textwrap
 import xbmcgui
 
-from lib.windows.chat_overlay import ChatOverlay, _MAX_EMOTE_SLOTS, _wrap_message_lines
+from lib.windows.chat_overlay import ChatOverlay, _MAX_EMOTE_SLOTS, _MESSAGE_WRAP_WIDTH
+
+# VariableChatOverlay allows longer messages than the fixed-box ChatOverlay.
+_MAX_MESSAGE_LINES = 9
+
+def _wrap_message_lines(text):
+    lines = textwrap.wrap(text, _MESSAGE_WRAP_WIDTH)
+    if len(lines) > _MAX_MESSAGE_LINES:
+        lines = lines[:_MAX_MESSAGE_LINES]
+        lines[-1] = lines[-1][: max(0, _MESSAGE_WRAP_WIDTH - 3)].rstrip() + "..."
+    return lines
 
 # Column geometry, matching resources/skins/Default/1080i/script-twitch-center-chat-overlay.xml's
 # <list id="101"> position/size - this overlay doesn't use that control, but keeps the same
