@@ -2,7 +2,13 @@ from lib.windows.variable_chat_overlay import (
     _block_controls,
     _block_height,
     _build_block,
+    _message_metrics,
 )
+
+
+def _build_block_for(event):
+    lines, emotes, height = _message_metrics(event)
+    return _build_block(event, lines, emotes, height)
 
 
 def test_block_height_one_line_no_emotes():
@@ -19,7 +25,7 @@ def test_block_height_five_lines_with_emotes():
 
 def test_build_block_short_message_has_username_and_message_controls():
     event = {"display_name": "Bob", "text": "hi", "emotes": []}
-    block = _build_block(event)
+    block = _build_block_for(event)
     controls = _block_controls(block)
     assert len(controls) == 2
     username_label, message_label = controls
@@ -34,7 +40,7 @@ def test_build_block_includes_emote_images_positioned_below_message():
         "text": "hi",
         "emotes": [{"id": "1", "text": "Kappa", "url": "https://example.invalid/1.png"}],
     }
-    block = _build_block(event)
+    block = _build_block_for(event)
     controls = _block_controls(block)
     assert len(controls) == 3
     emote_control = controls[2]
@@ -48,7 +54,7 @@ def test_build_block_skips_emotes_with_no_url():
         "text": "hi",
         "emotes": [{"id": "1", "text": "Kappa", "url": None}],
     }
-    block = _build_block(event)
+    block = _build_block_for(event)
     controls = _block_controls(block)
     assert len(controls) == 2
     assert block["height"] == _block_height(1, has_emotes=False)
@@ -60,7 +66,7 @@ def test_build_block_truncates_five_line_message_and_sizes_for_it():
         "modz? asking because I want to plan my backlog around the big releases"
     )
     event = {"display_name": "Bob", "text": long_text, "emotes": []}
-    block = _build_block(event)
+    block = _build_block_for(event)
     controls = _block_controls(block)
     message_label = controls[1]
     lines = message_label.getLabel().split("\n")
@@ -181,6 +187,39 @@ def test_old_blocks_are_evicted_once_total_height_exceeds_the_column():
     assert len(win._blocks) == 2
     usernames = [block["items"][0][0].getLabel() for block in win._blocks]
     assert usernames == ["User3", "User4"]
+
+
+def test_burst_of_messages_never_adds_a_control_only_to_evict_it_same_tick():
+    # A message that would be evicted in the same _render() call that creates it must never
+    # be handed to addControl() at all - see _render()'s comment on why an add-then-remove
+    # within one call can leave an orphaned control on some Kodi builds. Bypasses the pump
+    # thread/throttle entirely and calls _render() directly once, over a burst of messages
+    # that together overflow the column, to force everything through a single call.
+    FakeChatClient.instances.clear()
+    long_text = (
+        "which upcoming games are you looking forward to for the rest of this year, "
+        "modz? asking because I want to plan my backlog around the big releases"
+    )
+    win = VariableChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=FakeChatClient,
+    )
+    win._messages = [_message_event("user%d" % i, long_text, i) for i in range(5)]
+    win._render()
+
+    assert len(win._blocks) == 2
+    usernames = [block["items"][0][0].getLabel() for block in win._blocks]
+    assert usernames == ["User3", "User4"]
+    # Every control ever added is still a live, surviving block's control - none of the
+    # evicted users' controls ever touched _added_controls.
+    surviving_controls = set()
+    for block in win._blocks:
+        surviving_controls.update(_block_controls(block))
+    assert set(win._added_controls) == surviving_controls
 
 
 def test_a_single_message_taller_than_the_column_is_still_shown():

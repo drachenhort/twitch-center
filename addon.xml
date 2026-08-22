@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="script.twitch.center" name="Twitch Center" version="0.17.2" provider-name="drachenhort">
+<addon id="script.twitch.center" name="Twitch Center" version="0.17.3" provider-name="drachenhort">
   <requires>
     <import addon="xbmc.python" version="3.0.0"/>
     <import addon="script.module.requests" version="2.22.0"/>
@@ -21,6 +21,15 @@
       <icon>icon.png</icon>
     </assets>
     <news>
+      v0.17.3: Live re-test of v0.17.2 found the remaining garbling wasn't a sizing issue at all -
+      it always appeared at whatever message currently sat at the column's top edge, with content
+      bleeding in from an already-evicted message. Root cause: a burst of messages arriving in one
+      throttled tick could get a control added and then immediately removed again within that same
+      call (build-then-evict-same-tick), and Kodi's addControl() appears to complete asynchronously
+      on at least one tested build, so the same-tick removal could run before the add had actually
+      taken effect - leaving an orphaned control behind. Restructured chat rendering to compute
+      eviction before creating any new controls, so a message that would be evicted immediately is
+      now never materialized as a control at all.
       v0.17.2: Live re-test of v0.17.1's fix on kodi.local found the overlap was reduced but not
       eliminated - a remaining ~1-line-tall graze specifically at block-to-block boundaries
       (previous message's last line vs the next message's username), not within a message's own

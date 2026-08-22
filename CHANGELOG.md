@@ -4,6 +4,22 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.17.3] - 2026-08-22
+
+### Fixed
+- Live re-test of v0.17.2 found the remaining garbling was never a sizing issue - it always
+  appeared at whatever message sat at the column's top edge, blended with content from an
+  already-evicted message. Root cause: `VariableChatOverlay._render()` built controls for every
+  new message first, then evicted overflow afterward in the same call - so a burst of messages
+  arriving in one throttled tick could get `addControl()`'d and then `removeControl()`'d again
+  within that same call. Kodi's `addControl()` appears to complete asynchronously on at least one
+  tested build (kodi.local, LibreELEC/Kodi 22), so the same-tick removal could run before the add
+  had actually taken effect, leaving an orphaned control rendered at its stale creation position.
+  Restructured `_render()` to compute the eviction cutoff across existing and pending-new messages
+  together *before* creating any new controls, so a message that would be evicted immediately is
+  now never materialized as a control in the first place. Added
+  `test_burst_of_messages_never_adds_a_control_only_to_evict_it_same_tick` covering this directly.
+
 ## [0.17.2] - 2026-08-22
 
 ### Fixed

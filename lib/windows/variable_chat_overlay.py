@@ -49,15 +49,23 @@ def _block_height(line_count, has_emotes):
     return height
 
 
-def _build_block(event):
-    """Build one message's controls at a placeholder y=0 - _position_block() sets the real
-    position once the block's place in the column is known."""
+def _message_metrics(event):
+    """Wrapped lines, filtered emotes, and resulting block height for a message - computed
+    once and shared between the eviction-cutoff pre-pass and _build_block, so a message's
+    height is never calculated one way for the cutoff decision and another way for the
+    control actually built."""
     lines = _wrap_message_lines(event["text"])
     emotes = [
         emote for emote in (event.get("emotes") or [])[:_MAX_EMOTE_SLOTS] if emote.get("url")
     ]
+    return lines, emotes, _block_height(len(lines), has_emotes=bool(emotes))
+
+
+def _build_block(event, lines, emotes, height):
+    """Build one message's controls at a placeholder y=0 - _position_block() sets the real
+    position once the block's place in the column is known. lines/emotes/height come from
+    _message_metrics(event), computed by the caller as part of the eviction-cutoff decision."""
     message_height = len(lines) * _LINE_PITCH
-    height = _block_height(len(lines), has_emotes=bool(emotes))
 
     items = []
     username_label = xbmcgui.ControlLabel(
@@ -111,35 +119,55 @@ class VariableChatOverlay(ChatOverlay):
         # re-scanning messages we've already built controls for.
         total_seen = self._total_evicted + len(self._messages)
         new_count = total_seen - self._blocks_built
-        if new_count > 0:
-            for event in self._messages[-new_count:]:
-                block = _build_block(event)
-                for control in _block_controls(block):
-                    self.addControl(control)
-                self._blocks.append(block)
-            self._blocks_built = total_seen
+        new_events = self._messages[-new_count:] if new_count > 0 else []
+        self._blocks_built = total_seen
 
-        # Reposition every visible block newest-to-oldest, evicting once a block would fall
-        # off the top of the column - except the newest block itself is always kept, even if
-        # it alone is taller than the column (a pathological very-long message).
-        cursor = _COLUMN_Y + _COLUMN_HEIGHT
-        placed_newest = False
-        keep_from = 0
-        for i in range(len(self._blocks) - 1, -1, -1):
-            block = self._blocks[i]
-            new_cursor = cursor - block["height"]
-            if new_cursor < _COLUMN_Y and placed_newest:
-                keep_from = i + 1
+        new_metrics = [_message_metrics(event) for event in new_events]
+
+        # Find the eviction cutoff across existing blocks + not-yet-materialized new messages
+        # together (oldest-to-newest, matching self._messages order), BEFORE creating any new
+        # controls for the new messages. This matters: if several messages arrive in one
+        # throttled tick and together they overflow the column, building a control for one
+        # that this same call would then immediately evict again (addControl followed by
+        # removeControl within one _render() call) can leave an orphaned control behind on at
+        # least one tested Kodi build/platform - Kodi's addControl() appears to complete
+        # asynchronously there, so the same-tick removeControl() can run before the add has
+        # actually taken effect, leaving a control nothing references rendered at its stale
+        # creation position. Visible as garbled text blended from a message that was supposed
+        # to have been evicted. Skipping control creation entirely for messages that would be
+        # evicted in this same tick avoids ever hitting that add-then-remove pattern. See
+        # CHANGELOG for the live-testing history behind this.
+        combined_heights = [block["height"] for block in self._blocks] + [
+            height for _lines, _emotes, height in new_metrics
+        ]
+        cursor = _COLUMN_HEIGHT
+        keep_from = len(combined_heights)
+        for i in range(len(combined_heights) - 1, -1, -1):
+            cursor -= combined_heights[i]
+            if cursor < 0 and keep_from != len(combined_heights):
                 break
-            _position_block(block, new_cursor)
-            cursor = new_cursor
-            placed_newest = True
             keep_from = i
 
-        for evicted in self._blocks[:keep_from]:
+        existing_count = len(self._blocks)
+        evict_existing = min(keep_from, existing_count)
+        for evicted in self._blocks[:evict_existing]:
             for control in _block_controls(evicted):
                 self.removeControl(control)
-        self._blocks = self._blocks[keep_from:]
+        self._blocks = self._blocks[evict_existing:]
+
+        skip_new = max(0, keep_from - existing_count)
+        for event, (lines, emotes, height) in zip(new_events[skip_new:], new_metrics[skip_new:]):
+            block = _build_block(event, lines, emotes, height)
+            for control in _block_controls(block):
+                self.addControl(control)
+            self._blocks.append(block)
+
+        # Position every surviving block, newest at the bottom - eviction already decided who
+        # survives, so this pass never needs to remove anything.
+        cursor = _COLUMN_Y + _COLUMN_HEIGHT
+        for block in reversed(self._blocks):
+            cursor -= block["height"]
+            _position_block(block, cursor)
 
     def close(self):
         for block in self._blocks:
