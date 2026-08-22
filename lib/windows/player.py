@@ -299,5 +299,7 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
                 "script.twitch.center: chat overlay failed to start: " + repr(exc),
                 xbmc.LOGERROR,
             )
+    else:
+        xbmc.Player().play(url, list_item)
 
     return True
