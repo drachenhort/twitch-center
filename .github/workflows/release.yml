@@ -1,0 +1,46 @@
+name: Build and release addon zip
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "addon.xml"
+      - "addon.py"
+      - "icon.png"
+      - "lib/**"
+      - "resources/**"
+      - "tools/build_zip.py"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build addon zip
+        run: python tools/build_zip.py
+
+      - name: Create or update GitHub release for this version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(python -c "import xml.etree.ElementTree as ET; print(ET.parse('addon.xml').getroot().attrib['version'])")
+          tag="v${version}"
+          zip_path="dist/script.twitch.center-${version}.zip"
+          if gh release view "$tag" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release $tag already exists - uploading fresh zip (overwrite)."
+            gh release upload "$tag" "$zip_path" --repo "${{ github.repository }}" --clobber
+          else
+            gh release create "$tag" --repo "${{ github.repository }}" \
+              --title "$tag" \
+              --generate-notes \
+              "$zip_path"
+          fi
