@@ -4,6 +4,16 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.22.0] - 2026-08-22
+
+### Added
+- Kick.com stream browsing and playback, wired into all three existing views alongside
+  Twitch: Live Streams shows favorited Kick channels interleaved with followed Twitch
+  channels by viewer count, Discover browses Kick's top categories in their own row, and
+  Search merges Kick results into Twitch search results. Adds Kick PKCE login (a dedicated
+  login view/flow) reachable from the Menu. Kick chat is explicitly out of scope for this
+  release - Kick streams play without a chat overlay.
+
 ## [0.21.1] - 2026-08-22
 
 ### Fixed

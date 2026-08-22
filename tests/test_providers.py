@@ -423,6 +423,18 @@ def test_resolve_stream_url_raises_for_unknown_platform():
         providers.resolve_stream_url(addon, "nonsense", "somechannel")
 
 
+def test_resolve_stream_url_wraps_any_twitch_exception():
+    # twitch_stream.resolve_stream_url can also let requests exceptions
+    # (HTTPError, RequestException, ...) propagate on a network failure, none
+    # of which is twitch_stream.StreamUnavailableError. None of those should
+    # ever escape providers.resolve_stream_url uncaught.
+    addon = xbmcaddon.Addon()
+    addon.setSetting("website_token", "webtok")
+    with patch.object(twitch_stream, "resolve_stream_url", side_effect=Exception("network error")):
+        with pytest.raises(providers.StreamUnavailableError):
+            providers.resolve_stream_url(addon, "twitch", "somechannel")
+
+
 def test_resolve_stream_url_wraps_any_kick_exception():
     # kick_stream.resolve_stream_url's call chain can raise things other than
     # kick_stream.StreamUnavailableError - e.g. TokenExpiredError on an expired

@@ -312,6 +312,12 @@ class DiscoverView:
         addon = xbmcaddon.Addon()
         try:
             url = providers.resolve_stream_url(addon, platform, broadcaster_login)
+            play_kwargs = {"platform": platform}
+            if platform == "twitch":
+                play_kwargs.update(
+                    access_token=token["access_token"], client_id=client_id, user_id=token["user_id"]
+                )
+            played = player.play_stream(url, broadcaster_login, **play_kwargs)
         except providers.StreamUnavailableError:
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
             return
@@ -322,12 +328,7 @@ class DiscoverView:
             )
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
             return
-        play_kwargs = {"platform": platform}
-        if platform == "twitch":
-            play_kwargs.update(
-                access_token=token["access_token"], client_id=client_id, user_id=token["user_id"]
-            )
-        if player.play_stream(url, broadcaster_login, **play_kwargs):
+        if played:
             error_label = self._safe_control(self.ERROR_LABEL_ID)
             if error_label:
                 error_label.setLabel("")

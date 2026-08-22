@@ -236,13 +236,13 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
     list_item.setMimeType("application/x-mpegURL")
     list_item.setContentLookup(False)
 
+    if _current_chat_watcher is not None:
+        _current_chat_watcher._teardown()
+        _current_chat_watcher = None
+
     settings = settings or Settings()
     if platform == "twitch" and settings.chat_overlay_enabled:
         try:
-            if _current_chat_watcher is not None:
-                _current_chat_watcher._teardown()
-                _current_chat_watcher = None
-
             engine = settings.chat_engine
             broadcaster_user_id = None
             if chat_client_cls is None and engine == "eventsub":

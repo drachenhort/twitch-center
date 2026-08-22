@@ -225,6 +225,7 @@ def test_main_skin_xml_declares_all_expected_control_ids():
         EMPTY_LABEL_ID as DISCOVER_EMPTY_LABEL_ID,
         ERROR_LABEL_ID as DISCOVER_ERROR_LABEL_ID,
         GAMES_LIST_ID as DISCOVER_GAMES_LIST_ID,
+        KICK_CATEGORIES_LIST_ID as DISCOVER_KICK_CATEGORIES_LIST_ID,
         RELOGIN_BUTTON_ID as DISCOVER_RELOGIN_BUTTON_ID,
         RESULTS_LIST_ID as DISCOVER_RESULTS_LIST_ID,
         SEARCH_BUTTON_ID as DISCOVER_SEARCH_BUTTON_ID,
@@ -239,6 +240,7 @@ def test_main_skin_xml_declares_all_expected_control_ids():
         RELOGIN_BUTTON_ID as LIVE_STREAMS_RELOGIN_BUTTON_ID,
         TITLE_LABEL_ID,
     )
+    from lib.views.kick_login_view import KickLoginView
     from lib.views.login_view import LoginView
     from lib.views.menu_view import MenuView
     from lib.views.search_view import SearchView
@@ -253,6 +255,7 @@ def test_main_skin_xml_declares_all_expected_control_ids():
         MenuView.SEARCH_BUTTON_ID,
         MenuView.SETTINGS_BUTTON_ID,
         MenuView.RELOGIN_BUTTON_ID,
+        MenuView.KICK_LOGIN_BUTTON_ID,
         CHANNEL_LIST_ID,
         LIVE_STREAMS_EMPTY_LABEL_ID,
         LIVE_STREAMS_ERROR_LABEL_ID,
@@ -267,10 +270,14 @@ def test_main_skin_xml_declares_all_expected_control_ids():
         DISCOVER_SEARCH_EDIT_ID,
         DISCOVER_SEARCH_BUTTON_ID,
         DISCOVER_SEARCH_MODE_TOGGLE_ID,
+        DISCOVER_KICK_CATEGORIES_LIST_ID,
         SearchView.SEARCH_INPUT_ID,
         SearchView.RESULTS_LIST_ID,
         SearchView.STATUS_LABEL_ID,
         SearchView.NEXT_PAGE_BUTTON_ID,
+        KickLoginView.URL_LABEL_ID,
+        KickLoginView.STATUS_LABEL_ID,
+        KickLoginView.CANCEL_BUTTON_ID,
     }
     control_ids = set(_main_skin_control_ids())
     assert expected_ids <= control_ids

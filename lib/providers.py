@@ -264,6 +264,14 @@ def resolve_stream_url(addon, platform, identifier):
             return twitch_stream.resolve_stream_url(identifier, website_token)
         except twitch_stream.StreamUnavailableError as exc:
             raise StreamUnavailableError(str(exc)) from exc
+        except Exception as exc:
+            # twitch_stream.resolve_stream_url can also let requests exceptions
+            # (HTTPError, RequestException, ...) propagate on a network failure,
+            # none of which is twitch_stream.StreamUnavailableError. Catch those
+            # too so this function never lets a raw per-platform/library
+            # exception escape, matching its documented contract - mirrors the
+            # Kick branch below.
+            raise StreamUnavailableError(str(exc)) from exc
     if platform == "kick":
         token = kick_auth.load_token(addon)
         if token is None:

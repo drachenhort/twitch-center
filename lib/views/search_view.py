@@ -129,6 +129,7 @@ class SearchView:
         addon = xbmcaddon.Addon()
         try:
             url = providers.resolve_stream_url(addon, result["platform"], login)
+            player.play_stream(url, login, platform=result["platform"])
         except providers.StreamUnavailableError:
             self._show_error(_PLAYBACK_ERROR_MESSAGE)
             return
@@ -139,7 +140,6 @@ class SearchView:
             )
             self._show_error(_PLAYBACK_ERROR_MESSAGE)
             return
-        player.play_stream(url, login, platform=result["platform"])
 
     def _show_error(self, message):
         """Transient failure (e.g. one playback attempt): mirrors this
