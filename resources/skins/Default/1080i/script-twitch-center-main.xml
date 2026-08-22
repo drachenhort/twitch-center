@@ -97,7 +97,7 @@
         <onright>501</onright>
         <onleft>501</onleft>
         <ondown>502</ondown>
-        <onup>505</onup>
+        <onup>506</onup>
         <label>Live Streams</label>
       </control>
       <control type="button" id="502">
@@ -157,8 +157,23 @@
         <onright>505</onright>
         <onleft>505</onleft>
         <onup>504</onup>
-        <ondown>501</ondown>
+        <ondown>506</ondown>
         <label>Log in again</label>
+      </control>
+      <control type="button" id="506">
+        <description>Log in to Kick</description>
+        <posx>660</posx>
+        <posy>860</posy>
+        <width>600</width>
+        <height>80</height>
+        <font>font13</font>
+        <align>center</align>
+        <aligny>center</aligny>
+        <onright>506</onright>
+        <onleft>506</onleft>
+        <onup>505</onup>
+        <ondown>501</ondown>
+        <label>Log in to Kick</label>
       </control>
     </control>
 

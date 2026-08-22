@@ -68,3 +68,37 @@ def test_non_select_action_is_a_no_op():
     view = MenuView(window)
     view.handle_action(xbmcgui.Action(999))
     assert window.switched_to == []
+
+
+def test_selecting_kick_login_switches_to_kick_login_view_when_credentials_set():
+    window = FakeMainWindow()
+    addon = xbmcaddon.Addon()
+    addon.setSetting("kick_client_id", "cid")
+    addon.setSetting("kick_client_secret", "csecret")
+    with patch("lib.views.menu_view.xbmcaddon.Addon", return_value=addon):
+        _select(window, MenuView.KICK_LOGIN_BUTTON_ID)
+    assert window.switched_to == ["kick_login"]
+
+
+def test_selecting_kick_login_shows_a_dialog_when_client_id_missing():
+    window = FakeMainWindow()
+    addon = xbmcaddon.Addon()
+    addon.setSetting("kick_client_secret", "csecret")  # client id left empty
+    with patch("lib.views.menu_view.xbmcaddon.Addon", return_value=addon), patch(
+        "lib.views.menu_view.xbmcgui.Dialog"
+    ) as mock_dialog_cls:
+        _select(window, MenuView.KICK_LOGIN_BUTTON_ID)
+    mock_dialog_cls.return_value.ok.assert_called_once()
+    assert window.switched_to == []
+
+
+def test_selecting_kick_login_shows_a_dialog_when_client_secret_missing():
+    window = FakeMainWindow()
+    addon = xbmcaddon.Addon()
+    addon.setSetting("kick_client_id", "cid")  # secret left empty
+    with patch("lib.views.menu_view.xbmcaddon.Addon", return_value=addon), patch(
+        "lib.views.menu_view.xbmcgui.Dialog"
+    ) as mock_dialog_cls:
+        _select(window, MenuView.KICK_LOGIN_BUTTON_ID)
+    mock_dialog_cls.return_value.ok.assert_called_once()
+    assert window.switched_to == []

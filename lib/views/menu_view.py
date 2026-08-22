@@ -1,5 +1,6 @@
 """Menu view: the landing screen after Login - Live Streams / Discover /
-Search / Settings / Log in again. Not a Window subclass - see MainWindow."""
+Search / Settings / Log in again / Log in to Kick. Not a Window subclass -
+see MainWindow."""
 import xbmcaddon
 import xbmcgui
 
@@ -10,6 +11,7 @@ class MenuView:
     SEARCH_BUTTON_ID = 503
     SETTINGS_BUTTON_ID = 504
     RELOGIN_BUTTON_ID = 505
+    KICK_LOGIN_BUTTON_ID = 506
     # MainWindow focuses this when Menu becomes visible - the skin's own
     # <defaultcontrol> only fires once, on the very first window activation.
     DEFAULT_FOCUS_ID = LIVE_STREAMS_BUTTON_ID
@@ -35,6 +37,17 @@ class MenuView:
             xbmcaddon.Addon().openSettings()
         elif focus == self.RELOGIN_BUTTON_ID:
             self.window._switch_view("login")
+        elif focus == self.KICK_LOGIN_BUTTON_ID:
+            self._select_kick_login()
+
+    def _select_kick_login(self):
+        addon = xbmcaddon.Addon()
+        if not addon.getSetting("kick_client_id") or not addon.getSetting("kick_client_secret"):
+            xbmcgui.Dialog().ok(
+                "Kick", "Set Kick Client ID and Client Secret in Settings first."
+            )
+            return
+        self.window._switch_view("kick_login")
 
     def handle_click(self, control_id):
         pass

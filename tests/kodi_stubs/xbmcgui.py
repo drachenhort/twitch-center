@@ -196,3 +196,8 @@ class WindowXML:
 class WindowXMLDialog(WindowXML):
     def doModal(self):
         pass
+
+
+class Dialog:
+    def ok(self, heading, message):
+        return True
