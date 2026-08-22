@@ -272,7 +272,7 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
 
             if chat_overlay_cls is not None:
                 overlay_cls = chat_overlay_cls
-            elif engine == "eventsub" and settings.chat_overlay_variable_height:
+            elif settings.chat_overlay_variable_height:
                 overlay_cls = VariableChatOverlay
             else:
                 overlay_cls = ChatOverlay

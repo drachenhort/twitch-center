@@ -594,7 +594,7 @@ def test_play_stream_uses_default_overlay_when_variable_setting_disabled():
     assert FakeVariableChatOverlay.instances == []
 
 
-def test_play_stream_uses_default_overlay_when_variable_setting_enabled_but_irc_engine():
+def test_play_stream_uses_variable_overlay_when_variable_setting_enabled_and_irc_engine():
     FakeChatOverlay.instances.clear()
     FakeVariableChatOverlay.instances.clear()
     with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
@@ -615,11 +615,11 @@ def test_play_stream_uses_default_overlay_when_variable_setting_enabled_but_irc_
             ),
         )
 
-    assert len(FakeChatOverlay.instances) == 1
-    assert FakeVariableChatOverlay.instances == []
+    assert len(FakeVariableChatOverlay.instances) == 1
+    assert FakeChatOverlay.instances == []
 
 
-def test_play_stream_uses_default_overlay_when_eventsub_falls_back_to_irc():
+def test_play_stream_uses_variable_overlay_when_eventsub_falls_back_to_irc():
     FakeChatOverlay.instances.clear()
     FakeVariableChatOverlay.instances.clear()
     with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
@@ -645,8 +645,8 @@ def test_play_stream_uses_default_overlay_when_eventsub_falls_back_to_irc():
             user_id="42",
         )
 
-    assert len(FakeChatOverlay.instances) == 1
-    assert FakeVariableChatOverlay.instances == []
+    assert len(FakeVariableChatOverlay.instances) == 1
+    assert FakeChatOverlay.instances == []
 
 
 def test_playback_watchdog_does_not_recover_while_paused():

@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.21.1] - 2026-08-22
+
+### Fixed
+- `chat_overlay_variable_height` setting now applies to the IRC chat engine too, not just
+  EventSub. IRC is the default engine, so the fixed-height `ChatOverlay` item boxes (sized for
+  the worst-case 5 wrapped lines) were leaving visible trailing blank space under most short
+  messages for anyone on defaults. Enabling the setting now switches IRC to `VariableChatOverlay`
+  as well, which sizes each message block to its actual line count.
+
 ## [0.21.0] - 2026-08-22
 
 ### Added
