@@ -42,7 +42,10 @@ class SelfFocusingFakeView(FakeView):
 
 
 def _make_window(initial_view="menu", view_classes=None):
-    views = {name: FakeView for name in ("login", "menu", "live_streams", "discover", "search")}
+    views = {
+        name: FakeView
+        for name in ("login", "menu", "live_streams", "discover", "search", "kick_login")
+    }
     views.update(view_classes or {})
     return MainWindow(
         "script-twitch-center-main.xml", "/tmp", initial_view=initial_view, view_classes=views
@@ -190,3 +193,14 @@ def test_onclick_before_oninit_does_not_raise():
     win = _make_window(initial_view="menu")
     win.onClick(501)
     assert win._views["menu"].clicks == []
+
+
+def test_switch_view_can_reach_kick_login():
+    win = _make_window(initial_view="menu")
+    win.onInit()
+    win._switch_view("kick_login")
+    assert win._active_name == "kick_login"
+    assert win.getControl(win.GROUP_IDS["kick_login"]).isVisible() is True
+    for name, group_id in win.GROUP_IDS.items():
+        if name != "kick_login":
+            assert win.getControl(group_id).isVisible() is False

@@ -15,6 +15,7 @@ class MainWindow(xbmcgui.WindowXML):
         "live_streams": 200,
         "discover": 300,
         "search": 400,
+        "kick_login": 600,
     }
 
     VERSION_LABEL_ID = 900
@@ -36,6 +37,7 @@ class MainWindow(xbmcgui.WindowXML):
     @staticmethod
     def _default_view_classes():
         from lib.views.discover_view import DiscoverView
+        from lib.views.kick_login_view import KickLoginView
         from lib.views.live_streams_view import LiveStreamsView
         from lib.views.login_view import LoginView
         from lib.views.menu_view import MenuView
@@ -47,6 +49,7 @@ class MainWindow(xbmcgui.WindowXML):
             "live_streams": LiveStreamsView,
             "discover": DiscoverView,
             "search": SearchView,
+            "kick_login": KickLoginView,
         }
 
     def onInit(self):

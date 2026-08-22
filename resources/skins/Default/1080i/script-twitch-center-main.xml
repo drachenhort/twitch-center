@@ -162,6 +162,62 @@
       </control>
     </control>
 
+    <!-- ===================== KICK LOGIN (600) ===================== -->
+    <control type="group" id="600">
+      <control type="label">
+        <description>Title</description>
+        <posx>560</posx>
+        <posy>200</posy>
+        <width>800</width>
+        <height>50</height>
+        <font>font32</font>
+        <align>center</align>
+        <label>Log in to Kick</label>
+      </control>
+      <control type="label">
+        <description>Instructions</description>
+        <posx>560</posx>
+        <posy>280</posy>
+        <width>800</width>
+        <height>60</height>
+        <font>font13</font>
+        <align>center</align>
+        <label>Open this URL on your phone or PC (same network as this device):</label>
+      </control>
+      <control type="label" id="601">
+        <description>Authorize URL</description>
+        <posx>560</posx>
+        <posy>360</posy>
+        <width>800</width>
+        <height>100</height>
+        <font>font13</font>
+        <align>center</align>
+        <aligny>center</aligny>
+        <label></label>
+      </control>
+      <control type="label" id="602">
+        <description>Status</description>
+        <posx>560</posx>
+        <posy>560</posy>
+        <width>800</width>
+        <height>40</height>
+        <font>font13</font>
+        <align>center</align>
+        <label></label>
+      </control>
+      <control type="button" id="603">
+        <description>Cancel</description>
+        <posx>760</posx>
+        <posy>640</posy>
+        <width>400</width>
+        <height>60</height>
+        <font>font13</font>
+        <align>center</align>
+        <label>Cancel</label>
+        <onclick>PreviousMenu</onclick>
+      </control>
+    </control>
+
     <!-- ===================== LIVE STREAMS (200) ===================== -->
     <control type="group" id="200">
       <control type="label" id="207">
