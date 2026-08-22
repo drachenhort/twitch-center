@@ -546,7 +546,7 @@
         <height>90</height>
         <orientation>horizontal</orientation>
         <onup>306</onup>
-        <ondown>301</ondown>
+        <ondown>309</ondown>
         <onleft>305</onleft>
         <onright>305</onright>
         <itemlayout width="220" height="80">
@@ -571,13 +571,47 @@
           </control>
         </focusedlayout>
       </control>
+      <control type="list" id="309">
+        <description>Kick categories</description>
+        <posx>60</posx>
+        <posy>320</posy>
+        <width>1800</width>
+        <height>90</height>
+        <orientation>horizontal</orientation>
+        <onup>305</onup>
+        <ondown>301</ondown>
+        <onleft>309</onleft>
+        <onright>309</onright>
+        <itemlayout width="220" height="80">
+          <control type="label">
+            <width>220</width>
+            <height>80</height>
+            <font>font13</font>
+            <align>center</align>
+            <aligny>center</aligny>
+            <textcolor>ff53fc18</textcolor>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+        </itemlayout>
+        <focusedlayout width="220" height="80">
+          <control type="label">
+            <width>220</width>
+            <height>80</height>
+            <font>font13</font>
+            <align>center</align>
+            <aligny>center</aligny>
+            <textcolor>ffffffff</textcolor>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+        </focusedlayout>
+      </control>
       <control type="list" id="301">
         <description>Results</description>
         <posx>60</posx>
-        <posy>330</posy>
+        <posy>420</posy>
         <width>1800</width>
-        <height>670</height>
-        <onup>305</onup>
+        <height>580</height>
+        <onup>309</onup>
         <ondown>301</ondown>
         <itemlayout width="1800" height="120">
           <control type="image">

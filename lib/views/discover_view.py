@@ -1,11 +1,12 @@
 """Discover view: browse live channels by any game, or search by channel name or
-by game/category name (toggle via SEARCH_MODE_TOGGLE_ID). Not a Window subclass -
-see MainWindow."""
+by game/category name (toggle via SEARCH_MODE_TOGGLE_ID). Also browses Kick's top
+categories in a separate row. Not a Window subclass - see MainWindow."""
 import xbmc
 import xbmcaddon
 import xbmcgui
 
-from lib.twitch import api, auth, stream
+from lib import providers
+from lib.twitch import api, auth
 from lib.windows import player
 
 RESULTS_LIST_ID = 301
@@ -16,6 +17,7 @@ GAMES_LIST_ID = 305
 SEARCH_EDIT_ID = 306
 SEARCH_BUTTON_ID = 307
 SEARCH_MODE_TOGGLE_ID = 308
+KICK_CATEGORIES_LIST_ID = 309
 
 _MISSING_TOKEN_MESSAGE = "You're not logged in. Reopen the addon to log in."
 _EMPTY_RESULTS_MESSAGE = "Nothing found."
@@ -41,6 +43,7 @@ def _build_stream_item(stream_data):
     item.setProperty("broadcaster_id", stream_data["user_id"])
     item.setProperty("broadcaster_login", stream_data["user_login"])
     item.setProperty("is_live", "true")
+    item.setProperty("platform", "twitch")
     return item
 
 
@@ -54,6 +57,20 @@ def _build_channel_item(channel):
     item.setProperty("broadcaster_id", channel.get("id", ""))
     item.setProperty("broadcaster_login", channel.get("broadcaster_login", ""))
     item.setProperty("is_live", "true" if channel.get("is_live") else "false")
+    item.setProperty("platform", "twitch")
+    return item
+
+
+def _build_kick_result_item(normalized):
+    item = xbmcgui.ListItem(normalized["display_name"])
+    item.setLabel2(
+        normalized["game_name"] + " - " + str(normalized["viewer_count"]) + " viewers"
+    )
+    item.setArt({"thumb": normalized["thumbnail_url"]})
+    item.setProperty("broadcaster_id", normalized["id"])
+    item.setProperty("broadcaster_login", normalized["login"])
+    item.setProperty("is_live", "true")
+    item.setProperty("platform", "kick")
     return item
 
 
@@ -66,6 +83,7 @@ class DiscoverView:
     SEARCH_EDIT_ID = SEARCH_EDIT_ID
     SEARCH_BUTTON_ID = SEARCH_BUTTON_ID
     SEARCH_MODE_TOGGLE_ID = SEARCH_MODE_TOGGLE_ID
+    KICK_CATEGORIES_LIST_ID = KICK_CATEGORIES_LIST_ID
 
     def __init__(self, window, closed_event=None):
         self.window = window
@@ -106,6 +124,8 @@ class DiscoverView:
     def _load_games(self, addon, client_id, token):
         games = api.get_top_games(token["access_token"], client_id)
         self._populate_games(games)
+        kick_categories = providers.get_kick_top_categories(addon)
+        self._populate_kick_categories(kick_categories)
         # Claim focus on the now-populated games list explicitly rather than
         # leaving it wherever the previous view left it - same race-avoidance
         # as LiveStreamsView._load_and_populate.
@@ -169,6 +189,17 @@ class DiscoverView:
             for game in games:
                 item = xbmcgui.ListItem(game["name"])
                 item.setProperty("game_id", game["id"])
+                items.append(item)
+            control.addItems(items)
+
+    def _populate_kick_categories(self, categories):
+        control = self._safe_control(self.KICK_CATEGORIES_LIST_ID)
+        if control:
+            control.reset()
+            items = []
+            for category in categories:
+                item = xbmcgui.ListItem(category["name"])
+                item.setProperty("category_id", str(category["id"]))
                 items.append(item)
             control.addItems(items)
 
@@ -245,6 +276,18 @@ class DiscoverView:
             )
             self._show_results_error(_NETWORK_ERROR_MESSAGE)
 
+    def _on_kick_category_selected(self):
+        control = self._safe_control(self.KICK_CATEGORIES_LIST_ID)
+        if not control:
+            return
+        selected = control.getSelectedItem()
+        if selected is None:
+            return
+        addon = xbmcaddon.Addon()
+        category_id = selected.getProperty("category_id")
+        results = providers.get_kick_category_streams(addon, category_id)
+        self._populate_results([_build_kick_result_item(r) for r in results])
+
     def _on_channel_selected(self):
         control = self._safe_control(self.RESULTS_LIST_ID)
         if not control:
@@ -252,34 +295,39 @@ class DiscoverView:
         selected = control.getSelectedItem()
         if selected is None or selected.getProperty("is_live") != "true":
             return
+        platform = selected.getProperty("platform") or "twitch"
+        broadcaster_login = selected.getProperty("broadcaster_login")
+        if platform == "kick":
+            self._play_channel("kick", broadcaster_login)
+            return
         addon = xbmcaddon.Addon()
         token = auth.load_token(addon)
         if token is None:
             self._show_results_error(_MISSING_TOKEN_MESSAGE)
             return
         client_id = addon.getSetting("client_id")
-        broadcaster_login = selected.getProperty("broadcaster_login")
+        self._play_channel("twitch", broadcaster_login, token=token, client_id=client_id)
+
+    def _play_channel(self, platform, broadcaster_login, token=None, client_id=None):
+        addon = xbmcaddon.Addon()
         try:
-            self._play_channel(broadcaster_login, token, client_id)
-        except stream.StreamUnavailableError:
+            url = providers.resolve_stream_url(addon, platform, broadcaster_login)
+        except providers.StreamUnavailableError:
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
+            return
         except Exception as exc:
             xbmc.log(
                 "script.twitch.center: Discover channel selection failed: " + repr(exc),
                 xbmc.LOGERROR,
             )
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
-
-    def _play_channel(self, broadcaster_login, token, client_id):
-        website_token = xbmcaddon.Addon().getSetting("website_token")
-        url = stream.resolve_stream_url(broadcaster_login, website_token)
-        if player.play_stream(
-            url,
-            broadcaster_login,
-            access_token=token["access_token"],
-            client_id=client_id,
-            user_id=token["user_id"],
-        ):
+            return
+        play_kwargs = {"platform": platform}
+        if platform == "twitch":
+            play_kwargs.update(
+                access_token=token["access_token"], client_id=client_id, user_id=token["user_id"]
+            )
+        if player.play_stream(url, broadcaster_login, **play_kwargs):
             error_label = self._safe_control(self.ERROR_LABEL_ID)
             if error_label:
                 error_label.setLabel("")
@@ -338,6 +386,9 @@ class DiscoverView:
         games_list = self._safe_control(self.GAMES_LIST_ID)
         if games_list:
             games_list.reset()
+        kick_categories_list = self._safe_control(self.KICK_CATEGORIES_LIST_ID)
+        if kick_categories_list:
+            kick_categories_list.reset()
         results_list = self._safe_control(self.RESULTS_LIST_ID)
         if results_list:
             results_list.reset()
@@ -372,6 +423,8 @@ class DiscoverView:
                 self.window._switch_view("login")
             elif focus == self.GAMES_LIST_ID:
                 self._on_game_selected()
+            elif focus == self.KICK_CATEGORIES_LIST_ID:
+                self._on_kick_category_selected()
             elif focus == self.SEARCH_BUTTON_ID:
                 self._on_search()
             elif focus == self.SEARCH_MODE_TOGGLE_ID:
