@@ -7,6 +7,7 @@ import xbmcgui
 
 from lib import providers
 from lib.twitch import api, auth
+from lib.views.kick_favorites_menu import show_kick_favorite_context_menu
 from lib.windows import player
 
 RESULTS_LIST_ID = 301
@@ -432,6 +433,19 @@ class DiscoverView:
                 self._toggle_search_mode()
             elif focus == self.RESULTS_LIST_ID:
                 self._on_channel_selected()
+        elif action.getId() == xbmcgui.ACTION_CONTEXT_MENU:
+            if self.window.getFocusId() == self.RESULTS_LIST_ID:
+                self._on_context_menu()
+
+    def _on_context_menu(self):
+        control = self._safe_control(self.RESULTS_LIST_ID)
+        if not control:
+            return
+        selected = control.getSelectedItem()
+        if selected is None or selected.getProperty("platform") != "kick":
+            return
+        addon = xbmcaddon.Addon()
+        show_kick_favorite_context_menu(addon, selected.getProperty("broadcaster_login"))
 
     def handle_click(self, control_id):
         pass

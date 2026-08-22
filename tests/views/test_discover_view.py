@@ -616,3 +616,52 @@ def test_selecting_a_live_kick_result_plays_it():
     mock_play.assert_called_once_with(
         "https://kick.example/x.m3u8", "kickchannel", platform="kick"
     )
+
+
+def test_context_menu_on_kick_result_adds_favorite():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    xbmcgui.Dialog.next_contextmenu_choice = 0
+    xbmcgui.Dialog.notifications = []
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(
+        providers, "get_kick_top_categories", return_value=KICK_TOP_CATEGORIES
+    ), patch.object(
+        providers, "get_kick_category_streams", return_value=[KICK_CATEGORY_STREAM]
+    ):
+        win = DiscoverView(FakeWindow())
+        win.activate()
+        kick_control = win.window.getControl(DiscoverView.KICK_CATEGORIES_LIST_ID)
+        kick_control.selectItem(0)
+        win.window.setFocusId(DiscoverView.KICK_CATEGORIES_LIST_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        results_control = win.window.getControl(DiscoverView.RESULTS_LIST_ID)
+        results_control.selectItem(0)
+        win.window.setFocusId(DiscoverView.RESULTS_LIST_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_CONTEXT_MENU))
+
+    assert providers.get_kick_favorites(addon) == ["kickchannel"]
+
+
+def test_context_menu_on_twitch_result_does_nothing():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    xbmcgui.Dialog.next_contextmenu_choice = 0
+    xbmcgui.Dialog.notifications = []
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(
+        api, "get_live_streams_by_game", return_value=STREAMS
+    ):
+        win = DiscoverView(FakeWindow())
+        win.activate()
+        games_control = win.window.getControl(DiscoverView.GAMES_LIST_ID)
+        games_control.selectItem(0)
+        win.window.setFocusId(DiscoverView.GAMES_LIST_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        results_control = win.window.getControl(DiscoverView.RESULTS_LIST_ID)
+        results_control.selectItem(0)
+        win.window.setFocusId(DiscoverView.RESULTS_LIST_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_CONTEXT_MENU))
+
+    assert providers.get_kick_favorites(addon) == []
+    assert xbmcgui.Dialog.notifications == []

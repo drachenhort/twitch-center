@@ -149,3 +149,38 @@ def test_play_selected_shows_error_and_does_not_raise_when_stream_unavailable():
 
     assert win.window.getControl(SearchView.STATUS_LABEL_ID).getLabel() != ""
     mock_play.assert_not_called()
+
+
+def test_context_menu_on_kick_result_adds_favorite():
+    xbmcgui.Dialog.next_contextmenu_choice = 0
+    xbmcgui.Dialog.notifications = []
+    addon = xbmcaddon.Addon()
+    with patch("xbmcaddon.Addon", return_value=addon):
+        win = SearchView(FakeWindow())
+        win.search_results = [
+            {"platform": "kick", "login": "kickuser", "display_name": "kickuser"},
+        ]
+        win.window.getControl(SearchView.RESULTS_LIST_ID).addItem("kickuser")
+        win.window.getControl(SearchView.RESULTS_LIST_ID).selectItem(0)
+        win.window.setFocusId(SearchView.RESULTS_LIST_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_CONTEXT_MENU))
+
+    assert providers.get_kick_favorites(addon) == ["kickuser"]
+
+
+def test_context_menu_on_twitch_result_does_nothing():
+    xbmcgui.Dialog.next_contextmenu_choice = 0
+    xbmcgui.Dialog.notifications = []
+    addon = xbmcaddon.Addon()
+    with patch("xbmcaddon.Addon", return_value=addon):
+        win = SearchView(FakeWindow())
+        win.search_results = [
+            {"platform": "twitch", "login": "alice", "display_name": "Alice"},
+        ]
+        win.window.getControl(SearchView.RESULTS_LIST_ID).addItem("Alice")
+        win.window.getControl(SearchView.RESULTS_LIST_ID).selectItem(0)
+        win.window.setFocusId(SearchView.RESULTS_LIST_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_CONTEXT_MENU))
+
+    assert providers.get_kick_favorites(addon) == []
+    assert xbmcgui.Dialog.notifications == []

@@ -7,6 +7,7 @@ import xbmcgui
 from lib import providers
 from lib.settings import Settings
 from lib.twitch import api, auth, gql
+from lib.views.kick_favorites_menu import show_kick_favorite_context_menu
 from lib.windows import player
 
 CHANNEL_LIST_ID = 201
@@ -337,9 +338,25 @@ class LiveStreamsView:
                 self._on_game_selected()
             elif focus == self.CHANNEL_LIST_ID:
                 self._on_channel_selected()
+        elif action.getId() == xbmcgui.ACTION_CONTEXT_MENU:
+            if self.window.getFocusId() == self.CHANNEL_LIST_ID:
+                self._on_context_menu()
 
     def handle_click(self, control_id):
         pass
+
+    def _on_context_menu(self):
+        control = self._safe_control(self.CHANNEL_LIST_ID)
+        if not control:
+            return
+        selected = control.getSelectedItem()
+        if selected is None or selected.getProperty("platform") != "kick":
+            return
+        addon = xbmcaddon.Addon()
+        changed = show_kick_favorite_context_menu(addon, selected.getProperty("broadcaster_login"))
+        if changed:
+            self._kick_live = providers.get_kick_live_favorites(addon)
+            self._populate(self._followed, self._live, self._kick_live, game_filter=self._selected_game)
 
     def _on_game_selected(self):
         control = self._safe_control(self.GAMES_LIST_ID)

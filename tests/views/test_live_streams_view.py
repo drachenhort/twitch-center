@@ -817,3 +817,52 @@ def test_selecting_a_live_kick_channel_shows_error_when_resolution_fails():
         win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
     assert win.window.getControl(LiveStreamsView.ERROR_LABEL_ID).getLabel() != ""
+
+
+def test_context_menu_on_kick_result_removes_favorite_and_refreshes_list():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    providers.add_kick_favorite(addon, "kickchannel")
+    xbmcgui.Dialog.next_contextmenu_choice = 0
+    xbmcgui.Dialog.notifications = []
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch.object(
+        providers, "get_kick_live_favorites", side_effect=lambda a: (
+            [KICK_LIVE_FAVORITE] if "kickchannel" in providers.get_kick_favorites(a) else []
+        )
+    ):
+        win = LiveStreamsView(FakeWindow())
+        win.activate()
+        channel_control = win.window.getControl(LiveStreamsView.CHANNEL_LIST_ID)
+        channel_control.selectItem(1)  # kickchannel, per the interleave-order test above
+        win.window.setFocusId(LiveStreamsView.CHANNEL_LIST_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_CONTEXT_MENU))
+
+    assert providers.get_kick_favorites(addon) == []
+    logins = [
+        channel_control.getListItem(i).getProperty("broadcaster_login")
+        for i in range(channel_control.size())
+    ]
+    assert "kickchannel" not in logins
+
+
+def test_context_menu_on_twitch_result_does_nothing():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    xbmcgui.Dialog.next_contextmenu_choice = 0
+    xbmcgui.Dialog.notifications = []
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch.object(providers, "get_kick_live_favorites", return_value=[]):
+        win = LiveStreamsView(FakeWindow())
+        win.activate()
+        channel_control = win.window.getControl(LiveStreamsView.CHANNEL_LIST_ID)
+        channel_control.selectItem(0)  # carol, twitch
+        win.window.setFocusId(LiveStreamsView.CHANNEL_LIST_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_CONTEXT_MENU))
+
+    assert providers.get_kick_favorites(addon) == []
+    assert xbmcgui.Dialog.notifications == []

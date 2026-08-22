@@ -6,6 +6,7 @@ import xbmcaddon
 import xbmcgui
 from lib import providers
 from lib.twitch import gql
+from lib.views.kick_favorites_menu import show_kick_favorite_context_menu
 from lib.windows import player
 
 _PLAYBACK_ERROR_MESSAGE = "Couldn't start playback. Try again."
@@ -52,8 +53,21 @@ class SearchView:
                 self.play_selected()
             elif self.window.getFocusId() == self.NEXT_PAGE_BUTTON_ID:
                 self.load_next_page()
+        elif action.getId() == xbmcgui.ACTION_CONTEXT_MENU:
+            if self.window.getFocusId() == self.RESULTS_LIST_ID:
+                self._on_context_menu()
         if self._update_queue:
             self._process_updates()
+
+    def _on_context_menu(self):
+        idx = self.window.getControl(self.RESULTS_LIST_ID).getSelectedPosition()
+        if idx < 0 or idx >= len(self.search_results):
+            return
+        result = self.search_results[idx]
+        if result.get("platform") != "kick" or not result.get("login"):
+            return
+        addon = xbmcaddon.Addon()
+        show_kick_favorite_context_menu(addon, result["login"])
 
     def start_search(self):
         query = self.window.getControl(self.SEARCH_INPUT_ID).getLabel()

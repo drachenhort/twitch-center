@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.22.1] - 2026-08-22
+
+### Added
+- Kick favorites are now manageable from within the addon: a context menu (remote's
+  Context/Info button, or long-press) on any Kick channel in Discover, Search, or Live
+  Streams offers "Add to Kick Favorites" / "Remove from Kick Favorites". Closes the gap
+  from v0.22.0 where the favorites list existed but had no UI to populate it - Kick has
+  no followed-channels API of its own to read from, so favorites stay addon-local.
+
 ## [0.22.0] - 2026-08-22
 
 ### Added

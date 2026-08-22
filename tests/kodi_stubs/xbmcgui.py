@@ -3,6 +3,7 @@
 ACTION_PREVIOUS_MENU = 10
 ACTION_NAV_BACK = 92
 ACTION_SELECT_ITEM = 7
+ACTION_CONTEXT_MENU = 117
 
 
 class Action:
@@ -210,5 +211,16 @@ class WindowXMLDialog(WindowXML):
 
 
 class Dialog:
+    # Test-controllable: set before calling contextmenu() to control which
+    # item index (or -1 for "cancelled") the fake dialog returns.
+    next_contextmenu_choice = -1
+    notifications = []
+
     def ok(self, heading, message):
         return True
+
+    def contextmenu(self, items):
+        return Dialog.next_contextmenu_choice
+
+    def notification(self, heading, message, icon=None, time=None):
+        Dialog.notifications.append((heading, message))
