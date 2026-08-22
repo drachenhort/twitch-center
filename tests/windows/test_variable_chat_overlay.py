@@ -60,7 +60,7 @@ def test_build_block_skips_emotes_with_no_url():
     assert block["height"] == _block_height(1, has_emotes=False)
 
 
-def test_build_block_truncates_five_line_message_and_sizes_for_it():
+def test_build_block_allows_up_to_nine_lines():
     long_text = (
         "which upcoming games are you looking forward to for the rest of this year, "
         "modz? asking because I want to plan my backlog around the big releases"
@@ -70,9 +70,9 @@ def test_build_block_truncates_five_line_message_and_sizes_for_it():
     controls = _block_controls(block)
     message_label = controls[1]
     lines = message_label.getLabel().split("\n")
-    assert len(lines) == 5
-    assert lines[-1].endswith("...")
-    assert block["height"] == _block_height(5, has_emotes=False)
+    assert len(lines) == 6
+    assert not lines[-1].endswith("...")
+    assert block["height"] == _block_height(6, has_emotes=False)
 
 
 from unittest.mock import patch
@@ -175,8 +175,8 @@ def test_controls_from_earlier_render_are_repositioned_not_recreated():
 
 def test_old_blocks_are_evicted_once_total_height_exceeds_the_column():
     FakeChatClient.instances.clear()
-    # Each of these wraps to 5 lines with no emotes - block height 40 + 5*60 + 34 = 374px. Three
-    # of them (1122px) exceed the 960px column, so the oldest should be evicted.
+    # Each of these wraps to 6 lines with no emotes - block height 40 + 6*60 + 34 = 410px. Three
+    # of them (1230px) exceed the 960px column, so the oldest should be evicted.
     long_text = (
         "which upcoming games are you looking forward to for the rest of this year, "
         "modz? asking because I want to plan my backlog around the big releases"
