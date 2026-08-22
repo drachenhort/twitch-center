@@ -79,3 +79,19 @@ def test_get_user_by_login_returns_none_when_not_found():
     with patch.object(api.requests, "get", return_value=_response({"data": []})):
         result = api.get_user_by_login("token", "nosuchuser")
     assert result is None
+
+
+def test_search_channels_returns_data():
+    body = {"data": [{"slug": "somechannel"}, {"slug": "otherchannel"}]}
+    with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:
+        result = api.search_channels("token", "some", first=5)
+    assert result == body["data"]
+    assert mock_get.call_args.kwargs["params"] == {"searchQuery": "some", "limit": 5}
+
+
+def test_search_channels_uses_search_base_not_api_base():
+    body = {"data": []}
+    with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:
+        api.search_channels("token", "query")
+    called_url = mock_get.call_args.args[0]
+    assert called_url == api.SEARCH_BASE + "/search/channels"

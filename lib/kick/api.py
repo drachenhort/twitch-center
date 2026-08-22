@@ -2,6 +2,7 @@
 import requests
 
 API_BASE = "https://api.kick.com/public/v1"
+SEARCH_BASE = "https://kick.com/api/v2"
 
 
 class TokenExpiredError(Exception):
@@ -69,3 +70,11 @@ def get_user_by_login(access_token, slug):
         return None
     user = channels[0]
     return {"id": str(user["user_id"]), "login": slug, "display_name": user.get("name", slug)}
+
+
+def search_channels(access_token, query, first=20):
+    """Free-text channel search. Unofficial endpoint - confirm against
+    docs.kick.com / kick.com's own web client at implementation time and
+    adjust the URL/params here if it has changed; callers are unaffected."""
+    body = _get(SEARCH_BASE + "/search/channels", access_token, params={"searchQuery": query, "limit": first})
+    return body["data"]
