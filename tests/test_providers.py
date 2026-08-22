@@ -421,3 +421,16 @@ def test_resolve_stream_url_raises_for_unknown_platform():
     addon = xbmcaddon.Addon()
     with pytest.raises(providers.StreamUnavailableError):
         providers.resolve_stream_url(addon, "nonsense", "somechannel")
+
+
+def test_resolve_stream_url_wraps_any_kick_exception():
+    # kick_stream.resolve_stream_url's call chain can raise things other than
+    # kick_stream.StreamUnavailableError - e.g. TokenExpiredError on an expired
+    # token, or requests exceptions (HTTPError, RequestException, ...) on other
+    # HTTP errors or network failures. None of those should ever escape
+    # providers.resolve_stream_url uncaught.
+    addon = xbmcaddon.Addon()
+    addon.setSetting("kick_token", '{"access_token": "tok"}')
+    with patch.object(kick_stream, "resolve_stream_url", side_effect=Exception("token expired")):
+        with pytest.raises(providers.StreamUnavailableError):
+            providers.resolve_stream_url(addon, "kick", "somechannel")

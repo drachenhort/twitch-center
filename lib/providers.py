@@ -272,4 +272,13 @@ def resolve_stream_url(addon, platform, identifier):
             return kick_stream.resolve_stream_url(token["access_token"], identifier)
         except kick_stream.StreamUnavailableError as exc:
             raise StreamUnavailableError(str(exc)) from exc
+        except Exception as exc:
+            # kick_stream.resolve_stream_url's call chain (lib.kick.api.get_channel
+            # -> lib.kick.api._get) can also raise TokenExpiredError or let
+            # requests exceptions (HTTPError, RequestException, ...) propagate on
+            # an expired token, HTTP error, or network failure - none of which is
+            # kick_stream.StreamUnavailableError. Catch those too so this function
+            # never lets a raw per-platform/library exception escape, matching its
+            # documented contract.
+            raise StreamUnavailableError(str(exc)) from exc
     raise StreamUnavailableError("unknown platform: " + repr(platform))
