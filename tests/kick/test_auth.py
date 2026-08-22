@@ -1,5 +1,8 @@
 import base64
 import hashlib
+import threading
+import time
+from urllib.request import urlopen
 
 from lib.kick import auth
 
@@ -41,3 +44,41 @@ def test_build_authorize_url_contains_required_params():
     assert "response_type=code" in url
     assert "scope=user%3Aread+chat%3Awrite" in url
     assert "state=state-xyz" in url
+
+
+def test_await_callback_captures_code_and_state():
+    port = 18919
+    result_holder = {}
+
+    def run():
+        result_holder["result"] = auth.await_callback(port, timeout_seconds=5)
+
+    thread = threading.Thread(target=run)
+    thread.start()
+    time.sleep(0.2)  # let the server bind before we hit it
+    urlopen(f"http://127.0.0.1:{port}/callback?code=abc123&state=xyz")
+    thread.join(timeout=5)
+
+    assert result_holder["result"] == {"status": "success", "code": "abc123", "state": "xyz"}
+
+
+def test_await_callback_captures_error_param():
+    port = 18920
+    result_holder = {}
+
+    def run():
+        result_holder["result"] = auth.await_callback(port, timeout_seconds=5)
+
+    thread = threading.Thread(target=run)
+    thread.start()
+    time.sleep(0.2)
+    urlopen(f"http://127.0.0.1:{port}/callback?error=access_denied")
+    thread.join(timeout=5)
+
+    assert result_holder["result"] == {"status": "error", "error": "access_denied"}
+
+
+def test_await_callback_times_out_when_nothing_arrives():
+    port = 18921
+    result = auth.await_callback(port, timeout_seconds=0.5)
+    assert result == {"status": "timeout"}
