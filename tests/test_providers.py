@@ -197,3 +197,78 @@ def test_merge_by_viewer_count_handles_empty_lists():
     assert providers.merge_by_viewer_count([{"platform": "twitch", "viewer_count": 1}], []) == [
         {"platform": "twitch", "viewer_count": 1}
     ]
+
+
+def test_get_kick_top_categories_returns_empty_list_when_no_kick_token():
+    addon = xbmcaddon.Addon()
+    assert providers.get_kick_top_categories(addon) == []
+
+
+def test_get_kick_top_categories_returns_categories_when_logged_in():
+    addon = xbmcaddon.Addon()
+    addon.setSetting("kick_token", '{"access_token": "tok"}')
+
+    def fake_get_top_categories(access_token, first=20):
+        assert access_token == "tok"
+        return [{"id": 7, "name": "Just Chatting"}, {"id": 8, "name": "Games"}]
+
+    result = providers.get_kick_top_categories(addon, get_top_categories_fn=fake_get_top_categories)
+    assert result == [{"id": 7, "name": "Just Chatting"}, {"id": 8, "name": "Games"}]
+
+
+def test_get_kick_top_categories_returns_empty_list_on_error():
+    addon = xbmcaddon.Addon()
+    addon.setSetting("kick_token", '{"access_token": "tok"}')
+
+    def failing(access_token, first=20):
+        raise Exception("boom")
+
+    result = providers.get_kick_top_categories(addon, get_top_categories_fn=failing)
+    assert result == []
+
+
+def test_get_kick_category_streams_returns_empty_list_when_no_kick_token():
+    addon = xbmcaddon.Addon()
+    assert providers.get_kick_category_streams(addon, category_id=7) == []
+
+
+def test_get_kick_category_streams_normalizes_results():
+    addon = xbmcaddon.Addon()
+    addon.setSetting("kick_token", '{"access_token": "tok"}')
+
+    def fake_get_live_streams(access_token, category_id=None, first=20):
+        assert access_token == "tok"
+        assert category_id == 7
+        return [
+            {
+                "broadcaster_user_id": 1,
+                "slug": "somechannel",
+                "viewer_count": 42,
+                "category": {"name": "Just Chatting"},
+            }
+        ]
+
+    result = providers.get_kick_category_streams(addon, category_id=7, get_live_streams_fn=fake_get_live_streams)
+    assert result == [
+        {
+            "platform": "kick",
+            "id": "1",
+            "login": "somechannel",
+            "display_name": "somechannel",
+            "is_live": True,
+            "viewer_count": 42,
+            "game_name": "Just Chatting",
+            "thumbnail_url": "",
+        }
+    ]
+
+
+def test_get_kick_category_streams_returns_empty_list_on_error():
+    addon = xbmcaddon.Addon()
+    addon.setSetting("kick_token", '{"access_token": "tok"}')
+
+    def failing(access_token, category_id=None, first=20):
+        raise Exception("boom")
+
+    result = providers.get_kick_category_streams(addon, category_id=7, get_live_streams_fn=failing)
+    assert result == []

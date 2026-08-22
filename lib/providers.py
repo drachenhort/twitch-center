@@ -7,6 +7,7 @@ import json
 
 from lib.kick import auth as kick_auth
 from lib.kick.api import get_channel as _kick_get_channel
+from lib.kick.api import get_live_streams as _kick_get_live_streams, get_top_categories as _kick_get_top_categories
 
 
 def get_kick_favorites(addon):
@@ -118,6 +119,58 @@ def get_kick_live_favorites(addon, get_channel_fn=None):
         if normalized["is_live"]:
             results.append(normalized)
     return results
+
+
+def get_kick_top_categories(addon, get_top_categories_fn=None):
+    """Return Kick's top categories, or [] if there's no saved Kick token or
+    the call fails - never raises. Used to populate Discover's Kick
+    categories row, which simply doesn't appear (via an empty row) rather
+    than erroring when the user isn't logged into Kick."""
+    if get_top_categories_fn is None:
+        get_top_categories_fn = _kick_get_top_categories
+    token = kick_auth.load_token(addon)
+    if token is None:
+        return []
+    try:
+        return get_top_categories_fn(token["access_token"])
+    except Exception:
+        return []
+
+
+def _normalize_kick_live_stream_entry(entry):
+    """Convert one entry from lib.kick.api.get_live_streams() (flat shape,
+    NOT nested under "stream" like get_channel()'s response) into the shared
+    normalized dict. Every entry from this endpoint is live by definition.
+    Field names beyond broadcaster_user_id/slug are unconfirmed (see this
+    plan's Task 2 note) - .get() throughout."""
+    category = entry.get("category") or {}
+    thumbnail = entry.get("thumbnail") or {}
+    slug = entry.get("slug", "")
+    return {
+        "platform": "kick",
+        "id": str(entry.get("broadcaster_user_id", "")),
+        "login": slug,
+        "display_name": slug,
+        "is_live": True,
+        "viewer_count": entry.get("viewer_count", 0),
+        "game_name": category.get("name", ""),
+        "thumbnail_url": thumbnail.get("url", ""),
+    }
+
+
+def get_kick_category_streams(addon, category_id, get_live_streams_fn=None):
+    """Return normalized live streams for one Kick category, or [] if
+    there's no saved Kick token or the call fails - never raises."""
+    if get_live_streams_fn is None:
+        get_live_streams_fn = _kick_get_live_streams
+    token = kick_auth.load_token(addon)
+    if token is None:
+        return []
+    try:
+        entries = get_live_streams_fn(token["access_token"], category_id=category_id)
+    except Exception:
+        return []
+    return [_normalize_kick_live_stream_entry(entry) for entry in entries]
 
 
 def merge_by_viewer_count(*lists):
