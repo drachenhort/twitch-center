@@ -99,6 +99,15 @@
           <control type="edit" format="string"/>
           <visible>false</visible>
         </setting>
+        <setting id="kick_favorite_channels" type="string" label="30026" help="">
+          <level>2</level>
+          <default>[]</default>
+          <constraints>
+            <allowempty>true</allowempty>
+          </constraints>
+          <control type="edit" format="string"/>
+          <visible>false</visible>
+        </setting>
       </group>
     </category>
   </section>

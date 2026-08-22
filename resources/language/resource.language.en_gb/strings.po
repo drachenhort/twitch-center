@@ -93,3 +93,7 @@ msgstr ""
 msgctxt "#30025"
 msgid "Kick Client Secret"
 msgstr ""
+
+msgctxt "#30026"
+msgid "Kick Favorite Channels"
+msgstr ""

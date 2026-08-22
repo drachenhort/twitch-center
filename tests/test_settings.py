@@ -82,3 +82,9 @@ def test_kick_token_setting_round_trips():
     addon = xbmcaddon.Addon()
     addon.setSetting("kick_token", '{"access_token": "tok"}')
     assert addon.getSetting("kick_token") == '{"access_token": "tok"}'
+
+
+def test_kick_favorite_channels_setting_round_trips():
+    addon = xbmcaddon.Addon()
+    addon.setSetting("kick_favorite_channels", '["somechannel"]')
+    assert addon.getSetting("kick_favorite_channels") == '["somechannel"]'
