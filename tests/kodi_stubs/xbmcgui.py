@@ -66,7 +66,7 @@ class ListItem:
         return self._content_lookup
 
 
-class ControlLabel:
+class FakeListControl:
     def __init__(self):
         self._label = ""
         self._items = []
@@ -135,7 +135,7 @@ class WindowXML:
 
     def getControl(self, control_id):
         if control_id not in self._controls:
-            self._controls[control_id] = ControlLabel()
+            self._controls[control_id] = FakeListControl()
         return self._controls[control_id]
 
     def setFocusId(self, control_id):
