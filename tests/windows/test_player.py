@@ -1,8 +1,8 @@
 from unittest.mock import ANY, patch
 
+from lib import providers
 from lib.twitch import eventsub as eventsub_module
 from lib.twitch import irc as irc_module
-from lib.twitch import stream
 from lib.windows import player
 
 
@@ -318,9 +318,9 @@ class FakePlayerForRecovery:
 
 
 def test_recovery_manager_resolves_fresh_url_and_restarts_player():
-    with patch.object(stream, "resolve_stream_url", return_value="https://fresh.url/stream.m3u8") as mock_resolve, patch(
-        "lib.windows.player.Helper"
-    ) as mock_helper_cls:
+    with patch.object(
+        providers, "resolve_stream_url", return_value="https://fresh.url/stream.m3u8"
+    ) as mock_resolve, patch("lib.windows.player.Helper") as mock_helper_cls:
         mock_helper_cls.return_value.check_inputstream.return_value = True
         mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
 
@@ -328,14 +328,47 @@ def test_recovery_manager_resolves_fresh_url_and_restarts_player():
         recovery = player.RecoveryManager(fake_player, "somechannel")
         recovery.recover()
 
-    mock_resolve.assert_called_once_with("somechannel", None)
+    mock_resolve.assert_called_once()
+    call_args = mock_resolve.call_args
+    assert call_args.args[1] == "twitch"
+    assert call_args.args[2] == "somechannel"
     assert len(fake_player.played) == 1
     assert fake_player.played[0][0] == "https://fresh.url/stream.m3u8"
     assert fake_player.played[0][1] == "https://fresh.url/stream.m3u8"
 
 
+def test_recovery_manager_resolves_via_kick_when_platform_is_kick():
+    with patch.object(
+        providers, "resolve_stream_url", return_value="https://kick.example/stream.m3u8"
+    ) as mock_resolve, patch("lib.windows.player.Helper") as mock_helper_cls:
+        mock_helper_cls.return_value.check_inputstream.return_value = True
+        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
+
+        fake_player = FakePlayerForRecovery()
+        recovery = player.RecoveryManager(fake_player, "somechannel", platform="kick")
+        recovery.recover()
+
+    call_args = mock_resolve.call_args
+    assert call_args.args[1] == "kick"
+    assert call_args.args[2] == "somechannel"
+
+
+def test_recovery_manager_logs_and_aborts_on_stream_unavailable():
+    with patch.object(
+        providers, "resolve_stream_url", side_effect=providers.StreamUnavailableError("x")
+    ), patch("lib.windows.player.Helper") as mock_helper_cls, patch(
+        "lib.windows.player.xbmc.log"
+    ) as mock_log:
+        fake_player = FakePlayerForRecovery()
+        recovery = player.RecoveryManager(fake_player, "somechannel")
+        recovery.recover()
+
+    mock_log.assert_called_once()
+    assert fake_player.played == []
+
+
 def test_recovery_manager_is_noop_when_already_recovering():
-    with patch.object(stream, "resolve_stream_url") as mock_resolve, patch(
+    with patch.object(providers, "resolve_stream_url") as mock_resolve, patch(
         "lib.windows.player.Helper"
     ) as mock_helper_cls:
         mock_helper_cls.return_value.check_inputstream.return_value = True
@@ -668,3 +701,46 @@ def test_playback_watchdog_does_not_recover_while_paused():
             watchdog._check_once()
 
     mock_recover.assert_not_called()
+
+
+def test_play_stream_skips_chat_overlay_entirely_for_kick_platform():
+    FakeChatOverlay.instances.clear()
+    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
+        "lib.windows.player.xbmc.Player"
+    ) as mock_player_cls, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog):
+        mock_helper_cls.return_value.check_inputstream.return_value = True
+        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
+
+        result = player.play_stream(
+            "https://example.invalid/kickstream.m3u8",
+            "somekickchannel",
+            settings=FakeSettings(True),  # chat_overlay_enabled=True - must still be ignored
+            platform="kick",
+            chat_overlay_cls=FakeChatOverlay,
+            chat_client_cls=FakeChatClient,
+        )
+
+    assert result is True
+    assert len(FakeChatOverlay.instances) == 0
+    mock_player_cls.return_value.play.assert_called_once_with(
+        "https://example.invalid/kickstream.m3u8", ANY
+    )
+
+
+def test_play_stream_defaults_to_twitch_platform_when_unspecified():
+    FakeChatOverlay.instances.clear()
+    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
+        "lib.windows.player.xbmc.Player"
+    ) as mock_player_cls, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog):
+        mock_helper_cls.return_value.check_inputstream.return_value = True
+        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
+
+        player.play_stream(
+            "https://example.invalid/stream.m3u8",
+            "somechannel",
+            settings=FakeSettings(True),
+            chat_overlay_cls=FakeChatOverlay,
+            chat_client_cls=FakeChatClient,
+        )
+
+    assert len(FakeChatOverlay.instances) == 1

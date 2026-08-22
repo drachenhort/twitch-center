@@ -7,11 +7,11 @@ import xbmcaddon
 import xbmcgui
 from inputstreamhelper import Helper
 
+from lib import providers
 from lib.settings import Settings
 from lib.twitch import api
 from lib.twitch import eventsub
 from lib.twitch import irc
-from lib.twitch import stream
 from lib.windows.chat_overlay import ChatOverlay
 from lib.windows.variable_chat_overlay import VariableChatOverlay
 
@@ -46,21 +46,23 @@ class AdBreakState:
 
 
 class RecoveryManager:
-    """Refreshes the Twitch stream URL and restarts Kodi playback."""
+    """Refreshes the stream URL (via the correct platform's resolver) and
+    restarts Kodi playback."""
 
-    def __init__(self, player, channel, website_token=None):
+    def __init__(self, player, channel, platform="twitch"):
         self._player = player
         self._channel = channel
-        self._website_token = website_token
+        self._platform = platform
         self._lock = threading.Lock()
 
     def recover(self):
         if not self._lock.acquire(blocking=False):
             return
         try:
+            addon = xbmcaddon.Addon()
             try:
-                new_url = stream.resolve_stream_url(self._channel, self._website_token)
-            except stream.StreamUnavailableError as exc:
+                new_url = providers.resolve_stream_url(addon, self._platform, self._channel)
+            except providers.StreamUnavailableError as exc:
                 xbmc.log(
                     "script.twitch.center: recovery cannot resolve stream: " + repr(exc),
                     xbmc.LOGERROR,
@@ -163,15 +165,14 @@ class PlaybackWatchdog:
 
 
 class _ChatAwarePlayer(xbmc.Player):
-    def __init__(self, overlay, url=None, channel=None, website_token=None, enable_watchdog=True):
+    def __init__(self, overlay, url=None, channel=None, platform="twitch", enable_watchdog=True):
         super().__init__()
         self._overlay = overlay
         self._url = url
         self._channel = channel
-        self._website_token = website_token
         self._paused = False
         self._ad_state = AdBreakState()
-        self._recovery = RecoveryManager(self, channel, website_token)
+        self._recovery = RecoveryManager(self, channel, platform)
         self._watchdog = PlaybackWatchdog(
             self, self._ad_state, self._recovery, is_paused_fn=lambda: self._paused
         )
@@ -201,12 +202,8 @@ class _ChatAwarePlayer(xbmc.Player):
         self._overlay.close()
 
 
-def _website_token_from_settings(settings):
-    return getattr(settings, "website_token", None) or None
-
-
 def play_stream(url, channel, settings=None, access_token=None, client_id=None, user_id=None,
-                 chat_overlay_cls=None, chat_client_cls=None):
+                 chat_overlay_cls=None, chat_client_cls=None, platform="twitch"):
     """Hand the resolved HLS URL to Kodi's player via inputstream.adaptive,
     which handles proper adaptive-bitrate switching for live multi-quality
     HLS (unlike Kodi's native demuxer playing the URL directly). Returns
@@ -214,17 +211,19 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
     available and the user declined installing it (Helper.check_inputstream
     handles that install-prompt UI itself).
 
-    If playback started and chat_overlay_enabled is set, also creates and
-    shows a ChatOverlay for `channel`, and keeps a
+    If playback started, platform == "twitch", and chat_overlay_enabled is
+    set, also creates and shows a ChatOverlay for `channel`, and keeps a
     _ChatAwarePlayer alive at module level so its onPlaybackStopped/
     onPlaybackEnded callbacks close the overlay and disconnect its chat
     client when this stream ends - a locally-scoped instance would be
-    garbage-collected and stop receiving Kodi's callbacks.
+    garbage-collected and stop receiving Kodi's callbacks. platform=="kick"
+    always skips chat entirely, regardless of chat_overlay_enabled - there
+    is no Kick chat client yet.
 
-    access_token/client_id/user_id are the logged-in user's Helix
+    access_token/client_id/user_id are the logged-in Twitch user's Helix
     credentials - required only when settings.chat_engine == "eventsub"
     (to resolve the channel's numeric id and subscribe); ignored for the
-    default "irc" engine."""
+    default "irc" engine and always ignored for platform=="kick"."""
     global _current_chat_watcher
 
     is_helper = Helper("hls")
@@ -238,7 +237,7 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
     list_item.setContentLookup(False)
 
     settings = settings or Settings()
-    if settings.chat_overlay_enabled:
+    if platform == "twitch" and settings.chat_overlay_enabled:
         try:
             if _current_chat_watcher is not None:
                 _current_chat_watcher._teardown()
@@ -289,9 +288,8 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
                 chat_client_cls=resolved_chat_client_cls,
             )
             overlay.show()
-            website_token = _website_token_from_settings(settings)
             _current_chat_watcher = _ChatAwarePlayer(
-                overlay, url=url, channel=channel, website_token=website_token
+                overlay, url=url, channel=channel, platform=platform
             )
             _current_chat_watcher.play(url, list_item)
         except Exception as exc:
