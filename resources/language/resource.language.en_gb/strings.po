@@ -85,3 +85,11 @@ msgstr ""
 msgctxt "#30023"
 msgid "Local port used to receive the OAuth redirect during Kick login. Must match the redirect URI registered with your Kick app (http://127.0.0.1:<port>/callback)."
 msgstr ""
+
+msgctxt "#30024"
+msgid "Your Kick OAuth app's client ID. Register an app at kick.com/settings/developer to get one."
+msgstr ""
+
+msgctxt "#30025"
+msgid "Kick Client Secret"
+msgstr ""

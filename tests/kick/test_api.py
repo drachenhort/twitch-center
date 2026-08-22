@@ -68,10 +68,10 @@ def test_get_top_categories_returns_id_and_name():
 
 
 def test_get_user_by_login_returns_normalized_dict():
-    body = {"data": [{"user_id": 9, "name": "SomeUser"}]}
+    body = {"data": [{"broadcaster_user_id": 9, "slug": "someuser", "stream": {"is_live": False}}]}
     with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:
         result = api.get_user_by_login("token", "someuser")
-    assert result == {"id": "9", "login": "someuser", "display_name": "SomeUser"}
+    assert result == {"id": "9", "login": "someuser", "display_name": "someuser"}
     assert mock_get.call_args.kwargs["params"] == {"slug": "someuser"}
 
 

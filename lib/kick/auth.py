@@ -80,7 +80,7 @@ def await_callback(port, timeout_seconds):
         server.server_close()
 
 
-def exchange_code_for_token(client_id, redirect_uri, code, code_verifier):
+def exchange_code_for_token(client_id, client_secret, redirect_uri, code, code_verifier):
     """Exchange an authorization code for a token dict. Raises
     requests.RequestException on network/HTTP failure."""
     response = requests.post(
@@ -88,6 +88,7 @@ def exchange_code_for_token(client_id, redirect_uri, code, code_verifier):
         data={
             "grant_type": "authorization_code",
             "client_id": client_id,
+            "client_secret": client_secret,
             "redirect_uri": redirect_uri,
             "code": code,
             "code_verifier": code_verifier,
@@ -98,7 +99,7 @@ def exchange_code_for_token(client_id, redirect_uri, code, code_verifier):
     return response.json()
 
 
-def refresh_access_token(client_id, refresh_token, on_error=None):
+def refresh_access_token(client_id, client_secret, refresh_token, on_error=None):
     """Exchange a refresh_token for a new token dict. Returns None on any
     failure (network error, non-200, unparseable body) rather than raising -
     mirrors lib.twitch.auth.refresh_access_token's contract."""
@@ -109,6 +110,7 @@ def refresh_access_token(client_id, refresh_token, on_error=None):
                 "grant_type": "refresh_token",
                 "refresh_token": refresh_token,
                 "client_id": client_id,
+                "client_secret": client_secret,
             },
             timeout=10,
         )
@@ -151,6 +153,7 @@ def clear_token(addon):
 
 def run_pkce_login(
     client_id,
+    client_secret,
     redirect_port,
     addon,
     on_code,
@@ -183,6 +186,8 @@ def run_pkce_login(
     if cancel_event.is_set():
         return False
 
+    redirect_port = int(redirect_port)
+
     try:
         redirect_uri = f"http://127.0.0.1:{redirect_port}/callback"
         verifier, challenge = generate_pkce_pair()
@@ -210,7 +215,7 @@ def run_pkce_login(
             return False
 
         try:
-            token = exchange_fn(client_id, redirect_uri, result["code"], verifier)
+            token = exchange_fn(client_id, client_secret, redirect_uri, result["code"], verifier)
         except requests.RequestException:
             on_status("error")
             return False

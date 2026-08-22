@@ -187,3 +187,14 @@ kick/
 4. Legal/ToS posture the project wants to take on the unofficial-endpoint
    dependency (same conversation you'd have already had for Twitch's GQL
    usage, if twitch-center relies on that for playback too).
+5. **Unresolved conflict (found in final review of kick-provider-core):**
+   `lib/kick/stream.py`'s `resolve_stream_url` currently assumes the
+   official Public API's `GET /public/v1/channels` response embeds the
+   playback URL inline at `channel["stream"]["url"]`. That is UNVERIFIED
+   against the real official API and directly contradicts section 2 above
+   ("Playback URL (HLS/m3u8)"), which found the official API does *not*
+   expose a playback URL at all. If the official response really lacks it,
+   the fallback is the unofficial `GET https://kick.com/api/v2/channels/{slug}`
+   endpoint (`api.SEARCH_BASE + "/channels/" + slug`, already used by
+   `search_channels`), reading its `playback_url` field instead. This must
+   be confirmed/fixed before sub-project 4 (playback wiring) can work.

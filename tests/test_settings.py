@@ -65,6 +65,13 @@ def test_kick_client_id_setting_is_readable_and_defaults_empty():
     assert addon.getSetting("kick_client_id") == "my-kick-client-id"
 
 
+def test_kick_client_secret_setting_is_readable_and_defaults_empty():
+    addon = xbmcaddon.Addon()
+    assert addon.getSetting("kick_client_secret") == ""
+    addon.setSetting("kick_client_secret", "my-kick-client-secret")
+    assert addon.getSetting("kick_client_secret") == "my-kick-client-secret"
+
+
 def test_kick_redirect_port_setting_is_readable():
     addon = xbmcaddon.Addon()
     addon.setSetting("kick_redirect_port", "9000")

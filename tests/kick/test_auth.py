@@ -114,12 +114,15 @@ def _fake_response(json_body, status_code=200):
 def test_exchange_code_for_token_returns_parsed_response():
     body = {"access_token": "tok", "refresh_token": "ref", "expires_in": 3600}
     with patch.object(auth.requests, "post", return_value=_fake_response(body)) as mock_post:
-        result = auth.exchange_code_for_token("client-id", "http://127.0.0.1:8919/callback", "code123", "verifier123")
+        result = auth.exchange_code_for_token(
+            "client-id", "client-secret-abc", "http://127.0.0.1:8919/callback", "code123", "verifier123"
+        )
     assert result == body
     data = mock_post.call_args.kwargs["data"]
     assert data == {
         "grant_type": "authorization_code",
         "client_id": "client-id",
+        "client_secret": "client-secret-abc",
         "redirect_uri": "http://127.0.0.1:8919/callback",
         "code": "code123",
         "code_verifier": "verifier123",
@@ -129,27 +132,28 @@ def test_exchange_code_for_token_returns_parsed_response():
 def test_exchange_code_for_token_raises_on_http_error():
     with patch.object(auth.requests, "post", return_value=_fake_response({}, status_code=400)):
         with pytest.raises(requests.RequestException):
-            auth.exchange_code_for_token("client-id", "redirect", "code", "verifier")
+            auth.exchange_code_for_token("client-id", "client-secret-abc", "redirect", "code", "verifier")
 
 
 def test_refresh_access_token_returns_new_token_on_success():
     body = {"access_token": "new-tok", "refresh_token": "new-ref", "expires_in": 3600}
-    with patch.object(auth.requests, "post", return_value=_fake_response(body)):
-        result = auth.refresh_access_token("client-id", "old-ref")
+    with patch.object(auth.requests, "post", return_value=_fake_response(body)) as mock_post:
+        result = auth.refresh_access_token("client-id", "client-secret-abc", "old-ref")
     assert result == body
+    assert mock_post.call_args.kwargs["data"]["client_secret"] == "client-secret-abc"
 
 
 def test_refresh_access_token_returns_none_and_calls_on_error_on_network_failure():
     errors = []
     with patch.object(auth.requests, "post", side_effect=requests.RequestException("boom")):
-        result = auth.refresh_access_token("client-id", "old-ref", on_error=errors.append)
+        result = auth.refresh_access_token("client-id", "client-secret-abc", "old-ref", on_error=errors.append)
     assert result is None
     assert "network error" in errors[0]
 
 
 def test_refresh_access_token_returns_none_on_non_200():
     with patch.object(auth.requests, "post", return_value=_fake_response({}, status_code=401)):
-        result = auth.refresh_access_token("client-id", "old-ref")
+        result = auth.refresh_access_token("client-id", "client-secret-abc", "old-ref")
     assert result is None
 
 
@@ -176,8 +180,9 @@ def test_run_pkce_login_success_flow():
     def fake_await_callback(port, timeout_seconds):
         return {"status": "success", "code": "auth-code", "state": codes_shown[-1][1]}
 
-    def fake_exchange(client_id, redirect_uri, code, code_verifier):
+    def fake_exchange(client_id, client_secret, redirect_uri, code, code_verifier):
         assert code == "auth-code"
+        assert client_secret == "client-secret-abc"
         return {"access_token": "tok", "refresh_token": "ref", "expires_in": 3600}
 
     def fake_get_current_user(access_token):
@@ -192,6 +197,7 @@ def test_run_pkce_login_success_flow():
 
     result = auth.run_pkce_login(
         client_id="client-id",
+        client_secret="client-secret-abc",
         redirect_port=18922,
         addon=addon,
         on_code=on_code,
@@ -221,6 +227,7 @@ def test_run_pkce_login_reports_denied_and_saves_nothing():
 
     result = auth.run_pkce_login(
         client_id="client-id",
+        client_secret="client-secret-abc",
         redirect_port=18923,
         addon=addon,
         on_code=lambda url: None,
@@ -242,6 +249,7 @@ def test_run_pkce_login_reports_expired_on_timeout():
 
     result = auth.run_pkce_login(
         client_id="client-id",
+        client_secret="client-secret-abc",
         redirect_port=18924,
         addon=addon,
         on_code=lambda url: None,
@@ -262,6 +270,7 @@ def test_run_pkce_login_reports_error_when_user_fetch_raises():
 
     result = auth.run_pkce_login(
         client_id="client-id",
+        client_secret="client-secret-abc",
         redirect_port=18925,
         addon=addon,
         on_code=lambda url: None,
@@ -285,6 +294,7 @@ def test_run_pkce_login_returns_false_immediately_if_cancelled_before_start():
 
     result = auth.run_pkce_login(
         client_id="client-id",
+        client_secret="client-secret-abc",
         redirect_port=18926,
         addon=addon,
         on_code=lambda url: None,
@@ -296,3 +306,38 @@ def test_run_pkce_login_returns_false_immediately_if_cancelled_before_start():
     )
 
     assert result is False
+
+
+def test_run_pkce_login_accepts_string_redirect_port():
+    # addon.getSetting() always returns a string in Kodi, so run_pkce_login
+    # must accept a string port (e.g. "18927") without raising when it's
+    # passed through to await_callback_fn / HTTPServer.
+    addon = FakeAddon()
+    statuses = []
+    await_callback_calls = []
+    states_shown = []
+
+    def fake_await_callback(port, timeout_seconds):
+        await_callback_calls.append(port)
+        return {"status": "success", "code": "auth-code", "state": states_shown[-1]}
+
+    def on_code(url):
+        from urllib.parse import urlparse, parse_qs
+        states_shown.append(parse_qs(urlparse(url).query)["state"][0])
+
+    result = auth.run_pkce_login(
+        client_id="client-id",
+        client_secret="client-secret-abc",
+        redirect_port="18927",
+        addon=addon,
+        on_code=on_code,
+        on_status=statuses.append,
+        cancel_event=threading.Event(),
+        await_callback_fn=fake_await_callback,
+        exchange_fn=lambda *a, **k: {"access_token": "tok", "refresh_token": "ref"},
+        get_current_user_fn=lambda token: {"id": "42", "login": "someuser", "display_name": "SomeUser"},
+    )
+
+    assert result is True
+    assert await_callback_calls == [18927]
+    assert isinstance(await_callback_calls[0], int)
