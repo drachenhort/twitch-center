@@ -6,9 +6,11 @@ parameter callers pass in, same discipline as lib/settings.py."""
 import json
 
 from lib.kick import auth as kick_auth
+from lib.kick import stream as kick_stream
 from lib.kick.api import get_channel as _kick_get_channel
 from lib.kick.api import get_live_streams as _kick_get_live_streams, get_top_categories as _kick_get_top_categories
 from lib.kick.api import search_channels as _kick_search_channels
+from lib.twitch import stream as twitch_stream
 
 
 def get_kick_favorites(addon):
@@ -241,3 +243,33 @@ def merge_by_viewer_count(*lists):
         combined.extend(items)
     combined.sort(key=lambda item: item["viewer_count"], reverse=True)
     return combined
+
+
+class StreamUnavailableError(Exception):
+    """Raised when a channel (either platform) can't be resolved to a
+    playable URL - wraps lib.twitch.stream.StreamUnavailableError and
+    lib.kick.stream.StreamUnavailableError so callers catch one exception
+    type regardless of platform."""
+
+
+def resolve_stream_url(addon, platform, identifier):
+    """Resolve `identifier` (a Twitch login or Kick slug) to a playable HLS
+    URL for the given platform. Raises StreamUnavailableError - never the
+    underlying per-platform exception - on any failure, including "not
+    logged into Kick" (unlike listing, an explicit play action needs a
+    definite error, not a silent empty result)."""
+    if platform == "twitch":
+        website_token = addon.getSetting("website_token")
+        try:
+            return twitch_stream.resolve_stream_url(identifier, website_token)
+        except twitch_stream.StreamUnavailableError as exc:
+            raise StreamUnavailableError(str(exc)) from exc
+    if platform == "kick":
+        token = kick_auth.load_token(addon)
+        if token is None:
+            raise StreamUnavailableError("not logged into Kick")
+        try:
+            return kick_stream.resolve_stream_url(token["access_token"], identifier)
+        except kick_stream.StreamUnavailableError as exc:
+            raise StreamUnavailableError(str(exc)) from exc
+    raise StreamUnavailableError("unknown platform: " + repr(platform))

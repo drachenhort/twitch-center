@@ -370,3 +370,54 @@ def test_get_kick_search_results_returns_empty_list_on_error():
 
     result = providers.get_kick_search_results(addon, "q", search_channels_fn=failing)
     assert result == []
+
+
+import pytest
+
+from lib.kick import stream as kick_stream
+from lib.twitch import stream as twitch_stream
+
+
+def test_resolve_stream_url_dispatches_to_twitch():
+    addon = xbmcaddon.Addon()
+    addon.setSetting("website_token", "webtok")
+    with patch.object(twitch_stream, "resolve_stream_url", return_value="https://twitch.example/x.m3u8") as mock:
+        url = providers.resolve_stream_url(addon, "twitch", "somechannel")
+    mock.assert_called_once_with("somechannel", "webtok")
+    assert url == "https://twitch.example/x.m3u8"
+
+
+def test_resolve_stream_url_wraps_twitch_unavailable_error():
+    addon = xbmcaddon.Addon()
+    with patch.object(twitch_stream, "resolve_stream_url", side_effect=twitch_stream.StreamUnavailableError("x")):
+        with pytest.raises(providers.StreamUnavailableError):
+            providers.resolve_stream_url(addon, "twitch", "somechannel")
+
+
+def test_resolve_stream_url_dispatches_to_kick():
+    addon = xbmcaddon.Addon()
+    addon.setSetting("kick_token", '{"access_token": "tok"}')
+    with patch.object(kick_stream, "resolve_stream_url", return_value="https://kick.example/x.m3u8") as mock:
+        url = providers.resolve_stream_url(addon, "kick", "somechannel")
+    mock.assert_called_once_with("tok", "somechannel")
+    assert url == "https://kick.example/x.m3u8"
+
+
+def test_resolve_stream_url_wraps_kick_unavailable_error():
+    addon = xbmcaddon.Addon()
+    addon.setSetting("kick_token", '{"access_token": "tok"}')
+    with patch.object(kick_stream, "resolve_stream_url", side_effect=kick_stream.StreamUnavailableError("x")):
+        with pytest.raises(providers.StreamUnavailableError):
+            providers.resolve_stream_url(addon, "kick", "somechannel")
+
+
+def test_resolve_stream_url_raises_for_kick_when_not_logged_in():
+    addon = xbmcaddon.Addon()  # no kick_token
+    with pytest.raises(providers.StreamUnavailableError):
+        providers.resolve_stream_url(addon, "kick", "somechannel")
+
+
+def test_resolve_stream_url_raises_for_unknown_platform():
+    addon = xbmcaddon.Addon()
+    with pytest.raises(providers.StreamUnavailableError):
+        providers.resolve_stream_url(addon, "nonsense", "somechannel")
