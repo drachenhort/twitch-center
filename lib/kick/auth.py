@@ -5,6 +5,7 @@ import hashlib
 import json
 import queue
 import secrets
+import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlencode, urlparse
 
@@ -45,6 +46,16 @@ _CALLBACK_HTML = b"<html><body>You can close this tab and return to Kodi.</body>
 
 class _CallbackHandler(BaseHTTPRequestHandler):
     def do_GET(self):
+        path = urlparse(self.path).path
+        if path == "/start" and self.server.authorize_url:
+            self.send_response(302)
+            self.send_header("Location", self.server.authorize_url)
+            self.end_headers()
+            return
+        if path != "/callback":
+            self.send_response(404)
+            self.end_headers()
+            return
         params = parse_qs(urlparse(self.path).query)
         if "code" in params:
             self.server.result_queue.put(
@@ -63,19 +74,34 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         pass  # silence BaseHTTPRequestHandler's default stderr logging
 
 
-def await_callback(port, timeout_seconds):
-    """Run a one-shot loopback HTTP server on 127.0.0.1:port, blocking until it
-    receives a request carrying `code`/`state` or `error`, or timeout_seconds
-    elapses. Returns {"status": "success", "code", "state"} |
-    {"status": "error", "error"} | {"status": "timeout"}."""
+def await_callback(port, timeout_seconds, authorize_url=None):
+    """Run a loopback HTTP server on 127.0.0.1:port, blocking until it
+    receives a /callback request carrying `code`/`state` or `error`, or
+    timeout_seconds elapses. Returns {"status": "success", "code", "state"} |
+    {"status": "error", "error"} | {"status": "timeout"}.
+
+    If authorize_url is given, the server also serves a short /start route
+    that 302-redirects to it - lets the login screen show/log a short
+    "http://127.0.0.1:<port>/start" instead of Kick's much longer authorize
+    URL. A /start hit (or any other non-/callback request, e.g. a browser's
+    automatic /favicon.ico) doesn't complete the wait - only /callback does,
+    so the server keeps handling requests in a loop until one arrives or the
+    overall timeout is reached."""
     server = HTTPServer(("127.0.0.1", port), _CallbackHandler)
     server.result_queue = queue.Queue(maxsize=1)
-    server.timeout = timeout_seconds
+    server.authorize_url = authorize_url
+    deadline = time.monotonic() + timeout_seconds
     try:
-        server.handle_request()
-        return server.result_queue.get_nowait()
-    except queue.Empty:
-        return {"status": "timeout"}
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return {"status": "timeout"}
+            server.timeout = remaining
+            server.handle_request()
+            try:
+                return server.result_queue.get_nowait()
+            except queue.Empty:
+                continue
     finally:
         server.server_close()
 
@@ -194,10 +220,14 @@ def run_pkce_login(
         state = secrets.token_urlsafe(16)
         url = build_authorize_url(client_id, redirect_uri, challenge, scopes, state)
 
-        on_code(url)
+        # Show/log the short local /start redirect instead of Kick's much
+        # longer authorize URL - await_callback_fn serves it from the same
+        # loopback server and 302s straight to `url`.
+        short_url = f"http://127.0.0.1:{redirect_port}/start"
+        on_code(short_url)
         on_status("pending")
 
-        result = await_callback_fn(redirect_port, callback_timeout_seconds)
+        result = await_callback_fn(redirect_port, callback_timeout_seconds, authorize_url=url)
 
         if cancel_event.is_set():
             return False

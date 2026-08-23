@@ -3,6 +3,8 @@ import hashlib
 import json
 import threading
 import time
+import http.client
+import urllib.error
 from unittest.mock import MagicMock, patch
 from urllib.request import urlopen
 
@@ -87,6 +89,55 @@ def test_await_callback_times_out_when_nothing_arrives():
     port = 18921
     result = auth.await_callback(port, timeout_seconds=0.5)
     assert result == {"status": "timeout"}
+
+
+def test_await_callback_start_route_redirects_to_authorize_url():
+    port = 18924
+    result_holder = {}
+
+    def run():
+        result_holder["result"] = auth.await_callback(
+            port, timeout_seconds=5, authorize_url="https://id.kick.com/oauth/authorize?client_id=x"
+        )
+
+    thread = threading.Thread(target=run)
+    thread.start()
+    time.sleep(0.2)
+    # http.client, not urlopen, so the 302 isn't auto-followed (which would
+    # hit the real id.kick.com over the network in a unit test).
+    conn = http.client.HTTPConnection("127.0.0.1", port)
+    conn.request("GET", "/start")
+    response = conn.getresponse()
+    assert response.status == 302
+    assert response.getheader("Location") == "https://id.kick.com/oauth/authorize?client_id=x"
+    conn.close()
+
+    # /start alone doesn't complete the wait - the real /callback still has
+    # to land afterward, same as a browser being redirected there for real.
+    urlopen(f"http://127.0.0.1:{port}/callback?code=abc&state=xyz")
+    thread.join(timeout=5)
+
+    assert result_holder["result"] == {"status": "success", "code": "abc", "state": "xyz"}
+
+
+def test_await_callback_ignores_unknown_paths():
+    port = 18925
+    result_holder = {}
+
+    def run():
+        result_holder["result"] = auth.await_callback(port, timeout_seconds=5)
+
+    thread = threading.Thread(target=run)
+    thread.start()
+    time.sleep(0.2)
+    try:
+        urlopen(f"http://127.0.0.1:{port}/favicon.ico")
+    except urllib.error.HTTPError as exc:
+        assert exc.code == 404
+    urlopen(f"http://127.0.0.1:{port}/callback?code=abc&state=xyz")
+    thread.join(timeout=5)
+
+    assert result_holder["result"] == {"status": "success", "code": "abc", "state": "xyz"}
 
 
 class FakeAddon:
@@ -177,8 +228,13 @@ def test_run_pkce_login_success_flow():
     codes_shown = []
     statuses = []
 
-    def fake_await_callback(port, timeout_seconds):
-        return {"status": "success", "code": "auth-code", "state": codes_shown[-1][1]}
+    def fake_await_callback(port, timeout_seconds, authorize_url=None):
+        # State is embedded in authorize_url (the real Kick URL, passed
+        # separately from on_code's short display URL) as a query param -
+        # capture it so this fake callback can "echo" the right one back.
+        from urllib.parse import urlparse, parse_qs
+        state = parse_qs(urlparse(authorize_url).query)["state"][0]
+        return {"status": "success", "code": "auth-code", "state": state}
 
     def fake_exchange(client_id, client_secret, redirect_uri, code, code_verifier):
         assert code == "auth-code"
@@ -189,11 +245,7 @@ def test_run_pkce_login_success_flow():
         return {"id": "42", "login": "someuser", "display_name": "SomeUser"}
 
     def on_code(url):
-        # state is embedded in the URL as a query param; capture it so the
-        # fake callback can "echo" the right one back.
-        from urllib.parse import urlparse, parse_qs
-        state = parse_qs(urlparse(url).query)["state"][0]
-        codes_shown.append((url, state))
+        codes_shown.append(url)
 
     result = auth.run_pkce_login(
         client_id="client-id",
@@ -210,7 +262,7 @@ def test_run_pkce_login_success_flow():
 
     assert result is True
     assert statuses == ["pending", "success"]
-    assert len(codes_shown) == 1
+    assert codes_shown == ["http://127.0.0.1:18922/start"]
     saved = auth.load_token(addon)
     assert saved["access_token"] == "tok"
     assert saved["user_id"] == "42"
@@ -222,7 +274,7 @@ def test_run_pkce_login_reports_denied_and_saves_nothing():
     addon = FakeAddon()
     statuses = []
 
-    def fake_await_callback(port, timeout_seconds):
+    def fake_await_callback(port, timeout_seconds, authorize_url=None):
         return {"status": "error", "error": "access_denied"}
 
     result = auth.run_pkce_login(
@@ -255,7 +307,7 @@ def test_run_pkce_login_reports_expired_on_timeout():
         on_code=lambda url: None,
         on_status=lambda status, detail=None: statuses.append(status),
         cancel_event=threading.Event(),
-        await_callback_fn=lambda port, timeout_seconds: {"status": "timeout"},
+        await_callback_fn=lambda port, timeout_seconds, authorize_url=None: {"status": "timeout"},
         exchange_fn=lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not exchange")),
         get_current_user_fn=lambda token: (_ for _ in ()).throw(AssertionError("should not fetch user")),
     )
@@ -276,7 +328,7 @@ def test_run_pkce_login_reports_error_when_user_fetch_raises():
         on_code=lambda url: None,
         on_status=lambda status, detail=None: statuses.append(status),
         cancel_event=threading.Event(),
-        await_callback_fn=lambda port, timeout_seconds: {"status": "success", "code": "c", "state": "s"},
+        await_callback_fn=lambda port, timeout_seconds, authorize_url=None: {"status": "success", "code": "c", "state": "s"},
         exchange_fn=lambda *a, **k: {"access_token": "tok", "refresh_token": "ref"},
         get_current_user_fn=lambda token: (_ for _ in ()).throw(RuntimeError("boom")),
     )
@@ -300,7 +352,7 @@ def test_run_pkce_login_returns_false_immediately_if_cancelled_before_start():
         on_code=lambda url: None,
         on_status=lambda status, detail=None: statuses.append(status),
         cancel_event=cancel_event,
-        await_callback_fn=lambda port, timeout_seconds: (_ for _ in ()).throw(AssertionError("should not await")),
+        await_callback_fn=lambda port, timeout_seconds, authorize_url=None: (_ for _ in ()).throw(AssertionError("should not await")),
         exchange_fn=lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not exchange")),
         get_current_user_fn=lambda token: (_ for _ in ()).throw(AssertionError("should not fetch user")),
     )
@@ -315,22 +367,19 @@ def test_run_pkce_login_accepts_string_redirect_port():
     addon = FakeAddon()
     statuses = []
     await_callback_calls = []
-    states_shown = []
 
-    def fake_await_callback(port, timeout_seconds):
+    def fake_await_callback(port, timeout_seconds, authorize_url=None):
         await_callback_calls.append(port)
-        return {"status": "success", "code": "auth-code", "state": states_shown[-1]}
-
-    def on_code(url):
         from urllib.parse import urlparse, parse_qs
-        states_shown.append(parse_qs(urlparse(url).query)["state"][0])
+        state = parse_qs(urlparse(authorize_url).query)["state"][0]
+        return {"status": "success", "code": "auth-code", "state": state}
 
     result = auth.run_pkce_login(
         client_id="client-id",
         client_secret="client-secret-abc",
         redirect_port="18927",
         addon=addon,
-        on_code=on_code,
+        on_code=lambda url: None,
         on_status=lambda status, detail=None: statuses.append(status),
         cancel_event=threading.Event(),
         await_callback_fn=fake_await_callback,

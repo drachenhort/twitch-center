@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.22.4] - 2026-08-23
+
+### Changed
+- Kick login screen now shows/logs a short `http://127.0.0.1:<port>/start` link instead
+  of Kick's much longer authorize URL - the addon's own loopback OAuth server now also
+  serves that route, 302-redirecting straight to Kick. Same-machine use only (not a fix
+  for logging in from a separate phone/device - that still needs the real long URL
+  reachable over the LAN, which `127.0.0.1` never is from another device).
+
 ## [0.22.3] - 2026-08-23
 
 ### Fixed

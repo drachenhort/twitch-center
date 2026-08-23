@@ -197,7 +197,7 @@
         <height>60</height>
         <font>font13</font>
         <align>center</align>
-        <label>Open this URL on your phone or PC (same network as this device):</label>
+        <label>Open this URL in a browser on this same machine:</label>
       </control>
       <control type="label" id="601">
         <description>Authorize URL</description>

@@ -1,5 +1,7 @@
-"""Kick login view: PKCE flow, displays the authorize URL to open on another
-device, waits for the loopback callback. Not a Window subclass - see
+"""Kick login view: PKCE flow, displays a short local URL (the loopback
+server's own /start route, which redirects to Kick's much longer real
+authorize URL - see lib/kick/auth.py) to open on this same machine, waits
+for the loopback callback. Not a Window subclass - see
 MainWindow. Mirrors lib/views/login_view.py's shape (fresh flow per visit,
 stale-callback guarding via a per-flow cancel_event) but drives
 kick.auth.run_pkce_login instead of twitch.auth.run_device_code_login - see
