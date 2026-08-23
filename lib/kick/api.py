@@ -2,6 +2,7 @@
 import requests
 
 API_BASE = "https://api.kick.com/public/v1"
+API_BASE_V2 = "https://api.kick.com/public/v2"
 
 
 class TokenExpiredError(Exception):
@@ -54,6 +55,13 @@ def get_live_streams(access_token, category_id=None, first=20):
     return body["data"]
 
 
+def get_top_categories(access_token, first=20):
+    """Return Kick's categories as a list of {"id", "name"} dicts, via
+    GET /public/v2/categories (confirmed live 2026-08-23: no search query
+    required, unlike the deprecated v1 endpoint - this is a real
+    browse-all-categories call, just capped to a page via `limit`)."""
+    body = _get(API_BASE_V2 + "/categories", access_token, params={"limit": first})
+    return [{"id": category["id"], "name": category["name"]} for category in body["data"]]
 
 
 def get_user_by_login(access_token, slug):

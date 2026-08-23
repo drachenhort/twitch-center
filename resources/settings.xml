@@ -76,14 +76,13 @@
           </constraints>
           <control type="edit" format="string"/>
         </setting>
-        <setting id="kick_client_secret" type="string" label="30025" help="">
+        <setting id="kick_client_secret" type="string" label="30025" help="30024">
           <level>2</level>
           <default></default>
           <constraints>
             <allowempty>true</allowempty>
           </constraints>
           <control type="edit" format="string"/>
-          <visible>false</visible>
         </setting>
         <setting id="kick_redirect_port" type="integer" label="30021" help="30023">
           <level>2</level>

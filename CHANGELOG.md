@@ -4,6 +4,26 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.22.3] - 2026-08-23
+
+### Fixed
+- `kick_client_secret` setting was left `<visible>false</visible>` with no help text
+  (unlike its `kick_client_id` sibling), so there was no way to enter/fix it via Kodi's
+  Settings UI. Now visible with help text pointing to dev.kick.com, matching client_id.
+- Kick PKCE login's generic "Connection error" message covered four different failure
+  causes (state mismatch, token exchange failure, user-info fetch failure, or any other
+  exception) with no way to tell which. `run_pkce_login` now passes the real exception/
+  reason through to `on_status`, logged to kodi.log.
+- Discover's Kick categories row switched from the client-side derive-from-livestreams
+  workaround (added in 0.22.2 for Finding 3) to the real `GET /public/v2/categories`
+  endpoint - confirmed live 2026-08-23 that, unlike the deprecated v1 endpoint, it needs
+  no search query and genuinely supports browsing all categories.
+
+### Changed
+- Kick login screen's authorize URL is now also written to kodi.log (INFO level) and its
+  on-screen label wraps across multiple lines instead of being clipped - both make it
+  usable to actually copy/read instead of squinting at a single truncated line.
+
 ## [0.22.2] - 2026-08-23
 
 ### Fixed

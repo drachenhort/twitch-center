@@ -207,17 +207,17 @@ def run_pkce_login(
             on_status("expired")
             return False
         if status == "error":
-            on_status("denied")
+            on_status("denied", result.get("error"))
             return False
 
         if result.get("state") != state:
-            on_status("error")
+            on_status("error", "state mismatch")
             return False
 
         try:
             token = exchange_fn(client_id, client_secret, redirect_uri, result["code"], verifier)
-        except requests.RequestException:
-            on_status("error")
+        except requests.RequestException as exc:
+            on_status("error", repr(exc))
             return False
 
         if cancel_event.is_set():
@@ -225,8 +225,8 @@ def run_pkce_login(
 
         try:
             user_info = get_current_user_fn(token["access_token"])
-        except Exception:
-            on_status("error")
+        except Exception as exc:
+            on_status("error", repr(exc))
             return False
 
         token["user_id"] = user_info["id"]
@@ -239,6 +239,6 @@ def run_pkce_login(
         save_token(token, addon)
         on_status("success")
         return True
-    except Exception:
-        on_status("error")
+    except Exception as exc:
+        on_status("error", repr(exc))
         return False

@@ -201,13 +201,14 @@
       </control>
       <control type="label" id="601">
         <description>Authorize URL</description>
-        <posx>560</posx>
+        <posx>260</posx>
         <posy>360</posy>
-        <width>800</width>
-        <height>100</height>
+        <width>1400</width>
+        <height>180</height>
         <font>font13</font>
         <align>center</align>
         <aligny>center</aligny>
+        <wrapmultiline>true</wrapmultiline>
         <label></label>
       </control>
       <control type="label" id="602">

@@ -60,6 +60,21 @@ def test_get_live_streams_omits_category_id_when_none():
     assert mock_get.call_args.kwargs["params"] == {"limit": 20}
 
 
+def test_get_top_categories_returns_id_and_name():
+    body = {
+        "data": [
+            {"id": 1, "name": "Apex Legends", "thumbnail": "https://example.invalid/apex.jpg", "tags": ["FPS"]},
+            {"id": 2, "name": "Fortnite", "thumbnail": "https://example.invalid/fortnite.jpg", "tags": ["Shooter"]},
+        ]
+    }
+    with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:
+        result = api.get_top_categories("token", first=2)
+    assert result == [{"id": 1, "name": "Apex Legends"}, {"id": 2, "name": "Fortnite"}]
+    called_url = mock_get.call_args.args[0]
+    assert called_url == api.API_BASE_V2 + "/categories"
+    assert mock_get.call_args.kwargs["params"] == {"limit": 2}
+
+
 def test_get_user_by_login_returns_normalized_dict():
     body = {"data": [{"broadcaster_user_id": 9, "slug": "someuser", "stream": {"is_live": False}}]}
     with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:

@@ -83,12 +83,21 @@ class KickLoginView:
         if cancel_event.is_set():
             return
         self.window.getControl(self.URL_LABEL_ID).setLabel(url)
+        # Also written to the log so a copy/paste-capable terminal on the
+        # same machine can grab it verbatim - the on-screen label alone is
+        # painful to transcribe by hand. Safe to log: contains client_id
+        # (public), redirect_uri, scope, state, and code_challenge - no
+        # secret, per PKCE's design (the challenge is meant to be public).
+        xbmc.log("script.twitch.center: Kick authorize URL: " + url, xbmc.LOGINFO)
 
-    def _on_status(self, cancel_event, status):
+    def _on_status(self, cancel_event, status, detail=None):
         if cancel_event.is_set():
             return
-        if status == "error":
-            xbmc.log("script.twitch.center: Kick PKCE login reported an error", xbmc.LOGERROR)
+        if status in ("error", "denied"):
+            xbmc.log(
+                "script.twitch.center: Kick PKCE login reported status=%s detail=%s" % (status, detail),
+                xbmc.LOGERROR,
+            )
         message = STATUS_MESSAGES.get(status, "")
         self.window.getControl(self.STATUS_LABEL_ID).setLabel(message)
         if status == "success":

@@ -204,43 +204,26 @@ def test_get_kick_top_categories_returns_empty_list_when_no_kick_token():
     assert providers.get_kick_top_categories(addon) == []
 
 
-def test_get_kick_top_categories_derives_categories_from_live_streams():
+def test_get_kick_top_categories_returns_categories_when_logged_in():
     addon = xbmcaddon.Addon()
     addon.setSetting("kick_token", '{"access_token": "tok"}')
 
-    def fake_get_live_streams(access_token, first=50):
+    def fake_get_top_categories(access_token):
         assert access_token == "tok"
-        return [
-            {"category": {"id": 7, "name": "Just Chatting"}, "viewer_count": 100},
-            {"category": {"id": 8, "name": "Games"}, "viewer_count": 300},
-            # Second stream in the same category as the first - deduped, first
-            # occurrence's ordering position doesn't matter, sort key does.
-            {"category": {"id": 7, "name": "Just Chatting"}, "viewer_count": 50},
-        ]
+        return [{"id": 7, "name": "Just Chatting"}, {"id": 8, "name": "Games"}]
 
-    result = providers.get_kick_top_categories(addon, get_live_streams_fn=fake_get_live_streams)
-    assert result == [{"id": 8, "name": "Games"}, {"id": 7, "name": "Just Chatting"}]
-
-
-def test_get_kick_top_categories_skips_streams_without_a_category():
-    addon = xbmcaddon.Addon()
-    addon.setSetting("kick_token", '{"access_token": "tok"}')
-
-    def fake_get_live_streams(access_token, first=50):
-        return [{"viewer_count": 100}]
-
-    result = providers.get_kick_top_categories(addon, get_live_streams_fn=fake_get_live_streams)
-    assert result == []
+    result = providers.get_kick_top_categories(addon, get_top_categories_fn=fake_get_top_categories)
+    assert result == [{"id": 7, "name": "Just Chatting"}, {"id": 8, "name": "Games"}]
 
 
 def test_get_kick_top_categories_returns_empty_list_on_error():
     addon = xbmcaddon.Addon()
     addon.setSetting("kick_token", '{"access_token": "tok"}')
 
-    def failing(access_token, first=50):
+    def failing(access_token):
         raise Exception("boom")
 
-    result = providers.get_kick_top_categories(addon, get_live_streams_fn=failing)
+    result = providers.get_kick_top_categories(addon, get_top_categories_fn=failing)
     assert result == []
 
 

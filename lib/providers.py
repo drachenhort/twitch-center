@@ -9,6 +9,7 @@ from lib.kick import auth as kick_auth
 from lib.kick import stream as kick_stream
 from lib.kick.api import get_channel as _kick_get_channel
 from lib.kick.api import get_live_streams as _kick_get_live_streams
+from lib.kick.api import get_top_categories as _kick_get_top_categories
 from lib.twitch import stream as twitch_stream
 
 
@@ -122,39 +123,23 @@ def get_kick_live_favorites(addon, get_channel_fn=None):
     return results
 
 
-def get_kick_top_categories(addon, get_live_streams_fn=None, first=50):
-    """Return categories currently seen among Kick's top live streams, or []
-    if there's no saved Kick token or the call fails - never raises. Used to
-    populate Discover's Kick categories row, which simply doesn't appear (via
-    an empty row) rather than erroring when the user isn't logged into Kick.
+def get_kick_top_categories(addon, get_top_categories_fn=None):
+    """Return Kick's categories, or [] if there's no saved Kick token or the
+    call fails - never raises. Used to populate Discover's Kick categories
+    row, which simply doesn't appear (via an empty row) rather than erroring
+    when the user isn't logged into Kick.
 
-    Kick's own GET /public/v1/categories endpoint is deprecated and requires
-    a mandatory search query - there's no "browse all categories" mode to
-    call instead, so this derives a categories list client-side from a page
-    of live streams (which does support unfiltered browsing), deduped by id
-    and ordered by descending viewer count of their top stream."""
-    if get_live_streams_fn is None:
-        get_live_streams_fn = _kick_get_live_streams
+    Uses GET /public/v2/categories (confirmed live 2026-08-23 - no search
+    query required, unlike the deprecated v1 endpoint this replaced)."""
+    if get_top_categories_fn is None:
+        get_top_categories_fn = _kick_get_top_categories
     token = kick_auth.load_token(addon)
     if token is None:
         return []
     try:
-        streams = get_live_streams_fn(token["access_token"], first=first)
+        return get_top_categories_fn(token["access_token"])
     except Exception:
         return []
-    seen = {}
-    for entry in streams:
-        category = entry.get("category") or {}
-        category_id = category.get("id")
-        if category_id is None or category_id in seen:
-            continue
-        seen[category_id] = {
-            "id": category_id,
-            "name": category.get("name", ""),
-            "viewer_count": entry.get("viewer_count", 0),
-        }
-    ordered = sorted(seen.values(), key=lambda c: c["viewer_count"], reverse=True)
-    return [{"id": c["id"], "name": c["name"]} for c in ordered]
 
 
 def _normalize_kick_live_stream_entry(entry):
