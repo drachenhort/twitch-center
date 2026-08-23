@@ -44,7 +44,7 @@ class SelfFocusingFakeView(FakeView):
 def _make_window(initial_view="menu", view_classes=None):
     views = {
         name: FakeView
-        for name in ("login", "menu", "live_streams", "discover", "search", "kick_login")
+        for name in ("login", "menu", "live_streams", "discover", "kick_login")
     }
     views.update(view_classes or {})
     return MainWindow(
@@ -53,7 +53,7 @@ def _make_window(initial_view="menu", view_classes=None):
 
 
 def test_oninit_sets_the_version_label():
-    views = {name: FakeView for name in ("login", "menu", "live_streams", "discover", "search")}
+    views = {name: FakeView for name in ("login", "menu", "live_streams", "discover")}
     win = MainWindow(
         "script-twitch-center-main.xml", "/tmp", initial_view="menu", view_classes=views,
         version_text="v0.18.0 (2026-08-22)",
@@ -117,11 +117,11 @@ def test_onaction_back_stops_playback_instead_of_navigating_when_playing():
 
 
 def test_onaction_delegates_non_back_actions_to_the_active_view():
-    win = _make_window(initial_view="search")
+    win = _make_window(initial_view="discover")
     win.onInit()
     action = xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM)
     win.onAction(action)
-    assert win._views["search"].actions == [action]
+    assert win._views["discover"].actions == [action]
 
 
 def test_onclick_delegates_to_the_active_view():

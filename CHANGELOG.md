@@ -4,6 +4,16 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.24.0] - 2026-08-23
+
+### Removed
+- The standalone Search screen (menu button, `SearchView`, skin group 400) - live testing
+  found its search box's on-screen keyboard reopened in a loop on the very first press,
+  even before typing anything, unrelated to any recent change. Rather than chase an
+  unexplained pre-existing bug, dropped the screen entirely: Discover's search-by-channel
+  already covers the same need and works fine. Also removed the now-dead code this only
+  existed to serve: `lib.twitch.gql.search()`, `providers.normalize_twitch_search_result`.
+
 ## [0.23.1] - 2026-08-23
 
 ### Changed

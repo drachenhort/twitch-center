@@ -274,64 +274,6 @@ def test_get_kick_category_streams_returns_empty_list_on_error():
     assert result == []
 
 
-def test_normalize_twitch_search_result_from_channel_shape():
-    item = {
-        "id": "1",
-        "broadcaster_login": "alice",
-        "display_name": "Alice",
-        "is_live": True,
-        "game_name": "Just Chatting",
-        "thumbnail_url": "https://example.invalid/thumb.jpg",
-    }
-    result = providers.normalize_twitch_search_result(item)
-    assert result == {
-        "platform": "twitch",
-        "id": "1",
-        "login": "alice",
-        "display_name": "Alice",
-        "is_live": True,
-        "viewer_count": 0,
-        "game_name": "Just Chatting",
-        "thumbnail_url": "https://example.invalid/thumb.jpg",
-    }
-
-
-def test_normalize_twitch_search_result_from_stream_shape():
-    item = {
-        "user_id": "2",
-        "user_login": "bob",
-        "user_name": "Bob",
-        "viewer_count": 77,
-        "game_name": "Games",
-        "thumbnail_url": "https://example.invalid/{width}x{height}.jpg",
-    }
-    result = providers.normalize_twitch_search_result(item)
-    assert result == {
-        "platform": "twitch",
-        "id": "2",
-        "login": "bob",
-        "display_name": "Bob",
-        "is_live": True,
-        "viewer_count": 77,
-        "game_name": "Games",
-        "thumbnail_url": "https://example.invalid/320x180.jpg",
-    }
-
-
-def test_normalize_twitch_search_result_defensive_on_missing_fields():
-    result = providers.normalize_twitch_search_result({})
-    assert result == {
-        "platform": "twitch",
-        "id": "",
-        "login": "",
-        "display_name": "Unknown",
-        "is_live": False,
-        "viewer_count": 0,
-        "game_name": "",
-        "thumbnail_url": "",
-    }
-
-
 import pytest
 
 from lib.kick import stream as kick_stream

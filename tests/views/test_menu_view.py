@@ -47,10 +47,6 @@ def test_selecting_discover_switches_to_discover_view():
     assert window.switched_to == ["discover"]
 
 
-def test_selecting_search_switches_to_search_view():
-    window = FakeMainWindow()
-    _select(window, MenuView.SEARCH_BUTTON_ID)
-    assert window.switched_to == ["search"]
 
 
 def test_selecting_relogin_switches_to_login_view():

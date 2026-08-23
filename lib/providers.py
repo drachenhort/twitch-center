@@ -177,34 +177,11 @@ def get_kick_category_streams(addon, category_id, get_live_streams_fn=None):
     return [_normalize_kick_live_stream_entry(entry) for entry in entries]
 
 
-def normalize_twitch_search_result(item):
-    """Convert one raw dict from lib.twitch.gql.search() - which returns a
-    mix of Twitch's search/channels shape (broadcaster_login, display_name,
-    is_live, no viewer_count) and search/streams shape (user_login,
-    user_name, viewer_count, always live) - into the shared normalized dict.
-    Mirrors the .get() fallback chain lib/views/search_view.py's
-    _render_results/play_selected already use for display/login, extended to
-    the full normalized shape."""
-    display_name = item.get("display_name") or item.get("user_name") or "Unknown"
-    login = item.get("broadcaster_login") or item.get("user_login") or item.get("login") or ""
-    viewer_count = item.get("viewer_count", 0)
-    return {
-        "platform": "twitch",
-        "id": item.get("id") or item.get("user_id") or "",
-        "login": login,
-        "display_name": display_name,
-        "is_live": bool(item.get("is_live", False)) or "viewer_count" in item,
-        "viewer_count": viewer_count,
-        "game_name": item.get("game_name", ""),
-        "thumbnail_url": _twitch_thumbnail_url(item["thumbnail_url"]) if item.get("thumbnail_url") else "",
-    }
-
-
 def merge_by_viewer_count(*lists):
     """Combine any number of normalized-dict lists into one, sorted by
     viewer_count descending. Used to interleave Twitch and Kick results
-    (Live Streams, Search, category browsing) without either view knowing
-    the other platform exists."""
+    (Live Streams, category browsing) without either view knowing the
+    other platform exists."""
     combined = []
     for items in lists:
         combined.extend(items)

@@ -14,7 +14,6 @@ MODULES = [
     "lib.views.menu_view",
     "lib.views.live_streams_view",
     "lib.views.discover_view",
-    "lib.views.search_view",
     "lib.settings",
     "lib.main",
 ]

@@ -59,7 +59,7 @@ msgid "EventSub (requires login, official API)"
 msgstr ""
 
 msgctxt "#30017"
-msgid "EventSub requires being logged in and is not available for Search results playback (falls back to IRC there)."
+msgid "EventSub requires being logged in - falls back to IRC automatically if the channel's id can't be resolved."
 msgstr ""
 
 msgctxt "#30018"

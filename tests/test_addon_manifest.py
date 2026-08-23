@@ -243,7 +243,6 @@ def test_main_skin_xml_declares_all_expected_control_ids():
     from lib.views.kick_login_view import KickLoginView
     from lib.views.login_view import LoginView
     from lib.views.menu_view import MenuView
-    from lib.views.search_view import SearchView
 
     expected_ids = {
         LoginView.CODE_LABEL_ID,
@@ -252,7 +251,6 @@ def test_main_skin_xml_declares_all_expected_control_ids():
         LoginView.CANCEL_BUTTON_ID,
         MenuView.LIVE_STREAMS_BUTTON_ID,
         MenuView.DISCOVER_BUTTON_ID,
-        MenuView.SEARCH_BUTTON_ID,
         MenuView.SETTINGS_BUTTON_ID,
         MenuView.RELOGIN_BUTTON_ID,
         MenuView.KICK_LOGIN_BUTTON_ID,
@@ -271,10 +269,6 @@ def test_main_skin_xml_declares_all_expected_control_ids():
         DISCOVER_SEARCH_BUTTON_ID,
         DISCOVER_SEARCH_MODE_TOGGLE_ID,
         DISCOVER_KICK_CATEGORIES_LIST_ID,
-        SearchView.SEARCH_INPUT_ID,
-        SearchView.RESULTS_LIST_ID,
-        SearchView.STATUS_LABEL_ID,
-        SearchView.NEXT_PAGE_BUTTON_ID,
         KickLoginView.URL_LABEL_ID,
         KickLoginView.STATUS_LABEL_ID,
         KickLoginView.CANCEL_BUTTON_ID,
