@@ -22,6 +22,31 @@ def _get(url, access_token, params=None):
     return response.json()
 
 
+UNOFFICIAL_CHANNEL_URL = "https://kick.com/api/v2/channels/{slug}"
+
+
+def get_unofficial_channel(channel_slug):
+    """Return the unofficial kick.com/api/v2/channels/{slug} response, or
+    None if no such channel. No access token needed - this endpoint is
+    public and unauthenticated (confirmed live 2026-08-23).
+
+    Only used for `playback_url`: the official Public API's GET /channels
+    (see get_channel() above) always returns stream.url as an empty string
+    even for a live channel (confirmed live 2026-08-23 against a real
+    stream) - it just doesn't expose the HLS URL at all, despite that key
+    existing. This unofficial endpoint (used by kick.com's own web client)
+    is the only known way to get a real, playable stream URL."""
+    response = requests.get(
+        UNOFFICIAL_CHANNEL_URL.format(slug=channel_slug),
+        headers={"User-Agent": "Mozilla/5.0"},
+        timeout=10,
+    )
+    if response.status_code == 404:
+        return None
+    response.raise_for_status()
+    return response.json()
+
+
 def get_current_user(access_token):
     """Return the token owner's info as {id, login, display_name}, normalized
     to Twitch's field-naming so downstream code doesn't need to branch on

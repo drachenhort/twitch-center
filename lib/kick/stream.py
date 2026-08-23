@@ -9,31 +9,29 @@ class StreamUnavailableError(Exception):
     the playback URL."""
 
 
-# UNVERIFIED: this function assumes the official Public API's GET
-# /public/v1/channels response embeds the playback URL inline at
-# channel["stream"]["url"]. That assumption has not been confirmed against
-# the real official API, and it directly conflicts with this repo's own
-# research in docs/kick-integration-notes.md (section 2, "Playback URL
-# (HLS/m3u8)"), which found that the official API does NOT expose a
-# playback URL and that the community workaround is the unofficial
-# GET https://kick.com/api/v2/channels/{slug} endpoint, whose response
-# carries the URL under "playback_url" (not "stream.url").
-# If channel["stream"]["url"] turns out to be missing/absent in practice,
-# fall back to that unofficial endpoint's "playback_url" field instead.
-# This must be confirmed/fixed before sub-project 4 (playback wiring).
 def resolve_stream_url(access_token, channel_slug):
     """Return the direct HLS (.m3u8) URL for the given live channel slug.
-    Unlike Twitch, Kick's channel API response includes the playback URL
-    directly - no separate signed-access-token exchange needed. Raises
-    StreamUnavailableError if the channel doesn't exist, isn't live, or the
-    response is missing the URL field."""
-    channel = api.get_channel(access_token, channel_slug)
+
+    Confirmed live 2026-08-23: the official Public API's GET /channels
+    response always has stream.url as an empty string, even for a real live
+    channel - it doesn't expose a playback URL at all despite the key
+    existing (this used to be an unverified assumption in this function;
+    see git history). Uses the unofficial kick.com/api/v2/channels/{slug}
+    endpoint instead, whose response carries the URL under "playback_url".
+    That endpoint is public/unauthenticated - access_token is unused here,
+    kept only so this function's signature (and the "must be logged into
+    Kick to play" gate in lib/providers.py, which is about the addon's own
+    design, not this endpoint's requirements) doesn't change.
+
+    Raises StreamUnavailableError if the channel doesn't exist, isn't live,
+    or the response is missing the URL field."""
+    channel = api.get_unofficial_channel(channel_slug)
     if channel is None:
         raise StreamUnavailableError(channel_slug)
-    stream_info = channel.get("stream") or {}
-    if not stream_info.get("is_live"):
+    livestream = channel.get("livestream") or {}
+    if not livestream.get("is_live"):
         raise StreamUnavailableError(channel_slug)
-    url = stream_info.get("url")
+    url = channel.get("playback_url")
     if not url:
         raise StreamUnavailableError(channel_slug)
     return url

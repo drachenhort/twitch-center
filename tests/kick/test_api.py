@@ -17,6 +17,21 @@ def _response(json_body, status_code=200):
     return response
 
 
+def test_get_unofficial_channel_returns_parsed_json():
+    body = {"slug": "somechannel", "playback_url": "https://x.m3u8", "livestream": {"is_live": True}}
+    with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:
+        result = api.get_unofficial_channel("somechannel")
+    assert result == body
+    assert mock_get.call_args.args[0] == "https://kick.com/api/v2/channels/somechannel"
+    assert "Authorization" not in mock_get.call_args.kwargs.get("headers", {})
+
+
+def test_get_unofficial_channel_returns_none_on_404():
+    with patch.object(api.requests, "get", return_value=_response({}, status_code=404)):
+        result = api.get_unofficial_channel("nosuchchannel")
+    assert result is None
+
+
 def test_get_current_user_normalizes_field_names():
     body = {"data": [{"user_id": 42, "name": "SomeUser"}]}
     with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:

@@ -4,6 +4,16 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.22.6] - 2026-08-23
+
+### Fixed
+- Kick playback never worked - `resolve_stream_url` assumed the official Public API's
+  `channel["stream"]["url"]` held the HLS playback URL (flagged UNVERIFIED since the
+  original implementation). Confirmed live 2026-08-23 against a real live channel: that
+  field is always an empty string, even while live - the official API doesn't expose a
+  playback URL at all. Switched to the unofficial `kick.com/api/v2/channels/{slug}`
+  endpoint (public, no auth needed), whose `playback_url` field actually works.
+
 ## [0.22.5] - 2026-08-23
 
 ### Fixed
