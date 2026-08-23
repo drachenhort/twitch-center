@@ -114,9 +114,9 @@ def test_get_kick_live_favorites_normalizes_live_favorites_only():
                 "stream": {
                     "is_live": True,
                     "viewer_count": 300,
-                    "category": {"name": "Just Chatting"},
-                    "thumbnail": {"url": "https://example.invalid/thumb.jpg"},
+                    "thumbnail": "https://example.invalid/thumb.jpg",
                 },
+                "category": {"name": "Just Chatting"},
             }
         return {"broadcaster_user_id": 43, "slug": "offlinechannel", "stream": {"is_live": False}}
 
@@ -204,26 +204,43 @@ def test_get_kick_top_categories_returns_empty_list_when_no_kick_token():
     assert providers.get_kick_top_categories(addon) == []
 
 
-def test_get_kick_top_categories_returns_categories_when_logged_in():
+def test_get_kick_top_categories_derives_categories_from_live_streams():
     addon = xbmcaddon.Addon()
     addon.setSetting("kick_token", '{"access_token": "tok"}')
 
-    def fake_get_top_categories(access_token, first=20):
+    def fake_get_live_streams(access_token, first=50):
         assert access_token == "tok"
-        return [{"id": 7, "name": "Just Chatting"}, {"id": 8, "name": "Games"}]
+        return [
+            {"category": {"id": 7, "name": "Just Chatting"}, "viewer_count": 100},
+            {"category": {"id": 8, "name": "Games"}, "viewer_count": 300},
+            # Second stream in the same category as the first - deduped, first
+            # occurrence's ordering position doesn't matter, sort key does.
+            {"category": {"id": 7, "name": "Just Chatting"}, "viewer_count": 50},
+        ]
 
-    result = providers.get_kick_top_categories(addon, get_top_categories_fn=fake_get_top_categories)
-    assert result == [{"id": 7, "name": "Just Chatting"}, {"id": 8, "name": "Games"}]
+    result = providers.get_kick_top_categories(addon, get_live_streams_fn=fake_get_live_streams)
+    assert result == [{"id": 8, "name": "Games"}, {"id": 7, "name": "Just Chatting"}]
+
+
+def test_get_kick_top_categories_skips_streams_without_a_category():
+    addon = xbmcaddon.Addon()
+    addon.setSetting("kick_token", '{"access_token": "tok"}')
+
+    def fake_get_live_streams(access_token, first=50):
+        return [{"viewer_count": 100}]
+
+    result = providers.get_kick_top_categories(addon, get_live_streams_fn=fake_get_live_streams)
+    assert result == []
 
 
 def test_get_kick_top_categories_returns_empty_list_on_error():
     addon = xbmcaddon.Addon()
     addon.setSetting("kick_token", '{"access_token": "tok"}')
 
-    def failing(access_token, first=20):
+    def failing(access_token, first=50):
         raise Exception("boom")
 
-    result = providers.get_kick_top_categories(addon, get_top_categories_fn=failing)
+    result = providers.get_kick_top_categories(addon, get_live_streams_fn=failing)
     assert result == []
 
 
@@ -330,46 +347,6 @@ def test_normalize_twitch_search_result_defensive_on_missing_fields():
         "game_name": "",
         "thumbnail_url": "",
     }
-
-
-def test_get_kick_search_results_returns_empty_list_when_no_kick_token():
-    addon = xbmcaddon.Addon()
-    assert providers.get_kick_search_results(addon, "query") == []
-
-
-def test_get_kick_search_results_normalizes_results():
-    addon = xbmcaddon.Addon()
-    addon.setSetting("kick_token", '{"access_token": "tok"}')
-
-    def fake_search(access_token, query, first=20):
-        assert access_token == "tok"
-        assert query == "somequery"
-        return [{"slug": "somechannel"}]
-
-    result = providers.get_kick_search_results(addon, "somequery", search_channels_fn=fake_search)
-    assert result == [
-        {
-            "platform": "kick",
-            "id": "",
-            "login": "somechannel",
-            "display_name": "somechannel",
-            "is_live": False,
-            "viewer_count": 0,
-            "game_name": "",
-            "thumbnail_url": "",
-        }
-    ]
-
-
-def test_get_kick_search_results_returns_empty_list_on_error():
-    addon = xbmcaddon.Addon()
-    addon.setSetting("kick_token", '{"access_token": "tok"}')
-
-    def failing(access_token, query, first=20):
-        raise Exception("boom")
-
-    result = providers.get_kick_search_results(addon, "q", search_channels_fn=failing)
-    assert result == []
 
 
 import pytest

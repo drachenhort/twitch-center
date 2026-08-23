@@ -16,9 +16,8 @@ class StreamUnavailableError(Exception):
 # research in docs/kick-integration-notes.md (section 2, "Playback URL
 # (HLS/m3u8)"), which found that the official API does NOT expose a
 # playback URL and that the community workaround is the unofficial
-# GET https://kick.com/api/v2/channels/{slug} endpoint (SEARCH_BASE +
-# "/channels/" + slug, same host already used by api.search_channels),
-# whose response carries the URL under "playback_url" (not "stream.url").
+# GET https://kick.com/api/v2/channels/{slug} endpoint, whose response
+# carries the URL under "playback_url" (not "stream.url").
 # If channel["stream"]["url"] turns out to be missing/absent in practice,
 # fall back to that unofficial endpoint's "playback_url" field instead.
 # This must be confirmed/fixed before sub-project 4 (playback wiring).

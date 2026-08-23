@@ -1,12 +1,13 @@
-"""Search view: finding Twitch and Kick channels/streams. Not a Window
-subclass - see MainWindow."""
+"""Search view: finding Twitch channels/streams. Kick has no working search
+endpoint (see docs/kick-live-testing-findings-2026-08-22.md, Finding 4) - Kick
+channels are discoverable only via Live Streams favorites and Discover's
+categories row. Not a Window subclass - see MainWindow."""
 import threading
 import xbmc
 import xbmcaddon
 import xbmcgui
 from lib import providers
 from lib.twitch import gql
-from lib.views.kick_favorites_menu import show_kick_favorite_context_menu
 from lib.windows import player
 
 _PLAYBACK_ERROR_MESSAGE = "Couldn't start playback. Try again."
@@ -53,21 +54,8 @@ class SearchView:
                 self.play_selected()
             elif self.window.getFocusId() == self.NEXT_PAGE_BUTTON_ID:
                 self.load_next_page()
-        elif action.getId() == xbmcgui.ACTION_CONTEXT_MENU:
-            if self.window.getFocusId() == self.RESULTS_LIST_ID:
-                self._on_context_menu()
         if self._update_queue:
             self._process_updates()
-
-    def _on_context_menu(self):
-        idx = self.window.getControl(self.RESULTS_LIST_ID).getSelectedPosition()
-        if idx < 0 or idx >= len(self.search_results):
-            return
-        result = self.search_results[idx]
-        if result.get("platform") != "kick" or not result.get("login"):
-            return
-        addon = xbmcaddon.Addon()
-        show_kick_favorite_context_menu(addon, result["login"])
 
     def start_search(self):
         query = self.window.getControl(self.SEARCH_INPUT_ID).getLabel()
@@ -81,9 +69,7 @@ class SearchView:
 
         def search_task():
             twitch_results, cursor = gql.search(query, search_type="all")
-            addon = xbmcaddon.Addon()
-            kick_results = providers.get_kick_search_results(addon, query)
-            self._update_queue.append(("update_results", twitch_results, kick_results, cursor))
+            self._update_queue.append(("update_results", twitch_results, cursor))
 
         threading.Thread(target=search_task, daemon=True).start()
 
@@ -99,23 +85,20 @@ class SearchView:
                 search_type="all",
                 cursor=self._next_cursor
             )
-            # No new Kick fetch on later pages - Kick's search has no
-            # pagination, and re-fetching here would duplicate the Kick
-            # results already merged in from the first page.
-            self._update_queue.append(("update_results", twitch_results, [], cursor))
+            self._update_queue.append(("update_results", twitch_results, cursor))
 
         threading.Thread(target=search_task, daemon=True).start()
 
     def _process_updates(self):
         if not self._update_queue:
             return
-        action, twitch_results, kick_results, cursor = self._update_queue.pop(0)
+        action, twitch_results, cursor = self._update_queue.pop(0)
         if action == "update_results":
-            self._render_results(twitch_results, kick_results, cursor)
+            self._render_results(twitch_results, cursor)
 
-    def _render_results(self, twitch_results, kick_results, cursor):
+    def _render_results(self, twitch_results, cursor):
         twitch_normalized = [providers.normalize_twitch_search_result(r) for r in twitch_results]
-        merged = providers.merge_by_viewer_count(twitch_normalized, kick_results)
+        merged = providers.merge_by_viewer_count(twitch_normalized)
         self.search_results.extend(merged)
         self._next_cursor = cursor
         self.window.getControl(self.STATUS_LABEL_ID).setLabel("")

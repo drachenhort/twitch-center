@@ -2,7 +2,6 @@
 import requests
 
 API_BASE = "https://api.kick.com/public/v1"
-SEARCH_BASE = "https://kick.com/api/v2"
 
 
 class TokenExpiredError(Exception):
@@ -55,10 +54,6 @@ def get_live_streams(access_token, category_id=None, first=20):
     return body["data"]
 
 
-def get_top_categories(access_token, first=20):
-    """Return Kick's current top categories as a list of {"id", "name"} dicts."""
-    body = _get(API_BASE + "/categories", access_token, params={"limit": first})
-    return [{"id": category["id"], "name": category["name"]} for category in body["data"][:first]]
 
 
 def get_user_by_login(access_token, slug):
@@ -70,15 +65,3 @@ def get_user_by_login(access_token, slug):
         return None
     user = channels[0]
     return {"id": str(user["broadcaster_user_id"]), "login": slug, "display_name": slug}
-
-
-def search_channels(access_token, query, first=20):
-    """Free-text channel search. Unofficial endpoint - confirm against
-    docs.kick.com / kick.com's own web client at implementation time and
-    adjust the URL/params here if it has changed; callers are unaffected.
-
-    Note: 401 here does not reliably mean token expiry, since this hits the
-    unofficial kick.com/api/v2 host, not the official API - TokenExpiredError
-    from _get() is a best-effort signal only for this function."""
-    body = _get(SEARCH_BASE + "/search/channels", access_token, params={"searchQuery": query, "limit": first})
-    return body["data"]

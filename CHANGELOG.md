@@ -4,6 +4,31 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.22.2] - 2026-08-23
+
+### Fixed
+- Kick's real API returns `thumbnail` as a flat URL string, not `{"url": ...}` as
+  guessed during implementation - fixed `_normalize_kick_channel` and
+  `_normalize_kick_live_stream_entry` in `lib/providers.py`. Previously crashed Live
+  Streams and Discover's Kick category browsing as soon as any Kick data had a
+  thumbnail (i.e. immediately, on any live channel).
+- `_normalize_kick_channel` read `category` nested under `stream`, but the real
+  `/channels` response has it as a top-level key - was silently making `game_name`
+  always empty for every Kick favorite on Live Streams.
+- Discover's Kick categories row called `GET /public/v1/categories`, which is
+  deprecated and requires a mandatory search query - it always failed. Replaced with
+  deriving categories client-side from a page of live streams (`GET /livestreams`,
+  which supports unfiltered browsing), deduped and ordered by viewer count.
+
+### Removed
+- Kick results from Search. The guessed unofficial endpoint
+  (`kick.com/api/v2/search/channels`) 404s, and live probing of the real
+  `kick.com/api/search` route (which does exist) couldn't find a working parameter
+  name after trying the obvious candidates - the route appears gated behind
+  browser-session/bot-detection rather than a simple param mismatch, so this was
+  dropped rather than kept as more unconfirmed-endpoint risk. Kick channels remain
+  discoverable via Live Streams favorites and Discover's categories row.
+
 ## [0.22.1] - 2026-08-22
 
 ### Added

@@ -8,8 +8,7 @@ import json
 from lib.kick import auth as kick_auth
 from lib.kick import stream as kick_stream
 from lib.kick.api import get_channel as _kick_get_channel
-from lib.kick.api import get_live_streams as _kick_get_live_streams, get_top_categories as _kick_get_top_categories
-from lib.kick.api import search_channels as _kick_search_channels
+from lib.kick.api import get_live_streams as _kick_get_live_streams
 from lib.twitch import stream as twitch_stream
 
 
@@ -83,8 +82,7 @@ def _normalize_kick_channel(channel):
     plan) - every read here uses .get() with a safe default so a wrong guess
     degrades gracefully instead of raising."""
     stream_info = channel.get("stream") or {}
-    category = stream_info.get("category") or {}
-    thumbnail = stream_info.get("thumbnail") or {}
+    category = channel.get("category") or {}
     slug = channel.get("slug", "")
     return {
         "platform": "kick",
@@ -94,7 +92,7 @@ def _normalize_kick_channel(channel):
         "is_live": bool(stream_info.get("is_live", False)),
         "viewer_count": stream_info.get("viewer_count", 0),
         "game_name": category.get("name", ""),
-        "thumbnail_url": thumbnail.get("url", ""),
+        "thumbnail_url": stream_info.get("thumbnail", ""),
     }
 
 
@@ -124,20 +122,39 @@ def get_kick_live_favorites(addon, get_channel_fn=None):
     return results
 
 
-def get_kick_top_categories(addon, get_top_categories_fn=None):
-    """Return Kick's top categories, or [] if there's no saved Kick token or
-    the call fails - never raises. Used to populate Discover's Kick
-    categories row, which simply doesn't appear (via an empty row) rather
-    than erroring when the user isn't logged into Kick."""
-    if get_top_categories_fn is None:
-        get_top_categories_fn = _kick_get_top_categories
+def get_kick_top_categories(addon, get_live_streams_fn=None, first=50):
+    """Return categories currently seen among Kick's top live streams, or []
+    if there's no saved Kick token or the call fails - never raises. Used to
+    populate Discover's Kick categories row, which simply doesn't appear (via
+    an empty row) rather than erroring when the user isn't logged into Kick.
+
+    Kick's own GET /public/v1/categories endpoint is deprecated and requires
+    a mandatory search query - there's no "browse all categories" mode to
+    call instead, so this derives a categories list client-side from a page
+    of live streams (which does support unfiltered browsing), deduped by id
+    and ordered by descending viewer count of their top stream."""
+    if get_live_streams_fn is None:
+        get_live_streams_fn = _kick_get_live_streams
     token = kick_auth.load_token(addon)
     if token is None:
         return []
     try:
-        return get_top_categories_fn(token["access_token"])
+        streams = get_live_streams_fn(token["access_token"], first=first)
     except Exception:
         return []
+    seen = {}
+    for entry in streams:
+        category = entry.get("category") or {}
+        category_id = category.get("id")
+        if category_id is None or category_id in seen:
+            continue
+        seen[category_id] = {
+            "id": category_id,
+            "name": category.get("name", ""),
+            "viewer_count": entry.get("viewer_count", 0),
+        }
+    ordered = sorted(seen.values(), key=lambda c: c["viewer_count"], reverse=True)
+    return [{"id": c["id"], "name": c["name"]} for c in ordered]
 
 
 def _normalize_kick_live_stream_entry(entry):
@@ -147,7 +164,6 @@ def _normalize_kick_live_stream_entry(entry):
     Field names beyond broadcaster_user_id/slug are unconfirmed (see this
     plan's Task 2 note) - .get() throughout."""
     category = entry.get("category") or {}
-    thumbnail = entry.get("thumbnail") or {}
     slug = entry.get("slug", "")
     return {
         "platform": "kick",
@@ -157,7 +173,7 @@ def _normalize_kick_live_stream_entry(entry):
         "is_live": True,
         "viewer_count": entry.get("viewer_count", 0),
         "game_name": category.get("name", ""),
-        "thumbnail_url": thumbnail.get("url", ""),
+        "thumbnail_url": entry.get("thumbnail", ""),
     }
 
 
@@ -197,40 +213,6 @@ def normalize_twitch_search_result(item):
         "game_name": item.get("game_name", ""),
         "thumbnail_url": _twitch_thumbnail_url(item["thumbnail_url"]) if item.get("thumbnail_url") else "",
     }
-
-
-def get_kick_search_results(addon, query, search_channels_fn=None):
-    """Return normalized Kick search results, or [] if there's no saved Kick
-    token or the call fails - never raises. Kick's search endpoint has no
-    anonymous/app-token path (see this feature's design spec), so a
-    logged-out-of-Kick user's searches simply never surface Kick results,
-    with no error shown - this is the documented, accepted asymmetry with
-    Twitch search (which needs no login at all)."""
-    if search_channels_fn is None:
-        search_channels_fn = _kick_search_channels
-    token = kick_auth.load_token(addon)
-    if token is None:
-        return []
-    try:
-        entries = search_channels_fn(token["access_token"], query)
-    except Exception:
-        return []
-    results = []
-    for entry in entries:
-        slug = entry.get("slug", "")
-        results.append(
-            {
-                "platform": "kick",
-                "id": str(entry["broadcaster_user_id"]) if entry.get("broadcaster_user_id") else "",
-                "login": slug,
-                "display_name": slug,
-                "is_live": bool(entry.get("is_live", False)),
-                "viewer_count": entry.get("viewer_count", 0),
-                "game_name": entry.get("game_name", ""),
-                "thumbnail_url": entry.get("thumbnail_url", ""),
-            }
-        )
-    return results
 
 
 def merge_by_viewer_count(*lists):
