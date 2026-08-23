@@ -158,7 +158,7 @@
         <onleft>505</onleft>
         <onup>504</onup>
         <ondown>506</ondown>
-        <label>Log in again</label>
+        <label>(Twitch) Logged in</label>
       </control>
       <control type="button" id="506">
         <description>Log in to Kick</description>

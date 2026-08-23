@@ -4,6 +4,19 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.22.5] - 2026-08-23
+
+### Fixed
+- Successful Kick login never switched back to the main menu - `lib/main.py`'s polling
+  loop checked the Twitch login view's `login_succeeded` flag but never the Kick login
+  view's, so the Kick login screen just sat on "Logged in!" until manually backed out of.
+
+### Changed
+- Menu's Twitch/Kick buttons now show actual login status instead of static text:
+  "(Twitch) Logged in" (always, by the time Menu is reachable at all - still clickable to
+  switch accounts) and "(Kick) Logged in" / "Log in to Kick" depending on whether a Kick
+  token is saved.
+
 ## [0.22.4] - 2026-08-23
 
 ### Changed

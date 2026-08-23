@@ -132,6 +132,38 @@ def test_run_switches_to_menu_when_login_succeeded_flag_is_set():
     assert FakeMainWindow.instances[-1].switched_to == ["menu"]
 
 
+def test_run_switches_to_menu_when_kick_login_succeeded_flag_is_set():
+    FakeMainWindow.instances.clear()
+
+    class FlaggingView:
+        login_succeeded = True
+
+    class FlaggingMainWindow(FakeMainWindow):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.closed_event = threading.Event()
+            self._views = {"kick_login": FlaggingView()}
+            self.switched_to = []
+
+        def _switch_view(self, name):
+            self.switched_to.append(name)
+
+    class TickingMonitor:
+        def __init__(self):
+            self.calls = 0
+
+        def waitForAbort(self, timeout=None):
+            self.calls += 1
+            if self.calls >= 2:
+                FakeMainWindow.instances[-1].closed_event.set()
+            return False
+
+    main.run(
+        [], addon=FakeAddon(token=None), main_window_cls=FlaggingMainWindow, monitor_cls=TickingMonitor
+    )
+    assert FakeMainWindow.instances[-1].switched_to == ["menu"]
+
+
 def test_run_switches_to_menu_again_after_a_second_login():
     # LoginView is reused for the whole session, so "Log in again" ->
     # successful login has to hand off to Menu a second time. run() must not

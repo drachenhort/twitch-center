@@ -79,6 +79,10 @@ def run(argv, addon=None, main_window_cls=None, monitor_cls=None):
             # LoginView is reused for the whole session, so a LATER login
             # (via "Log in again") must be able to hand off to Menu too.
             login_view.login_succeeded = False
+        kick_login_view = window._views.get("kick_login")
+        if kick_login_view is not None and getattr(kick_login_view, "login_succeeded", False):
+            window._switch_view("menu")
+            kick_login_view.login_succeeded = False
 
 
 if __name__ == "__main__":

@@ -4,6 +4,8 @@ see MainWindow."""
 import xbmcaddon
 import xbmcgui
 
+from lib.kick import auth as kick_auth
+
 
 class MenuView:
     LIVE_STREAMS_BUTTON_ID = 501
@@ -21,7 +23,23 @@ class MenuView:
         self.closed_event = closed_event
 
     def activate(self):
-        pass
+        self._update_login_labels()
+
+    def _update_login_labels(self):
+        # Twitch is always logged in by the time Menu is reachable at all
+        # (main.py only shows Menu when a Twitch token exists) - this button
+        # stays clickable to switch accounts, it just always reads "logged in".
+        self._set_label(self.RELOGIN_BUTTON_ID, "(Twitch) Logged in")
+        kick_logged_in = bool(kick_auth.load_token(xbmcaddon.Addon()))
+        self._set_label(
+            self.KICK_LOGIN_BUTTON_ID, "(Kick) Logged in" if kick_logged_in else "Log in to Kick"
+        )
+
+    def _set_label(self, control_id, text):
+        try:
+            self.window.getControl(control_id).setLabel(text)
+        except Exception:
+            pass
 
     def handle_action(self, action):
         if action.getId() != xbmcgui.ACTION_SELECT_ITEM:

@@ -9,6 +9,7 @@ from lib.views.menu_view import MenuView
 class FakeMainWindow:
     def __init__(self):
         self.switched_to = []
+        self._controls = {}
 
     def _switch_view(self, name):
         self.switched_to.append(name)
@@ -18,6 +19,13 @@ class FakeMainWindow:
 
     def setFocusId(self, control_id):
         self._focus_id = control_id
+
+    def getControl(self, control_id):
+        from xbmcgui import FakeListControl
+
+        if control_id not in self._controls:
+            self._controls[control_id] = FakeListControl()
+        return self._controls[control_id]
 
 
 def _select(window, control_id):
@@ -102,3 +110,35 @@ def test_selecting_kick_login_shows_a_dialog_when_client_secret_missing():
         _select(window, MenuView.KICK_LOGIN_BUTTON_ID)
     mock_dialog_cls.return_value.ok.assert_called_once()
     assert window.switched_to == []
+
+
+def test_activate_shows_logged_out_label_when_no_kick_token():
+    window = FakeMainWindow()
+    addon = xbmcaddon.Addon()
+    with patch("lib.views.menu_view.xbmcaddon.Addon", return_value=addon):
+        MenuView(window).activate()
+    label = window.getControl(MenuView.KICK_LOGIN_BUTTON_ID).getLabel()
+    assert label == "Log in to Kick"
+
+
+def test_activate_shows_logged_in_label_when_kick_token_present():
+    import json
+
+    window = FakeMainWindow()
+    addon = xbmcaddon.Addon()
+    addon.setSetting(
+        "kick_token", json.dumps({"access_token": "tok", "display_name": "SomeKicker"})
+    )
+    with patch("lib.views.menu_view.xbmcaddon.Addon", return_value=addon):
+        MenuView(window).activate()
+    label = window.getControl(MenuView.KICK_LOGIN_BUTTON_ID).getLabel()
+    assert label == "(Kick) Logged in"
+
+
+def test_activate_shows_twitch_logged_in_label():
+    window = FakeMainWindow()
+    addon = xbmcaddon.Addon()
+    with patch("lib.views.menu_view.xbmcaddon.Addon", return_value=addon):
+        MenuView(window).activate()
+    label = window.getControl(MenuView.RELOGIN_BUTTON_ID).getLabel()
+    assert label == "(Twitch) Logged in"
