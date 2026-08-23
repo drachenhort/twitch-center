@@ -89,6 +89,24 @@ def get_top_categories(access_token, first=20):
     return [{"id": category["id"], "name": category["name"]} for category in body["data"]]
 
 
+def search_categories(access_token, query, first=20):
+    """Return Kick categories whose name matches `query`, via GET
+    /public/v2/categories's `name` filter param (confirmed live
+    2026-08-23: case-insensitive substring match, e.g. "eve" matches "EVE
+    Online"). Kick's own category data can list the same name more than
+    once under different ids (confirmed live) - deduped here by id,
+    keeping first-seen order."""
+    body = _get(API_BASE_V2 + "/categories", access_token, params={"name": query, "limit": first})
+    seen = set()
+    results = []
+    for category in body["data"]:
+        if category["id"] in seen:
+            continue
+        seen.add(category["id"])
+        results.append({"id": category["id"], "name": category["name"]})
+    return results
+
+
 def get_user_by_login(access_token, slug):
     """Return {"id", "login", "display_name"} for the given channel slug, or
     None if no such user."""

@@ -551,7 +551,7 @@
         <label>Search</label>
       </control>
       <control type="button" id="308">
-        <description>Search mode toggle (channels/games)</description>
+        <description>Search mode toggle (channels/games/kick)</description>
         <posx>1500</posx>
         <posy>140</posy>
         <width>360</width>

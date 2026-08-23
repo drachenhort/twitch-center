@@ -4,6 +4,17 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.24.1] - 2026-08-23
+
+### Added
+- Discover's search mode toggle now cycles through a third "Kick" mode - search Kick
+  categories by name (e.g. "eve" finds "EVE Online") and jump straight to its live
+  streams, same convention as the existing Twitch game-search mode. Uses
+  `GET /public/v2/categories`'s `name` filter param (confirmed live 2026-08-23:
+  case-insensitive substring match). Previously the Kick categories row only showed the
+  first ~20 categories from Kick's default (non-popularity-sorted) ordering, so anything
+  outside that page - like EVE Online - was unreachable without this.
+
 ## [0.24.0] - 2026-08-23
 
 ### Removed

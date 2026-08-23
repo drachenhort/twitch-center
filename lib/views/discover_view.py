@@ -1,11 +1,13 @@
-"""Discover view: browse live channels by any game, or search by channel name or
-by game/category name (toggle via SEARCH_MODE_TOGGLE_ID). Also browses Kick's top
-categories in a separate row. Not a Window subclass - see MainWindow."""
+"""Discover view: browse live channels by any game, or search by channel name,
+Twitch game/category name, or Kick category name (toggle via
+SEARCH_MODE_TOGGLE_ID). Also browses Kick's top categories in a separate row.
+Not a Window subclass - see MainWindow."""
 import xbmc
 import xbmcaddon
 import xbmcgui
 
 from lib import providers
+from lib.kick import auth as kick_auth
 from lib.twitch import api, auth
 from lib.views.kick_favorites_menu import show_kick_favorite_context_menu
 from lib.windows import player
@@ -21,14 +23,20 @@ SEARCH_MODE_TOGGLE_ID = 308
 KICK_CATEGORIES_LIST_ID = 309
 
 _MISSING_TOKEN_MESSAGE = "You're not logged in. Reopen the addon to log in."
+_MISSING_KICK_TOKEN_MESSAGE = "Log in to Kick first (Menu) to search Kick categories."
 _EMPTY_RESULTS_MESSAGE = "Nothing found."
 _EMPTY_GAME_SEARCH_MESSAGE = "No matching game found."
+_EMPTY_KICK_CATEGORY_SEARCH_MESSAGE = "No matching Kick category found."
 _EMPTY_GAMES_MESSAGE = "No games to browse right now."
 _NETWORK_ERROR_MESSAGE = "Couldn't reach Twitch. Check your connection and reopen the addon."
 _RELOGIN_MESSAGE = "Your session expired. Log in again to continue."
 _PLAYBACK_ERROR_MESSAGE = "Couldn't start playback. Try again."
-_SEARCH_MODES = ("channels", "games")
-_SEARCH_MODE_LABELS = {"channels": "Searching: Channels", "games": "Searching: Games"}
+_SEARCH_MODES = ("channels", "games", "kick")
+_SEARCH_MODE_LABELS = {
+    "channels": "Searching: Channels",
+    "games": "Searching: Games",
+    "kick": "Searching: Kick",
+}
 
 
 def _thumbnail_url(raw_url, width=320, height=180):
@@ -250,6 +258,19 @@ class DiscoverView:
         streams = api.get_live_streams_by_game(token["access_token"], client_id, matches[0]["id"])
         self._populate_results([_build_stream_item(stream_data) for stream_data in streams])
 
+    def _load_kick_category_search_results(self, addon, query):
+        # Same "take the best/first match" convention as _load_game_search_results -
+        # Kick's name filter is a substring match, not exact.
+        matches = providers.search_kick_categories(addon, query)
+        if not matches:
+            self._populate_results([])
+            empty_label = self._safe_control(self.EMPTY_LABEL_ID)
+            if empty_label:
+                empty_label.setLabel(_EMPTY_KICK_CATEGORY_SEARCH_MESSAGE)
+            return
+        streams = providers.get_kick_category_streams(addon, matches[0]["id"])
+        self._populate_results([_build_kick_result_item(r) for r in streams])
+
     def _on_game_selected(self):
         control = self._safe_control(self.GAMES_LIST_ID)
         if not control:
@@ -350,6 +371,21 @@ class DiscoverView:
         if not query:
             return
         addon = xbmcaddon.Addon()
+
+        if self._search_mode == "kick":
+            if kick_auth.load_token(addon) is None:
+                self._show_results_error(_MISSING_KICK_TOKEN_MESSAGE)
+                return
+            try:
+                self._load_kick_category_search_results(addon, query)
+            except Exception as exc:
+                xbmc.log(
+                    "script.twitch.center: Discover Kick category search failed: " + repr(exc),
+                    xbmc.LOGERROR,
+                )
+                self._show_results_error(_NETWORK_ERROR_MESSAGE)
+            return
+
         client_id = addon.getSetting("client_id")
         token = auth.load_token(addon)
         if token is None:

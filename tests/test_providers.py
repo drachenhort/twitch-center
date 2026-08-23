@@ -227,6 +227,35 @@ def test_get_kick_top_categories_returns_empty_list_on_error():
     assert result == []
 
 
+def test_search_kick_categories_returns_empty_list_when_no_kick_token():
+    addon = xbmcaddon.Addon()
+    assert providers.search_kick_categories(addon, "eve") == []
+
+
+def test_search_kick_categories_returns_matches_when_logged_in():
+    addon = xbmcaddon.Addon()
+    addon.setSetting("kick_token", '{"access_token": "tok"}')
+
+    def fake_search_categories(access_token, query):
+        assert access_token == "tok"
+        assert query == "eve"
+        return [{"id": 3, "name": "EVE Online"}]
+
+    result = providers.search_kick_categories(addon, "eve", search_categories_fn=fake_search_categories)
+    assert result == [{"id": 3, "name": "EVE Online"}]
+
+
+def test_search_kick_categories_returns_empty_list_on_error():
+    addon = xbmcaddon.Addon()
+    addon.setSetting("kick_token", '{"access_token": "tok"}')
+
+    def failing(access_token, query):
+        raise Exception("boom")
+
+    result = providers.search_kick_categories(addon, "eve", search_categories_fn=failing)
+    assert result == []
+
+
 def test_get_kick_category_streams_returns_empty_list_when_no_kick_token():
     addon = xbmcaddon.Addon()
     assert providers.get_kick_category_streams(addon, category_id=7) == []

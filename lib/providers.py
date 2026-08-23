@@ -10,6 +10,7 @@ from lib.kick import stream as kick_stream
 from lib.kick.api import get_channel as _kick_get_channel
 from lib.kick.api import get_live_streams as _kick_get_live_streams
 from lib.kick.api import get_top_categories as _kick_get_top_categories
+from lib.kick.api import search_categories as _kick_search_categories
 from lib.twitch import stream as twitch_stream
 
 
@@ -138,6 +139,22 @@ def get_kick_top_categories(addon, get_top_categories_fn=None):
         return []
     try:
         return get_top_categories_fn(token["access_token"])
+    except Exception:
+        return []
+
+
+def search_kick_categories(addon, query, search_categories_fn=None):
+    """Return Kick categories matching `query` by name, or [] if there's no
+    saved Kick token or the call fails - never raises. Mirrors
+    get_kick_top_categories's silent-empty contract; Discover's search
+    treats an empty result the same as "nothing found", not an error."""
+    if search_categories_fn is None:
+        search_categories_fn = _kick_search_categories
+    token = kick_auth.load_token(addon)
+    if token is None:
+        return []
+    try:
+        return search_categories_fn(token["access_token"], query)
     except Exception:
         return []
 

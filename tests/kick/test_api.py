@@ -90,6 +90,23 @@ def test_get_top_categories_returns_id_and_name():
     assert mock_get.call_args.kwargs["params"] == {"limit": 2}
 
 
+def test_search_categories_returns_id_and_name():
+    body = {"data": [{"id": 3, "name": "EVE Online", "thumbnail": "https://example.invalid/eve.jpg", "tags": []}]}
+    with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:
+        result = api.search_categories("token", "eve", first=5)
+    assert result == [{"id": 3, "name": "EVE Online"}]
+    called_url = mock_get.call_args.args[0]
+    assert called_url == api.API_BASE_V2 + "/categories"
+    assert mock_get.call_args.kwargs["params"] == {"name": "eve", "limit": 5}
+
+
+def test_search_categories_dedupes_by_id():
+    body = {"data": [{"id": 3, "name": "EVE Online"}, {"id": 3, "name": "EVE Online"}, {"id": 4, "name": "EverQuest"}]}
+    with patch.object(api.requests, "get", return_value=_response(body)):
+        result = api.search_categories("token", "eve")
+    assert result == [{"id": 3, "name": "EVE Online"}, {"id": 4, "name": "EverQuest"}]
+
+
 def test_get_user_by_login_returns_normalized_dict():
     body = {"data": [{"broadcaster_user_id": 9, "slug": "someuser", "stream": {"is_live": False}}]}
     with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:

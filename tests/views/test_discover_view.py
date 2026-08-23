@@ -4,6 +4,7 @@ import xbmcaddon
 import xbmcgui
 
 from lib import providers
+from lib.kick import auth as kick_auth
 from lib.twitch import api
 from lib.twitch.auth import clear_token, save_token
 from lib.views.discover_view import (
@@ -223,6 +224,10 @@ def test_toggling_search_mode_button_flips_mode_and_label():
         assert "Games" in win.window.getControl(DiscoverView.SEARCH_MODE_TOGGLE_ID).getLabel()
 
         win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        assert win._search_mode == "kick"
+        assert "Kick" in win.window.getControl(DiscoverView.SEARCH_MODE_TOGGLE_ID).getLabel()
+
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
         assert win._search_mode == "channels"
         assert "Channels" in win.window.getControl(DiscoverView.SEARCH_MODE_TOGGLE_ID).getLabel()
 
@@ -270,6 +275,73 @@ def test_pressing_search_in_game_mode_shows_message_when_no_game_matches():
     mock_get_streams.assert_not_called()
     assert win.window.getControl(DiscoverView.EMPTY_LABEL_ID).getLabel() != ""
     assert win.window.getControl(DiscoverView.RESULTS_LIST_ID).size() == 0
+
+
+def _switch_to_kick_search_mode(win):
+    win.window.setFocusId(DiscoverView.SEARCH_MODE_TOGGLE_ID)
+    win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))  # channels -> games
+    win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))  # games -> kick
+
+
+def test_pressing_search_in_kick_mode_searches_categories_then_lists_its_streams():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    matches = [{"id": 3, "name": "EVE Online"}]
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(kick_auth, "load_token", return_value={"access_token": "ktok"}), patch.object(
+        providers, "search_kick_categories", return_value=matches
+    ) as mock_search, patch.object(
+        providers, "get_kick_category_streams", return_value=[KICK_CATEGORY_STREAM]
+    ) as mock_get_streams:
+        win = DiscoverView(FakeWindow())
+        win.activate()
+        _switch_to_kick_search_mode(win)
+        win.window.getControl(DiscoverView.SEARCH_EDIT_ID).setText("eve")
+        win.window.setFocusId(DiscoverView.SEARCH_BUTTON_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    mock_search.assert_called_once_with(addon, "eve")
+    mock_get_streams.assert_called_once_with(addon, 3)
+    results_control = win.window.getControl(DiscoverView.RESULTS_LIST_ID)
+    assert results_control.size() == 1
+    assert results_control.getListItem(0).getProperty("platform") == "kick"
+
+
+def test_pressing_search_in_kick_mode_shows_message_when_no_category_matches():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(kick_auth, "load_token", return_value={"access_token": "ktok"}), patch.object(
+        providers, "search_kick_categories", return_value=[]
+    ), patch.object(providers, "get_kick_category_streams") as mock_get_streams:
+        win = DiscoverView(FakeWindow())
+        win.activate()
+        _switch_to_kick_search_mode(win)
+        win.window.getControl(DiscoverView.SEARCH_EDIT_ID).setText("nonexistentgamexyz")
+        win.window.setFocusId(DiscoverView.SEARCH_BUTTON_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    mock_get_streams.assert_not_called()
+    assert win.window.getControl(DiscoverView.EMPTY_LABEL_ID).getLabel() != ""
+    assert win.window.getControl(DiscoverView.RESULTS_LIST_ID).size() == 0
+
+
+def test_pressing_search_in_kick_mode_shows_error_when_not_logged_into_kick():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(kick_auth, "load_token", return_value=None), patch.object(
+        providers, "search_kick_categories"
+    ) as mock_search:
+        win = DiscoverView(FakeWindow())
+        win.activate()
+        _switch_to_kick_search_mode(win)
+        win.window.getControl(DiscoverView.SEARCH_EDIT_ID).setText("eve")
+        win.window.setFocusId(DiscoverView.SEARCH_BUTTON_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    mock_search.assert_not_called()
+    assert win.window.getControl(DiscoverView.ERROR_LABEL_ID).getLabel() != ""
 
 
 def test_selecting_relogin_button_switches_to_login_view():
