@@ -64,6 +64,8 @@ def test_start_search_renders_twitch_results_sorted_by_viewer_count():
     results_control = win.window.getControl(SearchView.RESULTS_LIST_ID)
     assert results_control.size() == 2
     assert results_control.getListItem(0).getProperty("platform") == "twitch"
+    assert results_control.getListItem(0).getProperty("game_name") == "B"
+    assert results_control.getListItem(0).getProperty("viewer_count") == "500"
 
 
 def test_load_next_page_appends_results():

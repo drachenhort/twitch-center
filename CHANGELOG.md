@@ -4,6 +4,14 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.23.1] - 2026-08-23
+
+### Changed
+- Search results now render as the same card tiles as Live Streams/Discover (thumbnail,
+  name box, game name, live-viewer chip) instead of a plain text list.
+  `lib/views/search_view.py` now sets `game_name`/`viewer_count`/`is_live` as ListItem
+  properties and thumbnail art, matching the shared card layout's bindings.
+
 ## [0.23.0] - 2026-08-23
 
 ### Changed

@@ -105,7 +105,11 @@ class SearchView:
         list_control = self.window.getControl(self.RESULTS_LIST_ID)
         for normalized in merged:
             item = xbmcgui.ListItem(normalized["display_name"])
+            item.setArt({"thumb": normalized["thumbnail_url"]})
             item.setProperty("platform", normalized["platform"])
+            item.setProperty("is_live", "true" if normalized["is_live"] else "false")
+            item.setProperty("game_name", normalized["game_name"])
+            item.setProperty("viewer_count", str(normalized["viewer_count"]))
             list_control.addItem(item)
         self._update_next_page_button()
 
