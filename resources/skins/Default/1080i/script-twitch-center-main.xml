@@ -78,10 +78,10 @@
       </control>
       <control type="image">
         <description>Logo</description>
-        <posx>745</posx>
-        <posy>50</posy>
-        <width>430</width>
-        <height>119</height>
+        <posx>770</posx>
+        <posy>20</posy>
+        <width>380</width>
+        <height>253</height>
         <aspectratio>keep aligncenter</aspectratio>
         <texture>logo_overlay.png</texture>
       </control>

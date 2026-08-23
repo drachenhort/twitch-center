@@ -4,6 +4,13 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.24.2] - 2026-08-23
+
+### Changed
+- New Menu screen background and logo (`resources/skins/Default/media/home_bg.jpg`,
+  `logo_overlay.png`) - a streaming-setup photo and a "Sigma Streaming Hub" badge logo,
+  replacing the previous plain background and Twitch Center wordmark.
+
 ## [0.24.1] - 2026-08-23
 
 ### Added
