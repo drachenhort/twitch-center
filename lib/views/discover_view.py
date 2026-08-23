@@ -45,6 +45,8 @@ def _build_stream_item(stream_data):
     item.setProperty("broadcaster_login", stream_data["user_login"])
     item.setProperty("is_live", "true")
     item.setProperty("platform", "twitch")
+    item.setProperty("game_name", stream_data["game_name"])
+    item.setProperty("viewer_count", str(stream_data["viewer_count"]))
     return item
 
 
@@ -59,6 +61,8 @@ def _build_channel_item(channel):
     item.setProperty("broadcaster_login", channel.get("broadcaster_login", ""))
     item.setProperty("is_live", "true" if channel.get("is_live") else "false")
     item.setProperty("platform", "twitch")
+    item.setProperty("game_name", channel.get("game_name", ""))
+    item.setProperty("viewer_count", str(channel.get("viewer_count", "")))
     return item
 
 
@@ -72,6 +76,8 @@ def _build_kick_result_item(normalized):
     item.setProperty("broadcaster_login", normalized["login"])
     item.setProperty("is_live", "true")
     item.setProperty("platform", "kick")
+    item.setProperty("game_name", normalized["game_name"])
+    item.setProperty("viewer_count", str(normalized["viewer_count"]))
     return item
 
 

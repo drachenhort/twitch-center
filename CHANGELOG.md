@@ -4,6 +4,25 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.23.0] - 2026-08-23
+
+### Changed
+- Discover screen restyled to match Live Streams' card look: results now render as
+  thumbnail tiles (name box, game name, live-viewer chip, platform badge) in a panel
+  instead of a plain thumb+text list, and the games/Kick-categories filter rows became
+  small card-style pills with `CardHeadline` text instead of plain list text.
+- Both Discover and Live Streams' card tiles now show a colored platform badge/focus
+  highlight - blue "TWITCH" / green "KICK" label on the tile, and the focus background
+  itself tints per platform (blue for Twitch, green for Kick) instead of always blue.
+- Discover's games/Kick-categories rows now have static "TWITCH:" / "KICK:" row labels,
+  and each row's pill background is subtly tinted per platform even when not focused, so
+  the two rows (and the currently-selected item) are distinguishable without guessing.
+
+### Fixed (as part of the above)
+- `lib/views/discover_view.py`'s three result-item builders now set `game_name` and
+  `viewer_count` as ListItem properties (previously only baked into `Label2` text), which
+  the new card layout's `$INFO[ListItem.Property(...)]` bindings need.
+
 ## [0.22.6] - 2026-08-23
 
 ### Fixed
