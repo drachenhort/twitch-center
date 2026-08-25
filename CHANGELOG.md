@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.25.4] - 2026-08-25
+
+### Fixed
+- Quitting the addon (or otherwise stopping playback) while the ad-skip relay was active could
+  take up to 5 real seconds - `AdSkipRelay.stop()` was joining its background fetch thread with a
+  5s timeout, blocking whichever thread called it (a Kodi player-callback thread). That thread is
+  a daemon and dies with the interpreter regardless, so there was no correctness reason to wait
+  for it - stop() no longer joins it.
+
 ## [0.25.3] - 2026-08-25
 
 ### Fixed

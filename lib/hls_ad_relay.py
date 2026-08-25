@@ -224,9 +224,12 @@ class AdSkipRelay:
         return "http://127.0.0.1:%d/stream.ts" % port
 
     def stop(self):
+        # Doesn't join self._fetch_thread - it's a daemon thread that dies with the
+        # interpreter regardless, and waiting for it here was blocking whichever thread
+        # calls stop() (a Kodi player-callback thread, invoked from onPlayBackStopped)
+        # for up to its old 5s join timeout whenever a fetch was mid-network-request,
+        # making quitting the addon while ad-skip playback was active feel slow.
         self._stop_event.set()
-        if self._fetch_thread is not None:
-            self._fetch_thread.join(timeout=5)
         if self._server is not None:
             self._server.shutdown()
             self._server.server_close()
