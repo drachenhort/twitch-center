@@ -4,6 +4,14 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.25.2] - 2026-08-25
+
+### Fixed
+- Version-only bump - `v0.25.0` and `v0.25.1` GitHub releases from an earlier, since-reverted
+  experiment (ISA-bypass/stream-quality-prompt settings) were still live and outranked the real
+  `v0.25.0` (ad-skip relay, see below), risking Kodi's repo-based updater serving that stale
+  build as "latest". No code change from `v0.25.0`.
+
 ## [0.25.0] - 2026-08-25
 
 ### Added
