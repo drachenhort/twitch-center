@@ -4,6 +4,14 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.24.6] - 2026-08-25
+
+### Changed
+- README: Installation now points at the `drachenhort-repo`/`repository.drachenhort` Kodi
+  repository, replacing the retired shared `jellyfin-kodi-plex` distribution. Folded the removed
+  standalone Search screen into Discover in Features/Status. Kick section updated to reflect that
+  browsing and watching work with no login required - only chat is still unimplemented.
+
 ## [0.24.4] - 2026-08-25
 
 ### Changed
