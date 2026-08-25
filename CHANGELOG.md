@@ -4,26 +4,6 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
-## [0.25.1] - 2026-08-25
-
-### Changed
-- Documented (README, settings help text) that "Use InputStream Adaptive" off is not viable for
-  live playback: live-tested and confirmed it reliably kills playback (kicks back to the menu)
-  once Kodi's generic player works through the HLS segments listed at play-start, since it never
-  re-polls Twitch's live playlist for new ones the way inputstream.adaptive does. No code change -
-  the setting still exists for diagnostics, just clearly labeled now.
-
-## [0.25.0] - 2026-08-25
-
-### Added
-- **Experimental** "Use InputStream Adaptive" setting (default on) - turning it off plays
-  through Kodi's built-in player instead of inputstream.adaptive: fixed bitrate, no adaptive
-  switching, but may avoid inputstream.adaptive's occasional wrong-audio-track pick on
-  multi-track Twitch streams.
-- **Experimental** "Prompt for Stream Quality" setting (default off) - shows a quality picker
-  (including Source) before playback starts, for both the inputstream.adaptive and built-in
-  player paths, built on a new `lib/hls_playlist.py` HLS master-playlist parser.
-
 ## [0.24.10] - 2026-08-25
 
 ### Fixed

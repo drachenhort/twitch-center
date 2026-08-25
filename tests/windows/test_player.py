@@ -1,7 +1,5 @@
 from unittest.mock import ANY, patch
 
-import xbmcgui
-
 from lib import providers
 from lib.twitch import eventsub as eventsub_module
 from lib.twitch import irc as irc_module
@@ -9,13 +7,10 @@ from lib.windows import player
 
 
 class FakeSettings:
-    def __init__(self, chat_overlay_enabled, chat_engine="irc", chat_overlay_variable_height=False,
-                 use_inputstream_adaptive=True, prompt_stream_quality=False):
+    def __init__(self, chat_overlay_enabled, chat_engine="irc", chat_overlay_variable_height=False):
         self.chat_overlay_enabled = chat_overlay_enabled
         self.chat_engine = chat_engine
         self.chat_overlay_variable_height = chat_overlay_variable_height
-        self.use_inputstream_adaptive = use_inputstream_adaptive
-        self.prompt_stream_quality = prompt_stream_quality
 
 
 class FakeChatClient:
@@ -107,105 +102,6 @@ def test_play_stream_returns_false_when_inputstream_declined():
 
     assert result is False
     mock_player_cls.return_value.play.assert_not_called()
-
-
-def test_play_stream_skips_inputstream_helper_when_disabled():
-    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
-        "lib.windows.player.xbmc.Player"
-    ) as mock_player_cls, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog):
-        result = player.play_stream(
-            "https://example.invalid/stream.m3u8",
-            "somechannel",
-            settings=FakeSettings(False, use_inputstream_adaptive=False),
-        )
-
-    assert result is True
-    mock_helper_cls.assert_not_called()
-    call_args = mock_player_cls.return_value.play.call_args
-    list_item = call_args[0][1]
-    assert list_item.getProperty("inputstream") == ""
-    assert list_item.getProperty("inputstream.adaptive.manifest_type") == ""
-    assert list_item.getMimeType() == "application/x-mpegURL"
-    assert list_item.getPath() == "https://example.invalid/stream.m3u8"
-
-
-_QUALITY_TEST_PLAYLIST = (
-    "#EXTM3U\n"
-    '#EXT-X-MEDIA:TYPE=VIDEO,GROUP-ID="chunked",NAME="1080p60 (Source)",AUTOSELECT=YES,DEFAULT=YES\n'
-    '#EXT-X-STREAM-INF:BANDWIDTH=6000000,RESOLUTION=1920x1080,VIDEO="chunked"\n'
-    "chunked/index-dvr.m3u8?token=abc\n"
-)
-
-
-class _FakeQualityResponse:
-    def __init__(self, text):
-        self.text = text
-
-    def raise_for_status(self):
-        pass
-
-
-def test_play_stream_prompts_quality_and_plays_chosen_url_when_enabled():
-    xbmcgui.Dialog.next_select_choice = 1  # index 0 is "Auto", 1 is the parsed quality
-    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
-        "lib.windows.player.xbmc.Player"
-    ) as mock_player_cls, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog), patch(
-        "lib.hls_playlist.requests.get",
-        return_value=_FakeQualityResponse(_QUALITY_TEST_PLAYLIST),
-    ):
-        mock_helper_cls.return_value.check_inputstream.return_value = True
-        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
-
-        result = player.play_stream(
-            "https://example.invalid/master.m3u8",
-            "somechannel",
-            settings=FakeSettings(False, prompt_stream_quality=True),
-        )
-
-    assert result is True
-    call_args = mock_player_cls.return_value.play.call_args
-    assert call_args[0][0] == "https://example.invalid/chunked/index-dvr.m3u8?token=abc"
-
-
-def test_play_stream_returns_false_when_quality_prompt_cancelled():
-    xbmcgui.Dialog.next_select_choice = -1
-    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
-        "lib.windows.player.xbmc.Player"
-    ) as mock_player_cls, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog), patch(
-        "lib.hls_playlist.requests.get",
-        return_value=_FakeQualityResponse(_QUALITY_TEST_PLAYLIST),
-    ):
-        mock_helper_cls.return_value.check_inputstream.return_value = True
-        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
-
-        result = player.play_stream(
-            "https://example.invalid/master.m3u8",
-            "somechannel",
-            settings=FakeSettings(False, prompt_stream_quality=True),
-        )
-
-    assert result is False
-    mock_player_cls.return_value.play.assert_not_called()
-
-
-def test_play_stream_skips_prompt_and_plays_master_url_when_playlist_has_no_variants():
-    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
-        "lib.windows.player.xbmc.Player"
-    ) as mock_player_cls, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog), patch(
-        "lib.hls_playlist.requests.get", return_value=_FakeQualityResponse("#EXTM3U\n")
-    ):
-        mock_helper_cls.return_value.check_inputstream.return_value = True
-        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
-
-        result = player.play_stream(
-            "https://example.invalid/master.m3u8",
-            "somechannel",
-            settings=FakeSettings(False, prompt_stream_quality=True),
-        )
-
-    assert result is True
-    call_args = mock_player_cls.return_value.play.call_args
-    assert call_args[0][0] == "https://example.invalid/master.m3u8"
 
 
 def test_play_stream_creates_and_shows_overlay_when_enabled():

@@ -8,7 +8,6 @@ import xbmcgui
 from inputstreamhelper import Helper
 
 from lib import providers
-from lib.hls_playlist import fetch_qualities
 from lib.settings import Settings
 from lib.twitch import api
 from lib.twitch import eventsub
@@ -203,35 +202,14 @@ class _ChatAwarePlayer(xbmc.Player):
         self._overlay.close()
 
 
-def _select_quality(master_url):
-    """Prompts the user to pick a stream quality via master_url's parsed HLS
-    variants (see lib.hls_playlist), including "Auto" for the original
-    master playlist URL as-is. Returns the chosen URL, or None if the user
-    cancelled the dialog - never raises. Falls back to master_url unprompted
-    if the playlist couldn't be fetched/parsed (e.g. network hiccup), so a
-    failure here never blocks playback."""
-    qualities = fetch_qualities(master_url)
-    if not qualities:
-        return master_url
-
-    options = ["Auto"] + [quality.name for quality in qualities]
-    urls = [master_url] + [quality.url for quality in qualities]
-    index = xbmcgui.Dialog().select("Select stream quality", options)
-    if index < 0:
-        return None
-    return urls[index]
-
-
 def play_stream(url, channel, settings=None, access_token=None, client_id=None, user_id=None,
                  chat_overlay_cls=None, chat_client_cls=None, platform="twitch"):
-    """Hand the resolved HLS URL to Kodi's player - via inputstream.adaptive
-    (adaptive-bitrate switching for live multi-quality HLS) unless
-    settings.use_inputstream_adaptive is off, in which case Kodi's native
-    demuxer plays the URL directly instead (fixed bitrate, no ISA). Returns
+    """Hand the resolved HLS URL to Kodi's player via inputstream.adaptive,
+    which handles proper adaptive-bitrate switching for live multi-quality
+    HLS (unlike Kodi's native demuxer playing the URL directly). Returns
     True if playback was started, False if inputstream.adaptive isn't
     available and the user declined installing it (Helper.check_inputstream
-    handles that install-prompt UI itself), or if settings.prompt_stream_quality
-    is on and the user cancelled the quality picker (see _select_quality).
+    handles that install-prompt UI itself).
 
     If playback started, platform == "twitch", and chat_overlay_enabled is
     set, also creates and shows a ChatOverlay for `channel`, and keeps a
@@ -248,26 +226,21 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
     default "irc" engine and always ignored for platform=="kick"."""
     global _current_chat_watcher
 
-    settings = settings or Settings()
-
-    if settings.prompt_stream_quality:
-        url = _select_quality(url)
-        if url is None:
-            return False
+    is_helper = Helper("hls")
+    if not is_helper.check_inputstream():
+        return False
 
     list_item = xbmcgui.ListItem(path=url)
-    if settings.use_inputstream_adaptive:
-        is_helper = Helper("hls")
-        if not is_helper.check_inputstream():
-            return False
-        list_item.setProperty("inputstream", is_helper.inputstream_addon)
-        list_item.setProperty("inputstream.adaptive.manifest_type", "hls")
+    list_item.setProperty("inputstream", is_helper.inputstream_addon)
+    list_item.setProperty("inputstream.adaptive.manifest_type", "hls")
     list_item.setMimeType("application/x-mpegURL")
     list_item.setContentLookup(False)
 
     if _current_chat_watcher is not None:
         _current_chat_watcher._teardown()
         _current_chat_watcher = None
+
+    settings = settings or Settings()
     if platform == "twitch" and settings.chat_overlay_enabled:
         try:
             engine = settings.chat_engine

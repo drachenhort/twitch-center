@@ -101,19 +101,3 @@ msgstr ""
 msgctxt "#30027"
 msgid "Optional. Watching Kick streams and your Kick Favorites work with no secret set. Only needed to browse/search Kick's category list in Discover. Get it at kick.com/settings/developer: open the app (Client ID is already baked in), find/regenerate its Client Secret, and paste it here. Redirect URI on that app must be http://127.0.0.1:<port>/callback, matching the port set above. Keep this secret private - it authenticates as this app."
 msgstr ""
-
-msgctxt "#30028"
-msgid "Use InputStream Adaptive (Experimental - keep on)"
-msgstr ""
-
-msgctxt "#30029"
-msgid "Play Twitch streams through inputstream.adaptive, which supports adaptive bitrate switching but can sometimes pick the wrong audio track on multi-track streams. Turning this off plays through Kodi's built-in player instead - NOT recommended for live streams: Kodi's generic player doesn't re-poll Twitch's live playlist for new segments, so playback reliably dies (kicks you back to the menu) once it works through the initially-listed segments, usually within seconds to a couple of minutes. Kept for diagnostics only."
-msgstr ""
-
-msgctxt "#30030"
-msgid "Prompt for Stream Quality (Experimental)"
-msgstr ""
-
-msgctxt "#30031"
-msgid "Experimental. Shows a quality picker (including Source) before playback starts, for both the inputstream.adaptive and built-in player paths. Adds a network request to fetch the stream's quality list before playback begins."
-msgstr ""

@@ -44,12 +44,7 @@ and closes itself when the stream stops or ends.
   Secret in Settings, no interactive login. Kick chat isn't implemented yet.
 - **Playback** via `inputstream.adaptive` for proper adaptive-bitrate HLS, with automatic
   stall-recovery (re-resolves and restarts playback if a stream hiccups) and ad-break-aware
-  recovery timing. Two related settings are **experimental**: "Use InputStream Adaptive" (default
-  on - turning it off falls back to Kodi's built-in player, and was confirmed via live testing to
-  reliably kill live playback after working through the initially-listed HLS segments, since
-  Kodi's generic player doesn't re-poll Twitch's live playlist for new ones; keep this on unless
-  you're diagnosing something) and "Prompt for Stream Quality" (off by default; shows a quality
-  picker, including Source, before playback starts).
+  recovery timing.
 - **Chat overlay**: optional live chat panel next to the video, connects anonymously via IRC by
   default, or via Twitch's official EventSub API if you're logged in (Settings → Chat engine) —
   EventSub also unlocks a variable-height overlay that sizes each message box to its actual
