@@ -16,9 +16,10 @@ streamer-generated content, not a chat client.
 
 ## Screenshots
 
-![Menu screen with Live Streams, Discover, Search, Settings, and Log in again](screenshots/menu.png)
+![Menu screen with Live Streams, Discover, Settings, and login buttons](screenshots/menu.png)
 
 The landing screen after login — every other screen is one button away, no nested menus.
+*(Screenshot predates the current Menu background/logo and Kick login button — see [Status](#status) for what's current.)*
 
 ![Live Streams grid showing several followed channels, one selected and highlighted](screenshots/live-streams.png)
 
@@ -36,8 +37,12 @@ and closes itself when the stream stops or ends.
   no password ever touches this addon).
 - **Live Streams**: your followed channels, live ones first, sorted by viewer count, with a
   followed-games filter row.
-- **Discover**: browse live channels by any game/category, or search by channel or game name.
-- **Search**: free-text channel/stream search.
+- **Discover**: browse live channels by any Twitch game/category, or search by channel name,
+  Twitch game name, or Kick category name.
+- **Kick.com support**: browse and watch Kick streams alongside Twitch, interleaved by viewer
+  count — no Kick login required for watching or Kick Favorites (uses Kick's public,
+  unauthenticated endpoint); Discover's Kick category browsing needs only a Kick app Client
+  Secret in Settings, no interactive login. Kick chat isn't implemented yet.
 - **Playback** via `inputstream.adaptive` for proper adaptive-bitrate HLS, with automatic
   stall-recovery (re-resolves and restarts playback if a stream hiccups) and ad-break-aware
   recovery timing.
@@ -52,44 +57,47 @@ and closes itself when the stream stops or ends.
 
 ### Install via repository (recommended — enables auto-updates)
 
-Twitch Center is distributed alongside other Kodi addons in the shared
-[jellyfin-kodi-plex](https://github.com/drachenhort/jellyfin-kodi-plex) repository:
+Twitch Center is distributed via
+[drachenhort-repo](https://github.com/drachenhort/drachenhort-repo), a dedicated Kodi addon
+repository (also serves the unrelated Jellyfin (Plex-style) addon):
 
 1. Download the repository addon zip:
-   [`repository.jellyfinplex-1.0.1.zip`](https://drachenhort.github.io/jellyfin-kodi-plex/repository.jellyfinplex/repository.jellyfinplex-1.0.1.zip)
+   [`repository.drachenhort-1.0.0.zip`](https://drachenhort.github.io/drachenhort-repo/repository.drachenhort/repository.drachenhort-1.0.0.zip)
 2. In Kodi: **Add-ons → Install from zip file**, select the downloaded file.
-3. Then **Add-ons → Install from repository → Jellyfin (Plex-style) Repository →
-   Program add-ons → Twitch Center**, and install it from there. (The repository is shared with
-   an unrelated Jellyfin client addon — the name is a historical artifact, not a dependency.)
+3. Then **Add-ons → Install from repository → drachenhort Kodi Addons → Program add-ons →
+   Twitch Center**, and install it from there.
 
-Kodi then checks the repository for new versions and can auto-update the addon like any other.
+Kodi then checks the repository for new versions and can auto-update the addon like any other —
+every push to this repo's `master` triggers a rebuild of drachenhort-repo's index.
 
 ### Install from a plain zip (no auto-updates)
 
-Download the addon zip from a
-[jellyfin-kodi-plex Release](https://github.com/drachenhort/jellyfin-kodi-plex/releases) and use
+Download the addon zip from this repo's
+[Releases](https://github.com/drachenhort/twitch-center/releases) and use
 **Add-ons → Install from zip file** in Kodi. You'll need to repeat this manually for every future
 version.
 
 ## Status
 
 **Working and used daily:** device-code Twitch login with transparent token refresh; Live
-Streams (followed channels, live-first, viewer-count sorted, games filter); Discover (browse by
-game, search by channel or game name); channel/stream search; HLS playback via
-`inputstream.adaptive` with stall-recovery; the chat overlay (both IRC and EventSub engines,
-including the variable-height EventSub-only rendering mode) with auto-reconnect and clean
-teardown on stream end; a persistent single-window UI architecture that avoids a native Kodi
-window-activation bug hit by the naive multi-window approach.
+Streams (followed channels, live-first, viewer-count sorted, games filter, with Kick Favorites
+interleaved in); Discover (browse Twitch by game, search Twitch channels/games or Kick
+categories, browse Kick's top categories); HLS playback via `inputstream.adaptive` with
+stall-recovery; the chat overlay (both IRC and EventSub engines, including the variable-height
+EventSub-only rendering mode) with auto-reconnect and clean teardown on stream end; a persistent
+single-window UI architecture that avoids a native Kodi window-activation bug hit by the naive
+multi-window approach; [Kick.com support](docs/kick-integration-notes.md) for browsing and
+watching (`lib/kick/`), requiring no interactive Kick login for anything shipped so far.
 
-**In progress:** [Kick.com support](docs/kick-integration-notes.md) — the OAuth/API/stream-
-resolution layer (`lib/kick/`) is built and fully unit-tested but not yet wired into the UI;
-merging Kick channels into Live Streams/Discover/Search (unified, interleaved by viewer count) is
-the next planned milestone. Kick chat is deliberately deferred until watching lands first.
+**In progress:** Kick chat is deliberately deferred until watching had landed and stabilized
+first — not yet started.
 
-**Known limitations:** anonymous IRC chat is the default chat engine (EventSub requires being
-logged in, and isn't available for Search-result playback); no VOD/clips support (live streams
-only); picture-in-picture (small video box beside chat/menus, rather than fullscreen-or-nothing)
-is blocked on an unresolved Kodi playback-windowing question — see `TODO.md`.
+**Known limitations:** anonymous IRC chat is the default Twitch chat engine (EventSub requires
+being logged in, and isn't available when playing a Discover search result); Kick has no chat
+support yet;
+no VOD/clips support on either platform (live streams only); picture-in-picture (small video box
+beside chat/menus, rather than fullscreen-or-nothing) is blocked on an unresolved Kodi
+playback-windowing question — see `TODO.md`.
 
 See `CHANGELOG.md` for the full per-version history, and `docs/superpowers/specs`/
 `docs/superpowers/plans` for design and implementation tracking on larger features.
