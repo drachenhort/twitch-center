@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.24.7] - 2026-08-25
+
+### Changed
+- Added `lib/views/utils.py` with shared `xbmcgui.ListItem` builder helpers for Twitch/Kick
+  stream entries, cutting duplicated property-setting code out of the view layer.
+
 ## [0.24.6] - 2026-08-25
 
 ### Changed
