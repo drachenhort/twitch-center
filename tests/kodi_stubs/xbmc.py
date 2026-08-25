@@ -15,6 +15,10 @@ def sleep(milliseconds):
     pass
 
 
+def executebuiltin(function):
+    pass
+
+
 class Monitor:
     """Minimal stand-in for xbmc.Monitor; real Kodi blocks until abort or timeout."""
 

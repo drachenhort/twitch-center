@@ -4,6 +4,13 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.24.9] - 2026-08-25
+
+### Fixed
+- Chat overlay (both fixed and variable-height renderers) no longer swallows the OSD /
+  context-menu keys during playback - they now forward to the player, so player options can be
+  opened without closing chat first.
+
 ## [0.24.8] - 2026-08-25
 
 ### Changed

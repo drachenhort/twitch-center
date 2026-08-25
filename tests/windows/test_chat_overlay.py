@@ -1,5 +1,8 @@
 from unittest.mock import patch
 
+import xbmc
+import xbmcgui
+
 from lib.windows.chat_overlay import ChatOverlay, _wrap_message_lines
 
 
@@ -84,6 +87,21 @@ def test_oninit_forwards_engine_credentials_to_chat_client_cls():
     assert client.client_id == "cid"
     assert client.broadcaster_user_id == "123"
     assert client.user_id == "456"
+
+
+def test_onaction_forwards_osd_and_context_menu_to_player_without_closing():
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=FakeChatClient,
+    )
+    for action_id in (xbmcgui.ACTION_SHOW_OSD, xbmcgui.ACTION_CONTEXT_MENU):
+        with patch.object(xbmc, "executebuiltin") as executebuiltin:
+            win.onAction(xbmcgui.Action(action_id))
+        executebuiltin.assert_called_once_with("Action(%d)" % action_id)
 
 
 def test_pump_renders_messages_and_ignores_status_and_raid_events():

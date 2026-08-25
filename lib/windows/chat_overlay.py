@@ -86,6 +86,18 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
         self._total_evicted = 0
         self._control_evicted = 0
 
+    # Actions that should reach the player's own OSD/context menu instead of
+    # being swallowed by this dialog - without this, the overlay (which is
+    # the focused, topmost window during playback) eats the OSD/context-menu
+    # keys and the user has to close chat before opening player options.
+    _PLAYER_FORWARD_ACTIONS = (xbmcgui.ACTION_SHOW_OSD, xbmcgui.ACTION_CONTEXT_MENU)
+
+    def onAction(self, action):
+        if action.getId() in self._PLAYER_FORWARD_ACTIONS:
+            xbmc.executebuiltin("Action(%d)" % action.getId())
+            return
+        super().onAction(action)
+
     def onInit(self):
         self._client = self._chat_client_cls(
             self.channel,
