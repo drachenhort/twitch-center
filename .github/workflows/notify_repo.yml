@@ -1,0 +1,17 @@
+name: Notify drachenhort-repo
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger repo rebuild
+        run: |
+          curl -sf -X POST \
+            -H "Authorization: token ${{ secrets.DISPATCH_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/drachenhort/drachenhort-repo/dispatches \
+            -d '{"event_type":"addon-updated","client_payload":{"repo":"twitch-center"}}'
