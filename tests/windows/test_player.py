@@ -152,6 +152,25 @@ def test_play_stream_uses_relay_and_skips_inputstream_when_skip_twitch_ads_enabl
     assert list_item.getProperty("inputstream") == ""
 
 
+def test_play_stream_disables_stall_watchdog_when_relay_active():
+    # Regression test: live-tested on kodi.local (2026-08-25) and found the generic
+    # stall-recovery watchdog fires during the relay's normal multi-fetch startup
+    # latency (which can legitimately exceed the watchdog's threshold on a real
+    # connection), then "recovers" by re-opening the same not-yet-fed relay URL in an
+    # infinite loop - video never starts, even though the relay itself is healthy.
+    FakeAdSkipRelay.instances.clear()
+    with patch("lib.windows.player.Helper"), patch.object(xbmc.Player, "play"), patch(
+        "lib.windows.player.PlaybackWatchdog"
+    ) as mock_watchdog_cls, patch("lib.windows.player.AdSkipRelay", FakeAdSkipRelay):
+        player.play_stream(
+            "https://example.invalid/stream.m3u8",
+            "somechannel",
+            settings=FakeSettings(False, skip_twitch_ads=True),
+        )
+
+    mock_watchdog_cls.return_value.start.assert_not_called()
+
+
 def test_play_stream_stops_relay_on_playback_teardown_even_without_chat_overlay():
     FakeAdSkipRelay.instances.clear()
     with patch("lib.windows.player.Helper"), patch(

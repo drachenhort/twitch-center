@@ -338,7 +338,15 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
 
     if overlay is not None or relay is not None:
         _current_chat_watcher = _ChatAwarePlayer(
-            overlay, url=play_url, channel=channel, platform=platform, relay=relay
+            overlay, url=play_url, channel=channel, platform=platform, relay=relay,
+            # The relay's own fetch loop already retries network failures - Kodi-side
+            # stall-recovery (built for ISA-fed playback) actively hurts it here: the
+            # relay's startup (master + variant + first-segment fetch, 3 sequential
+            # round-trips) can legitimately take longer than the watchdog's stall
+            # threshold on a real-world connection, and "recovering" just re-opens the
+            # same not-yet-fed local URL - not a real restart - looping forever with
+            # video never starting (confirmed live on kodi.local, 2026-08-25).
+            enable_watchdog=(relay is None),
         )
         _current_chat_watcher.play(play_url, list_item)
     else:

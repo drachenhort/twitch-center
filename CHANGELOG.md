@@ -4,6 +4,17 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.25.3] - 2026-08-25
+
+### Fixed
+- Skip Twitch Ads relay never actually started playback on real hardware (kodi.local) - the
+  generic stall-recovery watchdog fired during the relay's normal multi-fetch startup (master +
+  variant + first-segment, three sequential round-trips, slower over a real connection than in
+  local dev testing) and "recovered" by re-opening the same not-yet-fed relay URL, looping
+  forever with video never starting (chat kept working since it's unaffected). The watchdog is
+  now disabled for the relay path - it already retries network failures internally and doesn't
+  need Kodi-side stall-recovery riding along.
+
 ## [0.25.2] - 2026-08-25
 
 ### Fixed
