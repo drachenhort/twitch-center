@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.25.1] - 2026-08-25
+
+### Changed
+- Documented (README, settings help text) that "Use InputStream Adaptive" off is not viable for
+  live playback: live-tested and confirmed it reliably kills playback (kicks back to the menu)
+  once Kodi's generic player works through the HLS segments listed at play-start, since it never
+  re-polls Twitch's live playlist for new ones the way inputstream.adaptive does. No code change -
+  the setting still exists for diagnostics, just clearly labeled now.
+
 ## [0.25.0] - 2026-08-25
 
 ### Added
