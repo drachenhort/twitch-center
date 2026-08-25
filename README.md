@@ -19,7 +19,6 @@ streamer-generated content, not a chat client.
 ![Menu screen with Live Streams, Discover, Settings, and login buttons](screenshots/menu.png)
 
 The landing screen after login — every other screen is one button away, no nested menus.
-*(Screenshot predates the current Menu background/logo and Kick login button — see [Status](#status) for what's current.)*
 
 ![Live Streams grid showing several followed channels, one selected and highlighted](screenshots/live-streams.png)
 
