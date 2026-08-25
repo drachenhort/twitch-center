@@ -88,9 +88,17 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
 
     # Actions that should reach the player's own OSD/context menu instead of
     # being swallowed by this dialog - without this, the overlay (which is
-    # the focused, topmost window during playback) eats the OSD/context-menu
-    # keys and the user has to close chat before opening player options.
-    _PLAYER_FORWARD_ACTIONS = (xbmcgui.ACTION_SHOW_OSD, xbmcgui.ACTION_CONTEXT_MENU)
+    # the focused, topmost window during playback) eats these and the user
+    # has to close chat before opening player options. ACTION_SELECT_ITEM is
+    # included because on at least one CEC remote setup, Select/Enter (not a
+    # dedicated OSD/context-menu button) is what triggers the player's OSD -
+    # the overlay has no meaningful use for Select itself (chat has nothing
+    # clickable), so forwarding it here doesn't lose any overlay function.
+    _PLAYER_FORWARD_ACTIONS = (
+        xbmcgui.ACTION_SHOW_OSD,
+        xbmcgui.ACTION_CONTEXT_MENU,
+        xbmcgui.ACTION_SELECT_ITEM,
+    )
 
     def onAction(self, action):
         if action.getId() in self._PLAYER_FORWARD_ACTIONS:

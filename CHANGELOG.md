@@ -4,6 +4,13 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.24.10] - 2026-08-25
+
+### Fixed
+- Chat overlay now also forwards Select/Enter to the player - on some CEC remote setups that's
+  the button that opens the player OSD, not a dedicated OSD/context-menu key, and the overlay
+  was still swallowing it after the v0.24.9 fix.
+
 ## [0.24.9] - 2026-08-25
 
 ### Fixed

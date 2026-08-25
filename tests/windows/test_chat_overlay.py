@@ -98,7 +98,11 @@ def test_onaction_forwards_osd_and_context_menu_to_player_without_closing():
         channel="somechannel",
         chat_client_cls=FakeChatClient,
     )
-    for action_id in (xbmcgui.ACTION_SHOW_OSD, xbmcgui.ACTION_CONTEXT_MENU):
+    for action_id in (
+        xbmcgui.ACTION_SHOW_OSD,
+        xbmcgui.ACTION_CONTEXT_MENU,
+        xbmcgui.ACTION_SELECT_ITEM,
+    ):
         with patch.object(xbmc, "executebuiltin") as executebuiltin:
             win.onAction(xbmcgui.Action(action_id))
         executebuiltin.assert_called_once_with("Action(%d)" % action_id)
