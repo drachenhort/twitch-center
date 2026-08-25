@@ -4,6 +4,23 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.24.4] - 2026-08-25
+
+### Changed
+- Kick login is no longer required for watching. `kick_client_id` now ships baked-in
+  (hidden, like Twitch's) instead of asking every user to register their own app.
+  Watching Kick streams and Kick Favorites now use the public, unauthenticated
+  unofficial channel endpoint - no token needed at all. Discover's Kick category
+  browse/search now uses a Kick App Access Token (`client_credentials` grant,
+  `lib.kick.auth.get_app_access_token`) instead of the interactive PKCE user login -
+  only needs `kick_client_secret` set in Settings, no "Log in to Kick" click.
+  `resolve_stream_url`'s Kick branch no longer gates on a saved token.
+
+## [0.24.3] - 2026-08-25
+
+### Added
+- Clock (`$INFO[System.Time]`) top right corner of Discover and Live Streams screens.
+
 ## [0.24.2] - 2026-08-23
 
 ### Changed

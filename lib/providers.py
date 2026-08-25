@@ -7,9 +7,9 @@ import json
 
 from lib.kick import auth as kick_auth
 from lib.kick import stream as kick_stream
-from lib.kick.api import get_channel as _kick_get_channel
 from lib.kick.api import get_live_streams as _kick_get_live_streams
 from lib.kick.api import get_top_categories as _kick_get_top_categories
+from lib.kick.api import get_unofficial_channel as _kick_get_unofficial_channel
 from lib.kick.api import search_categories as _kick_search_categories
 from lib.twitch import stream as twitch_stream
 
@@ -77,84 +77,96 @@ def normalize_twitch_channel(channel, stream_data=None):
     }
 
 
-def _normalize_kick_channel(channel):
-    """Convert one lib.kick.api.get_channel() response into the shared
-    normalized dict. Field names beyond broadcaster_user_id/slug/stream.is_live
-    are unconfirmed against a real API response (see this task's note in the
-    plan) - every read here uses .get() with a safe default so a wrong guess
-    degrades gracefully instead of raising."""
-    stream_info = channel.get("stream") or {}
-    category = channel.get("category") or {}
+def _normalize_unofficial_kick_channel(channel):
+    """Convert one lib.kick.api.get_unofficial_channel() response into the
+    shared normalized dict. This is the public, unauthenticated
+    kick.com/api/v2/channels/{slug} endpoint - see kick_stream.resolve_stream_url's
+    docstring. Field names beyond id/slug/livestream.is_live are unconfirmed
+    against a real response - every read here uses .get() with a safe
+    default so a wrong guess degrades gracefully instead of raising."""
+    livestream = channel.get("livestream") or {}
+    categories = livestream.get("categories") or []
+    category_name = categories[0].get("name", "") if categories else ""
+    thumbnail = livestream.get("thumbnail") or {}
     slug = channel.get("slug", "")
     return {
         "platform": "kick",
-        "id": str(channel.get("broadcaster_user_id", "")),
+        "id": str(channel.get("id", "")),
         "login": slug,
         "display_name": slug,
-        "is_live": bool(stream_info.get("is_live", False)),
-        "viewer_count": stream_info.get("viewer_count", 0),
-        "game_name": category.get("name", ""),
-        "thumbnail_url": stream_info.get("thumbnail", ""),
+        "is_live": bool(livestream.get("is_live", False)),
+        "viewer_count": livestream.get("viewer_count", 0),
+        "game_name": category_name,
+        "thumbnail_url": thumbnail.get("url", ""),
     }
 
 
-def get_kick_live_favorites(addon, get_channel_fn=None):
+def get_kick_live_favorites(addon, get_unofficial_channel_fn=None):
     """Return normalized, LIVE-only entries for every favorited Kick channel.
-    Silently returns [] if there's no saved Kick token (Kick login is
-    optional and independent of Twitch's) - never raises. A favorite whose
-    lookup itself raises (network error, deleted channel, etc.) is skipped
-    rather than failing the whole list, so one bad favorite can't blank the
-    screen."""
-    if get_channel_fn is None:
-        get_channel_fn = _kick_get_channel
-    token = kick_auth.load_token(addon)
-    if token is None:
-        return []
+    Uses the public, unauthenticated unofficial channel endpoint - no Kick
+    login required, same as playback (see resolve_stream_url). Never raises;
+    a favorite whose lookup itself raises (network error, deleted channel,
+    etc.) is skipped rather than failing the whole list, so one bad favorite
+    can't blank the screen."""
+    if get_unofficial_channel_fn is None:
+        get_unofficial_channel_fn = _kick_get_unofficial_channel
     results = []
     for slug in get_kick_favorites(addon):
         try:
-            channel = get_channel_fn(token["access_token"], slug)
+            channel = get_unofficial_channel_fn(slug)
         except Exception:
             continue
         if channel is None:
             continue
-        normalized = _normalize_kick_channel(channel)
+        normalized = _normalize_unofficial_kick_channel(channel)
         if normalized["is_live"]:
             results.append(normalized)
     return results
 
 
+def _kick_app_access_token(addon):
+    """Return an App Access Token (client_credentials grant) for the
+    addon's configured Kick app, or None if kick_client_id/kick_client_secret
+    aren't set or the token request fails. No user login involved - Kick's
+    read-only browsing endpoints (categories, livestreams) only need
+    "publicly available data" per docs.kick.com, which App Access Tokens can
+    reach."""
+    client_id = addon.getSetting("kick_client_id")
+    client_secret = addon.getSetting("kick_client_secret")
+    return kick_auth.get_app_access_token(client_id, client_secret)
+
+
 def get_kick_top_categories(addon, get_top_categories_fn=None):
-    """Return Kick's categories, or [] if there's no saved Kick token or the
-    call fails - never raises. Used to populate Discover's Kick categories
-    row, which simply doesn't appear (via an empty row) rather than erroring
-    when the user isn't logged into Kick.
+    """Return Kick's categories, or [] if no kick_client_id/kick_client_secret
+    are configured or the call fails - never raises. Used to populate
+    Discover's Kick categories row, which simply doesn't appear (via an
+    empty row) rather than erroring when Kick app credentials aren't set.
 
     Uses GET /public/v2/categories (confirmed live 2026-08-23 - no search
     query required, unlike the deprecated v1 endpoint this replaced)."""
     if get_top_categories_fn is None:
         get_top_categories_fn = _kick_get_top_categories
-    token = kick_auth.load_token(addon)
-    if token is None:
+    access_token = _kick_app_access_token(addon)
+    if access_token is None:
         return []
     try:
-        return get_top_categories_fn(token["access_token"])
+        return get_top_categories_fn(access_token)
     except Exception:
         return []
 
 
 def search_kick_categories(addon, query, search_categories_fn=None):
-    """Return Kick categories matching `query` by name, or [] if there's no
-    saved Kick token or the call fails - never raises. Mirrors
+    """Return Kick categories matching `query` by name, or [] if no Kick app
+    credentials are configured or the call fails - never raises. Mirrors
     get_kick_top_categories's silent-empty contract; Discover's search
     treats an empty result the same as "nothing found", not an error."""
     if search_categories_fn is None:
         search_categories_fn = _kick_search_categories
-    token = kick_auth.load_token(addon)
-    if token is None:
+    access_token = _kick_app_access_token(addon)
+    if access_token is None:
         return []
     try:
-        return search_categories_fn(token["access_token"], query)
+        return search_categories_fn(access_token, query)
     except Exception:
         return []
 
@@ -180,15 +192,15 @@ def _normalize_kick_live_stream_entry(entry):
 
 
 def get_kick_category_streams(addon, category_id, get_live_streams_fn=None):
-    """Return normalized live streams for one Kick category, or [] if
-    there's no saved Kick token or the call fails - never raises."""
+    """Return normalized live streams for one Kick category, or [] if no
+    Kick app credentials are configured or the call fails - never raises."""
     if get_live_streams_fn is None:
         get_live_streams_fn = _kick_get_live_streams
-    token = kick_auth.load_token(addon)
-    if token is None:
+    access_token = _kick_app_access_token(addon)
+    if access_token is None:
         return []
     try:
-        entries = get_live_streams_fn(token["access_token"], category_id=category_id)
+        entries = get_live_streams_fn(access_token, category_id=category_id)
     except Exception:
         return []
     return [_normalize_kick_live_stream_entry(entry) for entry in entries]
@@ -216,9 +228,9 @@ class StreamUnavailableError(Exception):
 def resolve_stream_url(addon, platform, identifier):
     """Resolve `identifier` (a Twitch login or Kick slug) to a playable HLS
     URL for the given platform. Raises StreamUnavailableError - never the
-    underlying per-platform exception - on any failure, including "not
-    logged into Kick" (unlike listing, an explicit play action needs a
-    definite error, not a silent empty result)."""
+    underlying per-platform exception - on any failure (unlike listing, an
+    explicit play action needs a definite error, not a silent empty
+    result)."""
     if platform == "twitch":
         website_token = addon.getSetting("website_token")
         try:
@@ -234,11 +246,11 @@ def resolve_stream_url(addon, platform, identifier):
             # Kick branch below.
             raise StreamUnavailableError(str(exc)) from exc
     if platform == "kick":
-        token = kick_auth.load_token(addon)
-        if token is None:
-            raise StreamUnavailableError("not logged into Kick")
+        # No token needed: kick_stream.resolve_stream_url uses the
+        # unofficial, unauthenticated kick.com/api/v2/channels/{slug}
+        # endpoint - see its docstring. Kick playback never required login.
         try:
-            return kick_stream.resolve_stream_url(token["access_token"], identifier)
+            return kick_stream.resolve_stream_url(None, identifier)
         except kick_stream.StreamUnavailableError as exc:
             raise StreamUnavailableError(str(exc)) from exc
         except Exception as exc:

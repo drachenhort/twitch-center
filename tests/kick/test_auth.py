@@ -208,6 +208,57 @@ def test_refresh_access_token_returns_none_on_non_200():
     assert result is None
 
 
+def test_get_app_access_token_returns_none_when_credentials_missing():
+    assert auth.get_app_access_token("", "secret") is None
+    assert auth.get_app_access_token("client-id", "") is None
+
+
+def test_get_app_access_token_returns_token_on_success():
+    auth._app_token_cache.clear()
+    body = {"access_token": "app-tok", "expires_in": 3600}
+    with patch.object(auth.requests, "post", return_value=_fake_response(body)) as mock_post:
+        result = auth.get_app_access_token("client-id", "client-secret-abc")
+    assert result == "app-tok"
+    assert mock_post.call_args.kwargs["data"] == {
+        "grant_type": "client_credentials",
+        "client_id": "client-id",
+        "client_secret": "client-secret-abc",
+    }
+
+
+def test_get_app_access_token_caches_until_near_expiry():
+    auth._app_token_cache.clear()
+    body = {"access_token": "app-tok", "expires_in": 3600}
+    with patch.object(auth.requests, "post", return_value=_fake_response(body)) as mock_post:
+        first = auth.get_app_access_token("client-id", "client-secret-abc", now=1000.0)
+        second = auth.get_app_access_token("client-id", "client-secret-abc", now=1000.0 + 3000)
+    assert first == second == "app-tok"
+    mock_post.assert_called_once()
+
+
+def test_get_app_access_token_refetches_after_expiry():
+    auth._app_token_cache.clear()
+    body = {"access_token": "app-tok", "expires_in": 3600}
+    with patch.object(auth.requests, "post", return_value=_fake_response(body)) as mock_post:
+        auth.get_app_access_token("client-id", "client-secret-abc", now=1000.0)
+        auth.get_app_access_token("client-id", "client-secret-abc", now=1000.0 + 3600)
+    assert mock_post.call_count == 2
+
+
+def test_get_app_access_token_returns_none_on_non_200():
+    auth._app_token_cache.clear()
+    with patch.object(auth.requests, "post", return_value=_fake_response({}, status_code=401)):
+        result = auth.get_app_access_token("client-id", "client-secret-abc")
+    assert result is None
+
+
+def test_get_app_access_token_returns_none_on_network_failure():
+    auth._app_token_cache.clear()
+    with patch.object(auth.requests, "post", side_effect=requests.RequestException("boom")):
+        result = auth.get_app_access_token("client-id", "client-secret-abc")
+    assert result is None
+
+
 def test_save_load_clear_token_round_trip():
     addon = FakeAddon()
     token = {"access_token": "tok", "refresh_token": "ref"}

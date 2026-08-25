@@ -241,6 +241,18 @@
         <textcolor>FFCAC4D0</textcolor>
         <label>$INFO[Container(201).NumItems] channels live now</label>
       </control>
+      <control type="label">
+        <description>Clock</description>
+        <posx>1700</posx>
+        <posy>48</posy>
+        <width>156</width>
+        <height>48</height>
+        <font>Title</font>
+        <textcolor>FFCAC4D0</textcolor>
+        <align>right</align>
+        <aligny>center</aligny>
+        <label>$INFO[System.Time]</label>
+      </control>
       <control type="list" id="205">
         <description>Followed games filter</description>
         <posx>48</posx>
@@ -525,6 +537,18 @@
         <font>CardBody</font>
         <textcolor>FFCAC4D0</textcolor>
         <label>$INFO[Container(301).NumItems] results</label>
+      </control>
+      <control type="label">
+        <description>Clock</description>
+        <posx>1700</posx>
+        <posy>48</posy>
+        <width>156</width>
+        <height>48</height>
+        <font>Title</font>
+        <textcolor>FFCAC4D0</textcolor>
+        <align>right</align>
+        <aligny>center</aligny>
+        <label>$INFO[System.Time]</label>
       </control>
       <control type="edit" id="306">
         <description>Search query</description>

@@ -4,7 +4,6 @@ import xbmcaddon
 import xbmcgui
 
 from lib import providers
-from lib.kick import auth as kick_auth
 from lib.twitch import api
 from lib.twitch.auth import clear_token, save_token
 from lib.views.discover_view import (
@@ -285,10 +284,11 @@ def _switch_to_kick_search_mode(win):
 
 def test_pressing_search_in_kick_mode_searches_categories_then_lists_its_streams():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    addon.setSetting("kick_client_secret", "csecret")
     matches = [{"id": 3, "name": "EVE Online"}]
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
         api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(kick_auth, "load_token", return_value={"access_token": "ktok"}), patch.object(
+    ), patch.object(
         providers, "search_kick_categories", return_value=matches
     ) as mock_search, patch.object(
         providers, "get_kick_category_streams", return_value=[KICK_CATEGORY_STREAM]
@@ -309,9 +309,10 @@ def test_pressing_search_in_kick_mode_searches_categories_then_lists_its_streams
 
 def test_pressing_search_in_kick_mode_shows_message_when_no_category_matches():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    addon.setSetting("kick_client_secret", "csecret")
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
         api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(kick_auth, "load_token", return_value={"access_token": "ktok"}), patch.object(
+    ), patch.object(
         providers, "search_kick_categories", return_value=[]
     ), patch.object(providers, "get_kick_category_streams") as mock_get_streams:
         win = DiscoverView(FakeWindow())
@@ -326,11 +327,12 @@ def test_pressing_search_in_kick_mode_shows_message_when_no_category_matches():
     assert win.window.getControl(DiscoverView.RESULTS_LIST_ID).size() == 0
 
 
-def test_pressing_search_in_kick_mode_shows_error_when_not_logged_into_kick():
+def test_pressing_search_in_kick_mode_shows_error_when_kick_app_not_configured():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    # kick_client_secret left unset
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
         api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(kick_auth, "load_token", return_value=None), patch.object(
+    ), patch.object(
         providers, "search_kick_categories"
     ) as mock_search:
         win = DiscoverView(FakeWindow())

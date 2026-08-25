@@ -25,12 +25,12 @@ unofficial section as best-effort and expect it to break without notice.
 3. Standard authorization-code + PKCE exchange against `id.kick.com`.
 4. Use the resulting Bearer token against `api.kick.com/public/v1/...`.
 
-**Open question to verify in the docs before building:** whether read-only
-endpoints (livestreams, categories) support an app/client-credentials style
-token (like Twitch's app access token for anonymous browsing), or whether
-every call requires a user to authorize your app first. This materially
-affects whether "browse without login" is possible, which Twitch add-ons
-generally support.
+**Resolved 2026-08-25:** yes - `docs.kick.com`'s OAuth flow doc confirms
+`client_credentials` grant support (App Access Token), described as usable
+"when user login is not required" for "publicly available data". Used by
+`lib.kick.auth.get_app_access_token` for Discover's category browse/search,
+so no interactive per-user PKCE login is needed for read-only browsing.
+Playback and Kick Favorites need no token at all - see section 2 below.
 
 ### Known endpoints
 - `GET /public/v1/livestreams` — query params seen: `category_id`, `language`,

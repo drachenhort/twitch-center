@@ -68,15 +68,16 @@
           </constraints>
           <control type="edit" format="string"/>
         </setting>
-        <setting id="kick_client_id" type="string" label="30020" help="30024">
+        <setting id="kick_client_id" type="string" label="30020" help="">
           <level>2</level>
-          <default></default>
+          <default>01M0NF1C41VN6SX6X6HY6F17D6</default>
           <constraints>
             <allowempty>true</allowempty>
           </constraints>
           <control type="edit" format="string"/>
+          <visible>false</visible>
         </setting>
-        <setting id="kick_client_secret" type="string" label="30025" help="30024">
+        <setting id="kick_client_secret" type="string" label="30025" help="30027">
           <level>2</level>
           <default></default>
           <constraints>

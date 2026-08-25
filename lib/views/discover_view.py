@@ -7,7 +7,6 @@ import xbmcaddon
 import xbmcgui
 
 from lib import providers
-from lib.kick import auth as kick_auth
 from lib.twitch import api, auth
 from lib.views.kick_favorites_menu import show_kick_favorite_context_menu
 from lib.windows import player
@@ -23,7 +22,7 @@ SEARCH_MODE_TOGGLE_ID = 308
 KICK_CATEGORIES_LIST_ID = 309
 
 _MISSING_TOKEN_MESSAGE = "You're not logged in. Reopen the addon to log in."
-_MISSING_KICK_TOKEN_MESSAGE = "Log in to Kick first (Menu) to search Kick categories."
+_MISSING_KICK_TOKEN_MESSAGE = "Set your Kick app's Client Secret in Settings to search Kick categories."
 _EMPTY_RESULTS_MESSAGE = "Nothing found."
 _EMPTY_GAME_SEARCH_MESSAGE = "No matching game found."
 _EMPTY_KICK_CATEGORY_SEARCH_MESSAGE = "No matching Kick category found."
@@ -373,7 +372,7 @@ class DiscoverView:
         addon = xbmcaddon.Addon()
 
         if self._search_mode == "kick":
-            if kick_auth.load_token(addon) is None:
+            if not addon.getSetting("kick_client_secret"):
                 self._show_results_error(_MISSING_KICK_TOKEN_MESSAGE)
                 return
             try:

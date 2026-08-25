@@ -156,6 +156,54 @@ def refresh_access_token(client_id, client_secret, refresh_token, on_error=None)
         return None
 
 
+_app_token_cache = {}
+_APP_TOKEN_EXPIRY_MARGIN_SECONDS = 30
+
+
+def get_app_access_token(client_id, client_secret, now=None):
+    """Return a Kick App Access Token (client_credentials grant) for
+    `client_id`/`client_secret` - no user login involved, unlike
+    exchange_code_for_token/run_pkce_login. Used for read-only browsing
+    (categories, livestreams) so those don't require the user to complete
+    the interactive PKCE flow. Returns None on any failure (missing
+    credentials, network error, non-200, unparseable body) - mirrors
+    refresh_access_token's contract.
+
+    Cached in-process per client_id, refetched once within
+    _APP_TOKEN_EXPIRY_MARGIN_SECONDS of the token's reported expiry."""
+    if not client_id or not client_secret:
+        return None
+    if now is None:
+        now = time.time()
+    cached = _app_token_cache.get(client_id)
+    if cached and cached[1] > now:
+        return cached[0]
+    try:
+        response = requests.post(
+            TOKEN_URL,
+            data={
+                "grant_type": "client_credentials",
+                "client_id": client_id,
+                "client_secret": client_secret,
+            },
+            timeout=10,
+        )
+    except requests.RequestException:
+        return None
+    if response.status_code != 200:
+        return None
+    try:
+        token = response.json()
+    except ValueError:
+        return None
+    access_token = token.get("access_token")
+    if not access_token:
+        return None
+    expires_at = now + token.get("expires_in", 0) - _APP_TOKEN_EXPIRY_MARGIN_SECONDS
+    _app_token_cache[client_id] = (access_token, expires_at)
+    return access_token
+
+
 def save_token(token, addon):
     """Persist a token dict to the addon's hidden kick_token setting."""
     addon.setSetting("kick_token", json.dumps(token))

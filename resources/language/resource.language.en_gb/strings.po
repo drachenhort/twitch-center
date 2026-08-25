@@ -97,3 +97,7 @@ msgstr ""
 msgctxt "#30026"
 msgid "Kick Favorite Channels"
 msgstr ""
+
+msgctxt "#30027"
+msgid "Optional. Watching Kick streams and your Kick Favorites work with no secret set. Only needed to browse/search Kick's category list in Discover. Get it at kick.com/settings/developer: open the app (Client ID is already baked in), find/regenerate its Client Secret, and paste it here. Redirect URI on that app must be http://127.0.0.1:<port>/callback, matching the port set above. Keep this secret private - it authenticates as this app."
+msgstr ""
