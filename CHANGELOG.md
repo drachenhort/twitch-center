@@ -4,6 +4,23 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.25.0] - 2026-08-25
+
+### Added
+- **Experimental** "Skip Twitch Ads" setting (default off) - runs a small local relay
+  (`lib/hls_ad_relay.py`) that does its own HLS segment-fetch loop against the live stream,
+  detects Twitch's stitched-ad segments (same two signals streamlink uses: an
+  `EXT-X-DATERANGE` tagged `CLASS="twitch-stitched-ad"`, or an `EXTINF` title containing
+  "Amazon"), skips them outright, and re-serves the rest as one continuous MPEG-TS stream over
+  `localhost` - Kodi just plays that plain HTTP URL, no inputstream.adaptive/HLS parsing on its
+  end for this path. Live-tested on the local dev Kodi instance: over an hour combined across two
+  different large channels with zero playback errors and no early termination, confirming the
+  relay approach itself is stable (unlike the since-reverted ISA-bypass experiment) - no actual
+  ad break was hit during that window, so the skip logic's real-world firing is still unconfirmed
+  live, though it's covered by unit/integration tests (segment-level ad detection, and an
+  end-to-end test that a real ad segment served over a real local socket gets dropped from the
+  output).
+
 ## [0.24.10] - 2026-08-25
 
 ### Fixed

@@ -27,3 +27,7 @@ class Settings:
     @property
     def chat_overlay_variable_height(self):
         return self._addon.getSettingBool("chat_overlay_variable_height")
+
+    @property
+    def skip_twitch_ads(self):
+        return self._addon.getSettingBool("skip_twitch_ads")

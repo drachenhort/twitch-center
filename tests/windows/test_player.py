@@ -1,5 +1,7 @@
 from unittest.mock import ANY, patch
 
+import xbmc
+
 from lib import providers
 from lib.twitch import eventsub as eventsub_module
 from lib.twitch import irc as irc_module
@@ -7,10 +9,12 @@ from lib.windows import player
 
 
 class FakeSettings:
-    def __init__(self, chat_overlay_enabled, chat_engine="irc", chat_overlay_variable_height=False):
+    def __init__(self, chat_overlay_enabled, chat_engine="irc", chat_overlay_variable_height=False,
+                 skip_twitch_ads=False):
         self.chat_overlay_enabled = chat_overlay_enabled
         self.chat_engine = chat_engine
         self.chat_overlay_variable_height = chat_overlay_variable_height
+        self.skip_twitch_ads = skip_twitch_ads
 
 
 class FakeChatClient:
@@ -102,6 +106,70 @@ def test_play_stream_returns_false_when_inputstream_declined():
 
     assert result is False
     mock_player_cls.return_value.play.assert_not_called()
+
+
+class FakeAdSkipRelay:
+    instances = []
+
+    def __init__(self, url, log_fn=None):
+        self.url = url
+        self.started = False
+        self.stopped = False
+        type(self).instances.append(self)
+
+    def start(self):
+        self.started = True
+        return "http://127.0.0.1:12345/stream.ts"
+
+    def stop(self):
+        self.stopped = True
+
+
+def test_play_stream_uses_relay_and_skips_inputstream_when_skip_twitch_ads_enabled():
+    FakeAdSkipRelay.instances.clear()
+    with patch("lib.windows.player.Helper") as mock_helper_cls, patch.object(
+        xbmc.Player, "play"
+    ) as mock_play, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog), patch(
+        "lib.windows.player.AdSkipRelay", FakeAdSkipRelay
+    ):
+        result = player.play_stream(
+            "https://example.invalid/stream.m3u8",
+            "somechannel",
+            settings=FakeSettings(False, skip_twitch_ads=True),
+        )
+
+    assert result is True
+    mock_helper_cls.assert_not_called()
+    assert len(FakeAdSkipRelay.instances) == 1
+    relay = FakeAdSkipRelay.instances[0]
+    assert relay.url == "https://example.invalid/stream.m3u8"
+    assert relay.started is True
+
+    call_args = mock_play.call_args
+    assert call_args[0][0] == "http://127.0.0.1:12345/stream.ts"
+    list_item = call_args[0][1]
+    assert list_item.getMimeType() == "video/mp2t"
+    assert list_item.getProperty("inputstream") == ""
+
+
+def test_play_stream_stops_relay_on_playback_teardown_even_without_chat_overlay():
+    FakeAdSkipRelay.instances.clear()
+    with patch("lib.windows.player.Helper"), patch(
+        "lib.windows.player.xbmc.Player"
+    ), patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog), patch(
+        "lib.windows.player.AdSkipRelay", FakeAdSkipRelay
+    ):
+        player.play_stream(
+            "https://example.invalid/stream.m3u8",
+            "somechannel",
+            settings=FakeSettings(False, skip_twitch_ads=True),
+        )
+        relay = FakeAdSkipRelay.instances[0]
+        assert relay.stopped is False
+
+        player._current_chat_watcher.onPlayBackStopped()
+
+    assert relay.stopped is True
 
 
 def test_play_stream_creates_and_shows_overlay_when_enabled():

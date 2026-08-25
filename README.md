@@ -44,7 +44,10 @@ and closes itself when the stream stops or ends.
   Secret in Settings, no interactive login. Kick chat isn't implemented yet.
 - **Playback** via `inputstream.adaptive` for proper adaptive-bitrate HLS, with automatic
   stall-recovery (re-resolves and restarts playback if a stream hiccups) and ad-break-aware
-  recovery timing.
+  recovery timing. **Experimental**: "Skip Twitch Ads" setting (off by default) runs a small
+  local relay that detects and drops Twitch's stitched ad segments before they reach the player -
+  live-tested for playback stability, but ad-detection itself hasn't been confirmed against a
+  real ad break yet (see CHANGELOG).
 - **Chat overlay**: optional live chat panel next to the video, connects anonymously via IRC by
   default, or via Twitch's official EventSub API if you're logged in (Settings → Chat engine) —
   EventSub also unlocks a variable-height overlay that sizes each message box to its actual

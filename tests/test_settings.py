@@ -58,6 +58,18 @@ def test_chat_overlay_variable_height_reads_addon_setting():
     assert settings.chat_overlay_variable_height is True
 
 
+def test_skip_twitch_ads_defaults_to_false():
+    settings = Settings()
+    assert settings.skip_twitch_ads is False
+
+
+def test_skip_twitch_ads_reads_addon_setting():
+    addon = xbmcaddon.Addon()
+    addon.setSetting("skip_twitch_ads", True)
+    settings = Settings(addon=addon)
+    assert settings.skip_twitch_ads is True
+
+
 def test_kick_client_id_setting_is_readable_and_defaults_empty():
     addon = xbmcaddon.Addon()
     assert addon.getSetting("kick_client_id") == ""

@@ -8,6 +8,7 @@ import xbmcgui
 from inputstreamhelper import Helper
 
 from lib import providers
+from lib.hls_ad_relay import AdSkipRelay
 from lib.settings import Settings
 from lib.twitch import api
 from lib.twitch import eventsub
@@ -47,18 +48,35 @@ class AdBreakState:
 
 class RecoveryManager:
     """Refreshes the stream URL (via the correct platform's resolver) and
-    restarts Kodi playback."""
+    restarts Kodi playback. If relay/relay_url are set (skip_twitch_ads
+    active), re-plays the relay's already-running local URL instead of
+    re-resolving/reinstalling ISA - the relay's own fetch loop already
+    retries network hiccups internally, so a stall here is most likely
+    Kodi's player itself, not a dead upstream URL."""
 
-    def __init__(self, player, channel, platform="twitch"):
+    def __init__(self, player, channel, platform="twitch", relay=None, relay_url=None):
         self._player = player
         self._channel = channel
         self._platform = platform
+        self._relay = relay
+        self._relay_url = relay_url
         self._lock = threading.Lock()
 
     def recover(self):
         if not self._lock.acquire(blocking=False):
             return
         try:
+            if self._relay is not None:
+                list_item = xbmcgui.ListItem(path=self._relay_url)
+                list_item.setMimeType("video/mp2t")
+                list_item.setContentLookup(False)
+                self._player.play(self._relay_url, list_item)
+                xbmc.log(
+                    "script.twitch.center: restarted playback via the ad-skip relay",
+                    xbmc.LOGINFO,
+                )
+                return
+
             addon = xbmcaddon.Addon()
             try:
                 new_url = providers.resolve_stream_url(addon, self._platform, self._channel)
@@ -165,14 +183,16 @@ class PlaybackWatchdog:
 
 
 class _ChatAwarePlayer(xbmc.Player):
-    def __init__(self, overlay, url=None, channel=None, platform="twitch", enable_watchdog=True):
+    def __init__(self, overlay, url=None, channel=None, platform="twitch", enable_watchdog=True,
+                 relay=None):
         super().__init__()
         self._overlay = overlay
         self._url = url
         self._channel = channel
         self._paused = False
         self._ad_state = AdBreakState()
-        self._recovery = RecoveryManager(self, channel, platform)
+        self._relay = relay
+        self._recovery = RecoveryManager(self, channel, platform, relay=relay, relay_url=url)
         self._watchdog = PlaybackWatchdog(
             self, self._ad_state, self._recovery, is_paused_fn=lambda: self._paused
         )
@@ -199,26 +219,32 @@ class _ChatAwarePlayer(xbmc.Player):
 
     def _teardown(self):
         self._watchdog.stop()
-        self._overlay.close()
+        if self._overlay is not None:
+            self._overlay.close()
+        if self._relay is not None:
+            self._relay.stop()
 
 
 def play_stream(url, channel, settings=None, access_token=None, client_id=None, user_id=None,
                  chat_overlay_cls=None, chat_client_cls=None, platform="twitch"):
-    """Hand the resolved HLS URL to Kodi's player via inputstream.adaptive,
+    """Hand the resolved HLS URL to Kodi's player - via inputstream.adaptive,
     which handles proper adaptive-bitrate switching for live multi-quality
-    HLS (unlike Kodi's native demuxer playing the URL directly). Returns
-    True if playback was started, False if inputstream.adaptive isn't
-    available and the user declined installing it (Helper.check_inputstream
-    handles that install-prompt UI itself).
+    HLS, unless settings.skip_twitch_ads is on, in which case a local
+    AdSkipRelay is started first and its local relay URL is played directly
+    (raw MPEG-TS, no ISA) instead of the original HLS URL. Returns True if
+    playback was started, False if inputstream.adaptive isn't available and
+    the user declined installing it (Helper.check_inputstream handles that
+    install-prompt UI itself) - not applicable when skip_twitch_ads is on,
+    since that path never touches ISA.
 
-    If playback started, platform == "twitch", and chat_overlay_enabled is
-    set, also creates and shows a ChatOverlay for `channel`, and keeps a
-    _ChatAwarePlayer alive at module level so its onPlaybackStopped/
-    onPlaybackEnded callbacks close the overlay and disconnect its chat
-    client when this stream ends - a locally-scoped instance would be
-    garbage-collected and stop receiving Kodi's callbacks. platform=="kick"
-    always skips chat entirely, regardless of chat_overlay_enabled - there
-    is no Kick chat client yet.
+    If playback started and platform == "twitch", keeps a _ChatAwarePlayer
+    alive at module level whenever there's a ChatOverlay to manage and/or an
+    AdSkipRelay to tear down - its onPlaybackStopped/onPlaybackEnded/
+    onPlaybackError callbacks close the overlay and stop the relay when this
+    stream ends, since a locally-scoped instance would be garbage-collected
+    and stop receiving Kodi's callbacks. platform=="kick" always skips chat
+    entirely, regardless of chat_overlay_enabled - there is no Kick chat
+    client yet.
 
     access_token/client_id/user_id are the logged-in Twitch user's Helix
     credentials - required only when settings.chat_engine == "eventsub"
@@ -226,21 +252,36 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
     default "irc" engine and always ignored for platform=="kick"."""
     global _current_chat_watcher
 
-    is_helper = Helper("hls")
-    if not is_helper.check_inputstream():
-        return False
+    settings = settings or Settings()
 
-    list_item = xbmcgui.ListItem(path=url)
-    list_item.setProperty("inputstream", is_helper.inputstream_addon)
-    list_item.setProperty("inputstream.adaptive.manifest_type", "hls")
-    list_item.setMimeType("application/x-mpegURL")
-    list_item.setContentLookup(False)
+    relay = None
+    play_url = url
+    if platform == "twitch" and settings.skip_twitch_ads:
+        relay = AdSkipRelay(
+            url,
+            log_fn=lambda message: xbmc.log(
+                "script.twitch.center: ad-skip relay: " + message, xbmc.LOGINFO
+            ),
+        )
+        play_url = relay.start()
+        list_item = xbmcgui.ListItem(path=play_url)
+        list_item.setMimeType("video/mp2t")
+        list_item.setContentLookup(False)
+    else:
+        is_helper = Helper("hls")
+        if not is_helper.check_inputstream():
+            return False
+        list_item = xbmcgui.ListItem(path=play_url)
+        list_item.setProperty("inputstream", is_helper.inputstream_addon)
+        list_item.setProperty("inputstream.adaptive.manifest_type", "hls")
+        list_item.setMimeType("application/x-mpegURL")
+        list_item.setContentLookup(False)
 
     if _current_chat_watcher is not None:
         _current_chat_watcher._teardown()
         _current_chat_watcher = None
 
-    settings = settings or Settings()
+    overlay = None
     if platform == "twitch" and settings.chat_overlay_enabled:
         try:
             engine = settings.chat_engine
@@ -288,17 +329,19 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
                 chat_client_cls=resolved_chat_client_cls,
             )
             overlay.show()
-            _current_chat_watcher = _ChatAwarePlayer(
-                overlay, url=url, channel=channel, platform=platform
-            )
-            _current_chat_watcher.play(url, list_item)
         except Exception as exc:
             xbmc.log(
                 "script.twitch.center: chat overlay failed to start: " + repr(exc),
                 xbmc.LOGERROR,
             )
-            xbmc.Player().play(url, list_item)
+            overlay = None
+
+    if overlay is not None or relay is not None:
+        _current_chat_watcher = _ChatAwarePlayer(
+            overlay, url=play_url, channel=channel, platform=platform, relay=relay
+        )
+        _current_chat_watcher.play(play_url, list_item)
     else:
-        xbmc.Player().play(url, list_item)
+        xbmc.Player().play(play_url, list_item)
 
     return True
