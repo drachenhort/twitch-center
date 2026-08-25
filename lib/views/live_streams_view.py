@@ -7,6 +7,7 @@ import xbmcgui
 from lib import providers
 from lib.settings import Settings
 from lib.twitch import api, auth, gql
+from lib.views import utils as view_utils
 from lib.views.kick_favorites_menu import show_kick_favorite_context_menu
 from lib.windows import player
 
@@ -27,8 +28,7 @@ _NO_MATCHES_MESSAGE = "None of your live followed channels are playing this game
 _PLAYBACK_ERROR_MESSAGE = "Couldn't start playback. Try again."
 
 
-def _thumbnail_url(raw_url, width=320, height=180):
-    return raw_url.replace("{width}", str(width)).replace("{height}", str(height))
+_thumbnail_url = view_utils.thumbnail_url
 
 
 def _merge_channels(followed, live_list):
@@ -50,66 +50,13 @@ def _merge_channels(followed, live_list):
 
 
 def _build_list_item(channel, stream_data=None):
-    item = xbmcgui.ListItem(channel["broadcaster_name"])
     if stream_data:
-        item.setLabel2(
-            stream_data["game_name"] + " - " + str(stream_data["viewer_count"]) + " viewers"
-        )
-        item.setArt({"thumb": _thumbnail_url(stream_data["thumbnail_url"])})
-        item.setProperty("is_live", "true")
-        item.setProperty("viewer_count", str(stream_data["viewer_count"]))
-        item.setProperty("game_name", stream_data["game_name"])
-        item.setProperty(
-            "subtitle", str(stream_data["viewer_count"]) + " viewers · " + stream_data["game_name"]
-        )
-    else:
-        item.setLabel2("Offline")
-        item.setProperty("is_live", "false")
-        item.setProperty("viewer_count", "")
-        item.setProperty("game_name", "")
-        item.setProperty("subtitle", "Offline")
-    item.setProperty("broadcaster_id", channel["broadcaster_id"])
-    item.setProperty("broadcaster_login", channel["broadcaster_login"])
-    item.setProperty("platform", "twitch")
-    return item
+        return view_utils.build_live_list_item(channel, stream_data)
+    return view_utils.build_offline_list_item(channel)
 
 
-def _build_kick_list_item(normalized):
-    item = xbmcgui.ListItem(normalized["display_name"])
-    item.setLabel2(
-        normalized["game_name"] + " - " + str(normalized["viewer_count"]) + " viewers"
-    )
-    item.setArt({"thumb": normalized["thumbnail_url"]})
-    item.setProperty("is_live", "true")
-    item.setProperty("viewer_count", str(normalized["viewer_count"]))
-    item.setProperty("game_name", normalized["game_name"])
-    item.setProperty(
-        "subtitle",
-        str(normalized["viewer_count"]) + " viewers · " + normalized["game_name"],
-    )
-    item.setProperty("broadcaster_id", normalized["id"])
-    item.setProperty("broadcaster_login", normalized["login"])
-    item.setProperty("platform", "kick")
-    return item
-
-
-def _interleave_live_items(twitch_live, kick_live):
-    """twitch_live: list of (channel, stream_data) tuples, already live-only
-    (from _merge_channels). kick_live: list of normalized Kick dicts, already
-    live-only (from providers.get_kick_live_favorites). Returns built
-    ListItems, interleaved by viewer_count descending, without needing
-    _build_list_item's or providers' shapes to match each other."""
-    tagged = [("twitch", stream_data["viewer_count"], (channel, stream_data)) for channel, stream_data in twitch_live]
-    tagged += [("kick", normalized["viewer_count"], normalized) for normalized in kick_live]
-    tagged.sort(key=lambda entry: entry[1], reverse=True)
-    items = []
-    for entry_platform, _viewer_count, payload in tagged:
-        if entry_platform == "twitch":
-            channel, stream_data = payload
-            items.append(_build_list_item(channel, stream_data))
-        else:
-            items.append(_build_kick_list_item(payload))
-    return items
+_build_kick_list_item = view_utils.build_kick_list_item
+_interleave_live_items = view_utils.interleave_live_items
 
 
 class LiveStreamsView:

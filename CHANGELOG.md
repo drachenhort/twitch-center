@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.24.8] - 2026-08-25
+
+### Changed
+- Wired `discover_view.py` and `live_streams_view.py` to actually use the shared ListItem
+  builders in `lib/views/utils.py`, instead of each carrying its own duplicate copies.
+
 ## [0.24.7] - 2026-08-25
 
 ### Changed

@@ -8,6 +8,7 @@ import xbmcgui
 
 from lib import providers
 from lib.twitch import api, auth
+from lib.views import utils as view_utils
 from lib.views.kick_favorites_menu import show_kick_favorite_context_menu
 from lib.windows import player
 
@@ -38,54 +39,10 @@ _SEARCH_MODE_LABELS = {
 }
 
 
-def _thumbnail_url(raw_url, width=320, height=180):
-    return raw_url.replace("{width}", str(width)).replace("{height}", str(height))
-
-
-def _build_stream_item(stream_data):
-    item = xbmcgui.ListItem(stream_data["user_name"])
-    item.setLabel2(
-        stream_data["game_name"] + " - " + str(stream_data["viewer_count"]) + " viewers"
-    )
-    item.setArt({"thumb": _thumbnail_url(stream_data["thumbnail_url"])})
-    item.setProperty("broadcaster_id", stream_data["user_id"])
-    item.setProperty("broadcaster_login", stream_data["user_login"])
-    item.setProperty("is_live", "true")
-    item.setProperty("platform", "twitch")
-    item.setProperty("game_name", stream_data["game_name"])
-    item.setProperty("viewer_count", str(stream_data["viewer_count"]))
-    return item
-
-
-def _build_channel_item(channel):
-    item = xbmcgui.ListItem(channel["display_name"])
-    if channel.get("is_live"):
-        item.setLabel2("Live - " + channel.get("game_name", ""))
-    else:
-        item.setLabel2("Offline")
-    item.setArt({"thumb": channel.get("thumbnail_url", "")})
-    item.setProperty("broadcaster_id", channel.get("id", ""))
-    item.setProperty("broadcaster_login", channel.get("broadcaster_login", ""))
-    item.setProperty("is_live", "true" if channel.get("is_live") else "false")
-    item.setProperty("platform", "twitch")
-    item.setProperty("game_name", channel.get("game_name", ""))
-    item.setProperty("viewer_count", str(channel.get("viewer_count", "")))
-    return item
-
-
-def _build_kick_result_item(normalized):
-    item = xbmcgui.ListItem(normalized["display_name"])
-    item.setLabel2(
-        normalized["game_name"] + " - " + str(normalized["viewer_count"]) + " viewers"
-    )
-    item.setArt({"thumb": normalized["thumbnail_url"]})
-    item.setProperty("broadcaster_id", normalized["id"])
-    item.setProperty("broadcaster_login", normalized["login"])
-    item.setProperty("is_live", "true")
-    item.setProperty("platform", "kick")
-    item.setProperty("game_name", normalized["game_name"])
-    item.setProperty("viewer_count", str(normalized["viewer_count"]))
-    return item
+_thumbnail_url = view_utils.thumbnail_url
+_build_stream_item = view_utils.build_stream_item
+_build_channel_item = view_utils.build_channel_item
+_build_kick_result_item = view_utils.build_kick_result_item
 
 
 class DiscoverView:
