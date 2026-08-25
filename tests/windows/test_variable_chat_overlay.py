@@ -12,15 +12,15 @@ def _build_block_for(event):
 
 
 def test_block_height_one_line_no_emotes():
-    assert _block_height(1, has_emotes=False) == 134
+    assert _block_height(1, has_emotes=False) == 100
 
 
 def test_block_height_three_lines_no_emotes():
-    assert _block_height(3, has_emotes=False) == 254
+    assert _block_height(3, has_emotes=False) == 188
 
 
 def test_block_height_five_lines_with_emotes():
-    assert _block_height(5, has_emotes=True) == 410
+    assert _block_height(5, has_emotes=True) == 312
 
 
 def test_build_block_short_message_has_username_and_message_controls():
@@ -187,8 +187,8 @@ def test_controls_from_earlier_render_are_repositioned_not_recreated():
 
 def test_old_blocks_are_evicted_once_total_height_exceeds_the_column():
     FakeChatClient.instances.clear()
-    # Each of these wraps to 6 lines with no emotes - block height 40 + 6*60 + 34 = 410px. Three
-    # of them (1230px) exceed the 960px column, so the oldest should be evicted.
+    # Each of these wraps to 6 lines with no emotes - block height 40 + 6*44 + 16 = 320px. Three
+    # of them (960px) exactly fill the 960px column, so the two oldest should be evicted.
     long_text = (
         "which upcoming games are you looking forward to for the rest of this year, "
         "modz? asking because I want to plan my backlog around the big releases"
@@ -196,9 +196,9 @@ def test_old_blocks_are_evicted_once_total_height_exceeds_the_column():
     events = [_message_event("user%d" % i, long_text, i) for i in range(5)]
     win = _make_overlay(events)
 
-    assert len(win._blocks) == 2
+    assert len(win._blocks) == 3
     usernames = [block["items"][0][0].getLabel() for block in win._blocks]
-    assert usernames == ["User3", "User4"]
+    assert usernames == ["User2", "User3", "User4"]
 
 
 def test_burst_of_messages_never_adds_a_control_only_to_evict_it_same_tick():
@@ -223,9 +223,9 @@ def test_burst_of_messages_never_adds_a_control_only_to_evict_it_same_tick():
     win._messages = [_message_event("user%d" % i, long_text, i) for i in range(5)]
     win._render()
 
-    assert len(win._blocks) == 2
+    assert len(win._blocks) == 3
     usernames = [block["items"][0][0].getLabel() for block in win._blocks]
-    assert usernames == ["User3", "User4"]
+    assert usernames == ["User2", "User3", "User4"]
     # Every control ever added is still a live, surviving block's control - none of the
     # evicted users' controls ever touched _added_controls.
     surviving_controls = set()
@@ -235,7 +235,7 @@ def test_burst_of_messages_never_adds_a_control_only_to_evict_it_same_tick():
 
 
 def test_a_single_message_taller_than_the_column_is_still_shown():
-    # With real constants, a single block (max 410px, 5 lines + emotes) can never exceed the
+    # With real constants, a single block (max 312px, 5 lines + emotes) can never exceed the
     # real 960px column - this patches the column height down so the overflow-safety branch
     # (newest block always kept, even if it alone doesn't fit) is actually exercised.
     FakeChatClient.instances.clear()

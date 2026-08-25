@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.25.5] - 2026-08-25
+
+### Changed
+- Variable-height chat overlay's per-line/per-block padding trimmed (`_LINE_PITCH` 60->44,
+  `_BLOCK_MARGIN` 34->16) - the original margin (added in v0.17.x to fix real cross-build text
+  overlap) left a visible trailing blank-line gap below short/single-line messages, confirmed via
+  screenshot. Still padded above the tightest value previously measured, not shrunk to it - flag
+  it if this reintroduces any text overlap on real hardware.
+
 ## [0.25.4] - 2026-08-25
 
 ### Fixed

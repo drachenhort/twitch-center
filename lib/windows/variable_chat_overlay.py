@@ -43,14 +43,18 @@ _USERNAME_COLOR = "ff9146ff"
 # margin rather than the tightest value that worked on any single device.
 _USERNAME_ROW_HEIGHT = 40
 # Generously-padded skin px per wrapped message line - see _USERNAME_ROW_HEIGHT for why this
-# is padded well past the tightest value measured on any one Kodi build.
-_LINE_PITCH = 60
+# is padded well past the tightest value measured on any one Kodi build. Trimmed 60->44
+# (2026-08-25, live-tested on kodi.local) after the original margin left a visible trailing
+# blank-line gap below short/single-line messages - still padded above the tightest value seen,
+# not shrunk to it.
+_LINE_PITCH = 44
 _EMOTE_ROW_HEIGHT = 36
 _EMOTE_SIZE = 28
 _EMOTE_X_OFFSETS = (10, 40, 70, 100, 130, 160)
 # Extra fixed padding added to every block's height on top of its content, as a further
-# cross-build safety margin against the compounding-overlap failure mode above.
-_BLOCK_MARGIN = 34
+# cross-build safety margin against the compounding-overlap failure mode above. Trimmed 34->16
+# alongside _LINE_PITCH above, same reasoning.
+_BLOCK_MARGIN = 16
 
 
 def _block_height(line_count, has_emotes):
