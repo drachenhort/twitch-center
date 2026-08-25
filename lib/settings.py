@@ -27,3 +27,11 @@ class Settings:
     @property
     def chat_overlay_variable_height(self):
         return self._addon.getSettingBool("chat_overlay_variable_height")
+
+    @property
+    def use_inputstream_adaptive(self):
+        return self._addon.getSettingBool("use_inputstream_adaptive")
+
+    @property
+    def prompt_stream_quality(self):
+        return self._addon.getSettingBool("prompt_stream_quality")

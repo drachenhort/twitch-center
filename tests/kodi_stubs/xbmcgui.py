@@ -215,6 +215,7 @@ class Dialog:
     # Test-controllable: set before calling contextmenu() to control which
     # item index (or -1 for "cancelled") the fake dialog returns.
     next_contextmenu_choice = -1
+    next_select_choice = -1
     notifications = []
 
     def ok(self, heading, message):
@@ -222,6 +223,9 @@ class Dialog:
 
     def contextmenu(self, items):
         return Dialog.next_contextmenu_choice
+
+    def select(self, heading, options):
+        return Dialog.next_select_choice
 
     def notification(self, heading, message, icon=None, time=None):
         Dialog.notifications.append((heading, message))

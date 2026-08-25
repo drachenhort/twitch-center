@@ -58,6 +58,13 @@ def test_chat_overlay_variable_height_reads_addon_setting():
     assert settings.chat_overlay_variable_height is True
 
 
+def test_use_inputstream_adaptive_reads_addon_setting():
+    addon = xbmcaddon.Addon()
+    addon.setSetting("use_inputstream_adaptive", False)
+    settings = Settings(addon=addon)
+    assert settings.use_inputstream_adaptive is False
+
+
 def test_kick_client_id_setting_is_readable_and_defaults_empty():
     addon = xbmcaddon.Addon()
     assert addon.getSetting("kick_client_id") == ""
