@@ -9,7 +9,8 @@ All notable changes to this project are documented here. Format loosely follows
 ### Added
 - New opt-in setting "Notify when followed streamers go live" enables a background Kodi service
   for live notifications. The service uses one EventSub WebSocket subscribed to your followed
-  channels' `stream.online` events for instant (not polling) notifications when they go live.
+  channels' `stream.online` events for near-instant (not polling) notifications when they go
+  live - delivery follows the service's poll tick, up to 60 seconds after the event arrives.
   Runs separately from the main addon window and is off by default. Twitch only for now.
 
 ## [0.25.5] - 2026-08-25
