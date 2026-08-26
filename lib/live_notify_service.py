@@ -71,14 +71,21 @@ def run(addon=None, monitor_cls=None, client_cls=None, settings_cls=None):
             running = None
 
         elif settings.live_notify_enabled and running is None:
-            token = auth.load_token(addon)
-            if token is not None:
-                client_id = token.get("client_id") or addon.getSetting("client_id")
-                client = client_cls(token["access_token"], client_id)
-                client.connect()
-                client.set_broadcasters(_followed_broadcaster_ids(token, client_id))
-                running = _RunningClient(client)
-                ticks_since_follow_refresh = 0
+            try:
+                token = auth.load_token(addon)
+                if token is not None:
+                    client_id = token.get("client_id") or addon.getSetting("client_id")
+                    client = client_cls(token["access_token"], client_id)
+                    client.connect()
+                    client.set_broadcasters(_followed_broadcaster_ids(token, client_id))
+                    running = _RunningClient(client)
+                    ticks_since_follow_refresh = 0
+            except Exception as exc:
+                xbmc.log(
+                    "script.twitch.center: live-notify service failed to connect: " + repr(exc),
+                    xbmc.LOGWARNING,
+                )
+                running = None
 
         elif settings.live_notify_enabled and running is not None:
             for event in running.drain():
@@ -89,10 +96,16 @@ def run(addon=None, monitor_cls=None, client_cls=None, settings_cls=None):
             ticks_since_follow_refresh += 1
             if ticks_since_follow_refresh >= _TICKS_PER_FOLLOW_REFRESH:
                 ticks_since_follow_refresh = 0
-                token = auth.load_token(addon)
-                if token is not None:
-                    client_id = token.get("client_id") or addon.getSetting("client_id")
-                    running.client.set_broadcasters(_followed_broadcaster_ids(token, client_id))
+                try:
+                    token = auth.load_token(addon)
+                    if token is not None:
+                        client_id = token.get("client_id") or addon.getSetting("client_id")
+                        running.client.set_broadcasters(_followed_broadcaster_ids(token, client_id))
+                except Exception as exc:
+                    xbmc.log(
+                        "script.twitch.center: live-notify follow-refresh failed: " + repr(exc),
+                        xbmc.LOGWARNING,
+                    )
 
         if monitor.waitForAbort(_SETTING_POLL_INTERVAL_SECONDS):
             if running is not None:
