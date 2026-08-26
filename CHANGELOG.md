@@ -4,6 +4,14 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.26.0] - 2026-08-26
+
+### Added
+- New opt-in setting "Notify when followed streamers go live" enables a background Kodi service
+  for live notifications. The service uses one EventSub WebSocket subscribed to your followed
+  channels' `stream.online` events for instant (not polling) notifications when they go live.
+  Runs separately from the main addon window and is off by default. Twitch only for now.
+
 ## [0.25.5] - 2026-08-25
 
 ### Changed
