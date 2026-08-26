@@ -294,3 +294,28 @@ def test_view_default_focus_ids_exist_in_the_skin_and_are_focusable():
             f"{name}: DEFAULT_FOCUS_ID {default_focus} is a list, which is empty "
             "(and so unfocusable) at the moment the view becomes visible"
         )
+
+
+def test_addon_xml_declares_service_extension():
+    tree = ET.parse(ADDON_XML)
+    root = tree.getroot()
+    extensions = root.findall("extension")
+    points = [ext.attrib.get("point") for ext in extensions]
+    assert "xbmc.service" in points
+
+
+def test_addon_xml_service_extension_targets_live_notify_service():
+    tree = ET.parse(ADDON_XML)
+    root = tree.getroot()
+    service_ext = next(e for e in root.findall("extension") if e.attrib.get("point") == "xbmc.service")
+    assert service_ext.attrib.get("library") == "lib/live_notify_service.py"
+
+
+def test_settings_xml_declares_live_notify_enabled_defaulting_to_false():
+    tree = ET.parse(SETTINGS_XML)
+    root = tree.getroot()
+    setting_ids = {s.attrib["id"]: s for s in root.iter("setting")}
+    assert "live_notify_enabled" in setting_ids
+    default = setting_ids["live_notify_enabled"].find("default")
+    assert default is not None
+    assert default.text == "false"

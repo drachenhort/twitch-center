@@ -154,3 +154,17 @@ def create_eventsub_subscription(access_token, client_id, session_id, sub_type, 
     )
     response.raise_for_status()
     return response.json()
+
+
+def delete_eventsub_subscription(access_token, client_id, subscription_id):
+    """DELETE /helix/eventsub/subscriptions?id=... Raises requests.HTTPError on failure - same
+    reasoning as create_eventsub_subscription: a caller relying on this to actually remove a
+    stale subscription needs to see a failure, not a silently-ignored one."""
+    response = requests.delete(
+        HELIX_BASE + "/eventsub/subscriptions",
+        headers=_headers(access_token, client_id),
+        params={"id": subscription_id},
+        timeout=10,
+    )
+    response.raise_for_status()
+    return None
