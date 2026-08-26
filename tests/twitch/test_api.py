@@ -246,3 +246,24 @@ def test_create_eventsub_subscription_raises_on_failure():
                 "token", "client123", "session1", "channel.chat.message",
                 {"broadcaster_user_id": "1", "user_id": "2"},
             )
+
+
+def test_delete_eventsub_subscription_sends_id_as_query_param():
+    response = MagicMock()
+    response.status_code = 204
+    response.raise_for_status.side_effect = None
+    with patch.object(api.requests, "delete", return_value=response) as mock_delete:
+        result = api.delete_eventsub_subscription("token", "client-id", "sub-123")
+    assert result is None
+    assert mock_delete.call_args.kwargs["headers"]["Authorization"] == "Bearer token"
+    assert mock_delete.call_args.kwargs["headers"]["Client-Id"] == "client-id"
+    assert mock_delete.call_args.kwargs["params"] == {"id": "sub-123"}
+
+
+def test_delete_eventsub_subscription_propagates_http_errors():
+    response = MagicMock()
+    response.status_code = 404
+    response.raise_for_status.side_effect = requests.HTTPError(response=response)
+    with patch.object(api.requests, "delete", return_value=response):
+        with pytest.raises(requests.RequestException):
+            api.delete_eventsub_subscription("token", "client-id", "sub-123")
