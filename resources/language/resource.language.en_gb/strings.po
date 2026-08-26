@@ -109,3 +109,7 @@ msgstr ""
 msgctxt "#30029"
 msgid "Runs a small local relay that strips Twitch's stitched ad segments out of the live stream before playback, instead of playing through inputstream.adaptive directly. Experimental - if playback misbehaves, turn this off first before reporting anything else as a bug."
 msgstr ""
+
+msgctxt "#30030"
+msgid "Notify when followed streamers go live"
+msgstr ""

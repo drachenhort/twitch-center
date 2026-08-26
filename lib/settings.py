@@ -31,3 +31,7 @@ class Settings:
     @property
     def skip_twitch_ads(self):
         return self._addon.getSettingBool("skip_twitch_ads")
+
+    @property
+    def live_notify_enabled(self):
+        return self._addon.getSettingBool("live_notify_enabled")
