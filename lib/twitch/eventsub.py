@@ -443,11 +443,26 @@ class LiveNotifyClient:
             to_add = new_ids - set(self._active_subs)
             to_remove = set(self._active_subs) - new_ids
 
+        self._diff_subscriptions(session_id, to_add, to_remove)
+
+    def _diff_subscriptions(self, session_id, to_add, to_remove):
+        """Applies one add/remove diff against `session_id`. A failure creating or deleting an
+        individual broadcaster's subscription (Twitch's subscription cap, a 429, a deleted/banned
+        channel returning 400/404, etc.) is isolated to that one broadcaster - logged via a queued
+        "subscription_error" event - rather than aborting the rest of the diff."""
         for broadcaster_id in to_add:
-            body = self._create_subscription_fn(
-                self._access_token, self._client_id, session_id, "stream.online",
-                {"broadcaster_user_id": broadcaster_id},
-            )
+            try:
+                body = self._create_subscription_fn(
+                    self._access_token, self._client_id, session_id, "stream.online",
+                    {"broadcaster_user_id": broadcaster_id},
+                )
+            except Exception as exc:
+                self._enqueue({
+                    "type": "subscription_error",
+                    "broadcaster_user_id": broadcaster_id,
+                    "error": repr(exc),
+                })
+                continue
             with self._lock:
                 if self._session_id == session_id:
                     self._active_subs[broadcaster_id] = body["data"][0]["id"]
@@ -455,7 +470,14 @@ class LiveNotifyClient:
             with self._lock:
                 subscription_id = self._active_subs.pop(broadcaster_id, None)
             if subscription_id is not None:
-                self._delete_subscription_fn(self._access_token, self._client_id, subscription_id)
+                try:
+                    self._delete_subscription_fn(self._access_token, self._client_id, subscription_id)
+                except Exception as exc:
+                    self._enqueue({
+                        "type": "subscription_error",
+                        "broadcaster_user_id": broadcaster_id,
+                        "error": repr(exc),
+                    })
 
     def read_events(self):
         while not (self._cancel_event.is_set() and self._queue.empty()):
@@ -555,14 +577,35 @@ class LiveNotifyClient:
             desired_ids = set(self._desired_ids)
         active_subs = {}
         for broadcaster_id in desired_ids:
-            body = self._create_subscription_fn(
-                self._access_token, self._client_id, session_id, "stream.online",
-                {"broadcaster_user_id": broadcaster_id},
-            )
+            try:
+                body = self._create_subscription_fn(
+                    self._access_token, self._client_id, session_id, "stream.online",
+                    {"broadcaster_user_id": broadcaster_id},
+                )
+            except Exception as exc:
+                self._enqueue({
+                    "type": "subscription_error",
+                    "broadcaster_user_id": broadcaster_id,
+                    "error": repr(exc),
+                })
+                continue
             active_subs[broadcaster_id] = body["data"][0]["id"]
         with self._lock:
             self._session_id = session_id
             self._active_subs = active_subs
+            # A set_broadcasters() call that landed while this loop was subscribing (after
+            # desired_ids was snapshotted above, before _session_id/_active_subs were published
+            # just now) saw _session_id as None, updated _desired_ids for "next time", and
+            # returned early without subscribing anything - since _active_subs is about to be
+            # (has just been) overwritten with this handshake's snapshot, that would silently
+            # lose the new broadcaster until the next follow-refresh. Catch up here if
+            # _desired_ids drifted from what we just subscribed.
+            catchup_needed = self._desired_ids != desired_ids
+            if catchup_needed:
+                catchup_to_add = self._desired_ids - set(self._active_subs)
+                catchup_to_remove = set(self._active_subs) - self._desired_ids
+        if catchup_needed:
+            self._diff_subscriptions(session_id, catchup_to_add, catchup_to_remove)
         self._last_message_at = self._time_fn()
 
     def _read_handshake_response(self):

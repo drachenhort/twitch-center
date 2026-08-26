@@ -731,6 +731,103 @@ def test_live_notify_set_broadcasters_after_connect_diffs_against_active():
     assert delete_calls == ["sub-111"]
 
 
+def test_live_notify_handshake_skips_broadcaster_whose_subscribe_fails():
+    # One broadcaster's subscribe call raises (e.g. Twitch's ~300-sub cap, a 429, a
+    # deleted/banned channel). That must not abort the whole handshake - the other
+    # broadcaster still gets subscribed, and a "subscription_error" event is queued instead
+    # of the connection tearing down.
+    def create_subscription_fn(access_token, client_id, session_id, sub_type, condition):
+        if condition["broadcaster_user_id"] == "bad":
+            raise RuntimeError("HTTP 400: banned channel")
+        return {"data": [{"id": "sub-" + condition["broadcaster_user_id"]}]}
+
+    client = LiveNotifyClient(**_live_notify_kwargs(
+        socket_factory=_connectable_socket_factory(),
+        create_subscription_fn=create_subscription_fn,
+    ))
+    client.set_broadcasters(["bad", "good"])
+    client.connect()
+
+    events = []
+    for event in client.read_events():
+        events.append(event)
+        if event["type"] == "status" and event["state"] == "connected":
+            break
+    client.disconnect()
+
+    error_events = [e for e in events if e["type"] == "subscription_error"]
+    assert len(error_events) == 1
+    assert error_events[0]["broadcaster_user_id"] == "bad"
+    assert events[-1] == {"type": "status", "state": "connected"}
+    # The good broadcaster is still tracked as an active subscription - dropping "bad" and
+    # re-adding it later must not touch "good".
+    with client._lock:
+        assert client._active_subs == {"good": "sub-good"}
+
+
+def test_live_notify_set_broadcasters_skips_broadcaster_whose_subscribe_fails():
+    calls = []
+
+    def create_subscription_fn(access_token, client_id, session_id, sub_type, condition):
+        calls.append(condition["broadcaster_user_id"])
+        if condition["broadcaster_user_id"] == "bad":
+            raise RuntimeError("HTTP 429: rate limited")
+        return {"data": [{"id": "sub-" + condition["broadcaster_user_id"]}]}
+
+    client = LiveNotifyClient(**_live_notify_kwargs(
+        socket_factory=_connectable_socket_factory(),
+        create_subscription_fn=create_subscription_fn,
+    ))
+    client.connect()
+    for event in client.read_events():
+        if event["type"] == "status" and event["state"] == "connected":
+            break
+
+    client.set_broadcasters(["bad", "good"])
+    events = []
+    for event in client.read_events():
+        events.append(event)
+        if event["type"] == "subscription_error":
+            break
+    client.disconnect()
+
+    assert sorted(calls) == ["bad", "good"]
+    assert events[-1]["type"] == "subscription_error"
+    assert events[-1]["broadcaster_user_id"] == "bad"
+    with client._lock:
+        assert client._active_subs == {"good": "sub-good"}
+
+
+def test_live_notify_race_set_broadcasters_during_handshake_catches_up():
+    # set_broadcasters() lands after _desired_ids is snapshotted for this handshake, but
+    # before _session_id/_active_subs are published - simulated here by overriding
+    # create_subscription_fn to call set_broadcasters() itself mid-handshake, mimicking a
+    # concurrent caller landing in that narrow window. Without the Important-6 fix, "late"
+    # would be silently dropped until the next follow-refresh.
+    subscribe_calls = []
+
+    def create_subscription_fn(access_token, client_id, session_id, sub_type, condition):
+        subscribe_calls.append(condition["broadcaster_user_id"])
+        if condition["broadcaster_user_id"] == "early":
+            client.set_broadcasters(["early", "late"])
+        return {"data": [{"id": "sub-" + condition["broadcaster_user_id"]}]}
+
+    client = LiveNotifyClient(**_live_notify_kwargs(
+        socket_factory=_connectable_socket_factory(),
+        create_subscription_fn=create_subscription_fn,
+    ))
+    client.set_broadcasters(["early"])
+    client.connect()
+    for event in client.read_events():
+        if event["type"] == "status" and event["state"] == "connected":
+            break
+    client.disconnect()
+
+    assert "late" in subscribe_calls
+    with client._lock:
+        assert client._active_subs == {"early": "sub-early", "late": "sub-late"}
+
+
 def test_stream_online_notification_yields_stream_online_event():
     notification = {
         "metadata": {
