@@ -607,3 +607,174 @@ def test_connect_raises_value_error_when_required_credentials_missing():
         assert False, "expected ValueError"
     except ValueError:
         pass
+
+
+from lib.twitch.eventsub import LiveNotifyClient
+
+
+def _live_notify_kwargs(**overrides):
+    kwargs = dict(
+        access_token="tok",
+        client_id="cid",
+        sleep_fn=lambda s: None,
+        create_subscription_fn=lambda *a, **kw: {"data": [{"id": "sub-" + a[4]["broadcaster_user_id"]}]},
+        delete_subscription_fn=lambda *a, **kw: None,
+    )
+    kwargs.update(overrides)
+    return kwargs
+
+
+def _connectable_socket_factory():
+    """Returns a socket_factory that completes the handshake with whatever key the client
+    sends, then serves nothing further (idle connected session). Once the queued frames are
+    drained, recv() raises socket.timeout (matching a real idle socket with a recv timeout)
+    rather than returning b"" (which the client correctly treats as the server closing the
+    connection) - same pattern as _socket_that_always_times_out above, needed here because a
+    connected LiveNotifyClient must stay connected while the test drives set_broadcasters()."""
+    def factory():
+        fake = FakeSocket()
+
+        def sendall(data):
+            fake.sent.append(data)
+            if data.startswith(b"GET "):
+                text = data.decode("ascii")
+                key_line = [l for l in text.split("\r\n") if l.startswith("Sec-WebSocket-Key:")][0]
+                key = key_line.split(":", 1)[1].strip()
+                fake._recv_queue.insert(0, _server_text_frame(_WELCOME))
+                fake._recv_queue.insert(0, _handshake_response_bytes(key))
+
+        fake.sendall = sendall
+
+        fake_recv = fake.recv
+
+        def recv_with_timeout(bufsize):
+            data = fake_recv(bufsize)
+            if data == b"":
+                raise socket.timeout()
+            return data
+
+        fake.recv = recv_with_timeout
+        return fake
+    return factory
+
+
+def test_live_notify_connect_with_no_desired_broadcasters_subscribes_nothing():
+    subscribe_calls = []
+    client = LiveNotifyClient(**_live_notify_kwargs(
+        socket_factory=_connectable_socket_factory(),
+        create_subscription_fn=lambda *a, **kw: subscribe_calls.append(a) or {"data": [{"id": "x"}]},
+    ))
+    client.connect()
+    events = []
+    for event in client.read_events():
+        events.append(event)
+        break
+    client.disconnect()
+    assert events[0] == {"type": "status", "state": "connected"}
+    assert subscribe_calls == []
+
+
+def test_live_notify_set_broadcasters_before_connect_subscribes_on_handshake():
+    subscribe_calls = []
+
+    def create_subscription_fn(access_token, client_id, session_id, sub_type, condition):
+        subscribe_calls.append((sub_type, condition))
+        return {"data": [{"id": "sub-" + condition["broadcaster_user_id"]}]}
+
+    client = LiveNotifyClient(**_live_notify_kwargs(
+        socket_factory=_connectable_socket_factory(),
+        create_subscription_fn=create_subscription_fn,
+    ))
+    client.set_broadcasters(["111", "222"])
+    client.connect()
+    events = []
+    for event in client.read_events():
+        events.append(event)
+        break
+    client.disconnect()
+
+    assert events[0] == {"type": "status", "state": "connected"}
+    assert sorted(subscribe_calls, key=lambda call: call[1]["broadcaster_user_id"]) == [
+        ("stream.online", {"broadcaster_user_id": "111"}),
+        ("stream.online", {"broadcaster_user_id": "222"}),
+    ]
+
+
+def test_live_notify_set_broadcasters_after_connect_diffs_against_active():
+    subscribe_calls = []
+    delete_calls = []
+
+    def create_subscription_fn(access_token, client_id, session_id, sub_type, condition):
+        subscribe_calls.append(condition["broadcaster_user_id"])
+        return {"data": [{"id": "sub-" + condition["broadcaster_user_id"]}]}
+
+    def delete_subscription_fn(access_token, client_id, subscription_id):
+        delete_calls.append(subscription_id)
+
+    client = LiveNotifyClient(**_live_notify_kwargs(
+        socket_factory=_connectable_socket_factory(),
+        create_subscription_fn=create_subscription_fn,
+        delete_subscription_fn=delete_subscription_fn,
+    ))
+    client.set_broadcasters(["111"])
+    client.connect()
+    for event in client.read_events():
+        if event["type"] == "status" and event["state"] == "connected":
+            break
+
+    client.set_broadcasters(["222"])  # drop 111, add 222
+    # give the (synchronous) diff a moment to run - set_broadcasters itself is synchronous,
+    # no sleep needed, but assert immediately after the call returns
+    client.disconnect()
+
+    assert subscribe_calls == ["111", "222"]
+    assert delete_calls == ["sub-111"]
+
+
+def test_stream_online_notification_yields_stream_online_event():
+    notification = {
+        "metadata": {
+            "message_type": "notification",
+            "subscription_type": "stream.online",
+            "message_timestamp": "2026-08-26T00:00:00Z",
+        },
+        "payload": {
+            "event": {
+                "broadcaster_user_id": "111",
+                "broadcaster_user_login": "someuser",
+                "broadcaster_user_name": "SomeUser",
+            }
+        },
+    }
+
+    def factory():
+        fake = FakeSocket()
+
+        def sendall(data):
+            fake.sent.append(data)
+            if data.startswith(b"GET "):
+                text = data.decode("ascii")
+                key_line = [l for l in text.split("\r\n") if l.startswith("Sec-WebSocket-Key:")][0]
+                key = key_line.split(":", 1)[1].strip()
+                fake._recv_queue.insert(0, _server_text_frame(notification))
+                fake._recv_queue.insert(0, _server_text_frame(_WELCOME))
+                fake._recv_queue.insert(0, _handshake_response_bytes(key))
+
+        fake.sendall = sendall
+        return fake
+
+    client = LiveNotifyClient(**_live_notify_kwargs(socket_factory=factory))
+    client.connect()
+    events = []
+    for event in client.read_events():
+        events.append(event)
+        if event["type"] == "stream_online":
+            break
+    client.disconnect()
+
+    assert events[-1] == {
+        "type": "stream_online",
+        "broadcaster_user_id": "111",
+        "broadcaster_user_login": "someuser",
+        "broadcaster_user_name": "SomeUser",
+    }

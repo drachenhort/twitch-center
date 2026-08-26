@@ -397,3 +397,237 @@ class ChatClient:
             })
         else:
             self._enqueue({"type": "raw", "line": json.dumps(payload)})
+
+
+class LiveNotifyClient:
+    """EventSub client for stream.online notifications across an arbitrary, changeable set of
+    broadcasters - unlike ChatClient, which is scoped to one broadcaster and two fixed
+    subscription types. See docs/superpowers/specs/2026-08-26-live-go-notifications-design.md."""
+
+    def __init__(self, access_token, client_id, socket_factory=None, sleep_fn=None,
+                 create_subscription_fn=None, delete_subscription_fn=None, time_fn=None):
+        self._access_token = access_token
+        self._client_id = client_id
+        self._socket_factory = socket_factory or _default_socket_factory
+        self._sleep_fn = sleep_fn or time.sleep
+        self._create_subscription_fn = create_subscription_fn or api.create_eventsub_subscription
+        self._delete_subscription_fn = delete_subscription_fn or api.delete_eventsub_subscription
+        self._time_fn = time_fn or time.time
+        self._queue = Queue(maxsize=_QUEUE_MAXSIZE)
+        self._cancel_event = threading.Event()
+        self._thread = None
+        self._sock = None
+        self._recv_buffer = b""
+        self._keepalive_timeout = _REQUESTED_KEEPALIVE_SECONDS
+        self._last_message_at = 0
+
+        self._lock = threading.Lock()
+        self._desired_ids = set()
+        self._session_id = None
+        self._active_subs = {}  # broadcaster_user_id -> subscription_id
+
+    def connect(self):
+        if self._thread is not None and self._thread.is_alive():
+            return
+        self._cancel_event.clear()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def set_broadcasters(self, broadcaster_user_ids):
+        new_ids = set(broadcaster_user_ids)
+        with self._lock:
+            self._desired_ids = new_ids
+            session_id = self._session_id
+            if session_id is None:
+                return
+            to_add = new_ids - set(self._active_subs)
+            to_remove = set(self._active_subs) - new_ids
+
+        for broadcaster_id in to_add:
+            body = self._create_subscription_fn(
+                self._access_token, self._client_id, session_id, "stream.online",
+                {"broadcaster_user_id": broadcaster_id},
+            )
+            with self._lock:
+                if self._session_id == session_id:
+                    self._active_subs[broadcaster_id] = body["data"][0]["id"]
+        for broadcaster_id in to_remove:
+            with self._lock:
+                subscription_id = self._active_subs.pop(broadcaster_id, None)
+            if subscription_id is not None:
+                self._delete_subscription_fn(self._access_token, self._client_id, subscription_id)
+
+    def read_events(self):
+        while not (self._cancel_event.is_set() and self._queue.empty()):
+            try:
+                yield self._queue.get(timeout=_QUEUE_POLL_TIMEOUT)
+            except Empty:
+                continue
+
+    def _enqueue(self, event):
+        try:
+            self._queue.put_nowait(event)
+        except Full:
+            try:
+                self._queue.get_nowait()
+            except Empty:
+                pass
+            self._queue.put_nowait(event)
+
+    def disconnect(self):
+        self._cancel_event.set()
+        sock = self._sock
+        if sock is not None:
+            try:
+                sock.close()
+            except OSError:
+                pass
+        if self._thread is not None:
+            self._thread.join(timeout=5)
+
+    def _run(self):
+        backoff = _BACKOFF_START
+        while not self._cancel_event.is_set():
+            connected_at = None
+            self._recv_buffer = b""
+            with self._lock:
+                self._session_id = None
+                self._active_subs = {}
+            try:
+                self._sock = self._socket_factory()
+                self._handshake_and_subscribe()
+                connected_at = time.time()
+                self._enqueue({"type": "status", "state": "connected"})
+                self._read_loop()
+            except Exception as exc:
+                last_error = repr(exc)
+            else:
+                last_error = None
+            finally:
+                with self._lock:
+                    self._session_id = None
+                if self._sock is not None:
+                    try:
+                        self._sock.close()
+                    except OSError:
+                        pass
+                    self._sock = None
+
+            if self._cancel_event.wait(_DISCONNECT_GRACE):
+                break
+
+            status_event = {"type": "status", "state": "disconnected"}
+            if last_error is not None:
+                status_event["error"] = last_error
+            self._enqueue(status_event)
+            if connected_at is not None and (time.time() - connected_at) > _BACKOFF_RESET_AFTER:
+                backoff = _BACKOFF_START
+            self._sleep_fn(backoff)
+            backoff = min(backoff * 2, _BACKOFF_MAX)
+
+    def _handshake_and_subscribe(self):
+        key = _build_handshake_key()
+        self._sock.sendall(_build_handshake_request(EVENTSUB_HOST, EVENTSUB_PATH, key))
+        raw_response = self._read_handshake_response()
+        _parse_handshake_response(raw_response, key)
+
+        while True:
+            frame = self._read_one_frame_blocking()
+            if frame["opcode"] == _OPCODE_PING:
+                self._sock.sendall(_encode_client_frame(frame["payload"], opcode=_OPCODE_PONG))
+                continue
+            if frame["opcode"] == _OPCODE_CLOSE:
+                raise ConnectionError("EventSub server closed the connection")
+            if frame["opcode"] != _OPCODE_TEXT:
+                continue
+            if not frame["fin"]:
+                raise ConnectionError("EventSub: fragmented messages are not supported")
+            payload = json.loads(frame["payload"].decode("utf-8"))
+            if payload["metadata"]["message_type"] == "session_welcome":
+                session = payload["payload"]["session"]
+                session_id = session["id"]
+                self._keepalive_timeout = session.get(
+                    "keepalive_timeout_seconds", _REQUESTED_KEEPALIVE_SECONDS
+                )
+                break
+
+        with self._lock:
+            desired_ids = set(self._desired_ids)
+        active_subs = {}
+        for broadcaster_id in desired_ids:
+            body = self._create_subscription_fn(
+                self._access_token, self._client_id, session_id, "stream.online",
+                {"broadcaster_user_id": broadcaster_id},
+            )
+            active_subs[broadcaster_id] = body["data"][0]["id"]
+        with self._lock:
+            self._session_id = session_id
+            self._active_subs = active_subs
+        self._last_message_at = self._time_fn()
+
+    def _read_handshake_response(self):
+        buffer = b""
+        while b"\r\n\r\n" not in buffer:
+            chunk = self._sock.recv(4096)
+            if not chunk:
+                raise ConnectionError("connection closed during handshake")
+            buffer += chunk
+        header_end = buffer.index(b"\r\n\r\n") + 4
+        self._recv_buffer = buffer[header_end:]
+        return buffer[:header_end].decode("iso-8859-1")
+
+    def _recv_more(self):
+        try:
+            data = self._sock.recv(4096)
+        except socket_module.timeout:
+            if self._time_fn() - self._last_message_at > 2 * self._keepalive_timeout:
+                raise ConnectionError("EventSub connection stalled: no messages received")
+            return b""
+        if not data:
+            raise ConnectionError("connection closed by server")
+        return data
+
+    def _read_one_frame_blocking(self):
+        while True:
+            frame, self._recv_buffer = _decode_frame(self._recv_buffer)
+            if frame is not None:
+                return frame
+            self._recv_buffer += self._recv_more()
+
+    def _read_loop(self):
+        while not self._cancel_event.is_set():
+            frame = self._read_one_frame_blocking()
+            self._last_message_at = self._time_fn()
+            if frame["opcode"] == _OPCODE_PING:
+                self._sock.sendall(_encode_client_frame(frame["payload"], opcode=_OPCODE_PONG))
+                continue
+            if frame["opcode"] == _OPCODE_CLOSE:
+                raise ConnectionError("EventSub server closed the connection")
+            if frame["opcode"] != _OPCODE_TEXT:
+                continue
+            if not frame["fin"]:
+                raise ConnectionError("EventSub: fragmented messages are not supported")
+            payload = json.loads(frame["payload"].decode("utf-8"))
+            self._handle_payload(payload)
+
+    def _handle_payload(self, payload):
+        message_type = payload["metadata"]["message_type"]
+        if message_type == "session_keepalive":
+            return
+        if message_type == "session_reconnect":
+            raise ConnectionError("EventSub requested reconnect")
+        if message_type != "notification":
+            self._enqueue({"type": "raw", "line": json.dumps(payload)})
+            return
+
+        subscription_type = payload["metadata"]["subscription_type"]
+        event = payload["payload"]["event"]
+        if subscription_type == "stream.online":
+            self._enqueue({
+                "type": "stream_online",
+                "broadcaster_user_id": event["broadcaster_user_id"],
+                "broadcaster_user_login": event["broadcaster_user_login"],
+                "broadcaster_user_name": event["broadcaster_user_name"],
+            })
+        else:
+            self._enqueue({"type": "raw", "line": json.dumps(payload)})
