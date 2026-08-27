@@ -7,6 +7,14 @@ from lib import live_notify_service
 
 
 @pytest.fixture(autouse=True)
+def _no_initial_connect_delay_by_default(monkeypatch):
+    """Every existing test below predates _INITIAL_CONNECT_DELAY_SECONDS and expects the first
+    tick to attempt a connect immediately - zero the delay so they don't all need a fake clock.
+    Tests exercising the delay itself override this."""
+    monkeypatch.setattr(live_notify_service, "_INITIAL_CONNECT_DELAY_SECONDS", 0)
+
+
+@pytest.fixture(autouse=True)
 def _no_one_off_live_check_by_default(monkeypatch):
     """The one-off "already live at startup" check (_notify_already_live) calls
     api.get_live_status on every successful initial connect. Default it to "nobody's live" so
@@ -103,6 +111,74 @@ def test_enabled_with_token_connects_and_sets_initial_broadcasters(monkeypatch):
     client = FakeClient.instances[0]
     assert client.connected is True
     assert client.broadcaster_calls[0] == ["111", "222"]
+
+
+def test_set_broadcasters_called_before_connect_to_avoid_race(monkeypatch):
+    """set_broadcasters() must land before connect() - calling connect() first opens a window
+    where the client's background thread can snapshot an empty desired-broadcaster set before
+    set_broadcasters() arrives, silently no-op, and leave the real subscribe burst to run late
+    (confirmed live on kodi.local, colliding with a stream opened in the meantime)."""
+    FakeClient.instances.clear()
+    monkeypatch.setattr(live_notify_service.auth, "load_token", lambda addon: {"access_token": "t", "user_id": "1", "client_id": "cid"})
+    monkeypatch.setattr(
+        live_notify_service.api, "get_followed_channels", lambda *a, **kw: [{"broadcaster_id": "111"}],
+    )
+
+    call_order = []
+
+    class OrderTrackingClient(FakeClient):
+        def set_broadcasters(self, ids):
+            call_order.append("set_broadcasters")
+            super().set_broadcasters(ids)
+
+        def connect(self):
+            call_order.append("connect")
+            super().connect()
+
+    addon = FakeAddon({"live_notify_enabled": "true"})
+    monitor = FakeMonitor(ticks=2)
+    live_notify_service.run(
+        addon=addon, monitor_cls=lambda: monitor, client_cls=OrderTrackingClient, settings_cls=FakeSettings
+    )
+    assert call_order == ["set_broadcasters", "connect"]
+
+
+def test_initial_connect_skipped_before_delay_elapses(monkeypatch):
+    """The first connect attempt must not fire until _INITIAL_CONNECT_DELAY_SECONDS has elapsed
+    since the service started, so a stream opened right at Kodi boot has a better chance of
+    getting its own EventSub subscribe in before live-notify's throttled burst starts."""
+    FakeClient.instances.clear()
+    monkeypatch.setattr(live_notify_service, "_INITIAL_CONNECT_DELAY_SECONDS", 30)
+    monkeypatch.setattr(live_notify_service.auth, "load_token", lambda addon: {"access_token": "t", "user_id": "1", "client_id": "cid"})
+    monkeypatch.setattr(
+        live_notify_service.api, "get_followed_channels", lambda *a, **kw: [{"broadcaster_id": "111"}],
+    )
+
+    clock = {"t": 0}
+
+    def time_fn():
+        return clock["t"]
+
+    class TickingMonitor:
+        def __init__(self, ticks, advance):
+            self._remaining = ticks
+            self._advance = advance
+
+        def waitForAbort(self, timeout=None):
+            clock["t"] += self._advance
+            if self._remaining <= 0:
+                return True
+            self._remaining -= 1
+            return False
+
+    addon = FakeAddon({"live_notify_enabled": "true"})
+    # 10s ticks: t=10 (skip, delay not elapsed), t=20 (skip), t=30 (connect fires)
+    monitor = TickingMonitor(ticks=3, advance=10)
+    live_notify_service.run(
+        addon=addon, monitor_cls=lambda: monitor, client_cls=FakeClient, settings_cls=FakeSettings,
+        time_fn=time_fn,
+    )
+    assert len(FakeClient.instances) == 1
 
 
 def test_disabled_after_running_disconnects_client(monkeypatch):

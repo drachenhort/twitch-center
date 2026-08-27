@@ -5,6 +5,7 @@ import os
 import queue
 import sys
 import threading
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -18,6 +19,12 @@ from lib.twitch.eventsub import LiveNotifyClient
 
 _SETTING_POLL_INTERVAL_SECONDS = 60
 _FOLLOW_REFRESH_INTERVAL_SECONDS = 600
+# The initial subscribe burst (one throttled Helix call per followed channel, see
+# eventsub.py's _SUBSCRIBE_THROTTLE_SECONDS) can run tens of seconds. Delaying the first
+# connect attempt after Kodi boot gives a user who opens a stream right away a better chance
+# their chat's own EventSub subscribe lands before this burst starts, instead of colliding
+# with it and 429-storming both (live-tested on kodi.local).
+_INITIAL_CONNECT_DELAY_SECONDS = 30
 
 
 class _RunningClient:
@@ -116,16 +123,18 @@ def _refresh_token(addon, client_id, token):
     return new_token
 
 
-def run(addon=None, monitor_cls=None, client_cls=None, settings_cls=None):
+def run(addon=None, monitor_cls=None, client_cls=None, settings_cls=None, time_fn=None):
     addon = addon or xbmcaddon.Addon()
     monitor_cls = monitor_cls or xbmc.Monitor
     client_cls = client_cls or LiveNotifyClient
     settings_cls = settings_cls or Settings
+    time_fn = time_fn or time.time
 
     monitor = monitor_cls()
     running = None  # _RunningClient or None
     ticks_since_follow_refresh = 0
     ticks_per_follow_refresh = _FOLLOW_REFRESH_INTERVAL_SECONDS // _SETTING_POLL_INTERVAL_SECONDS
+    service_started_at = time_fn()
 
     while True:
         settings = settings_cls(addon)
@@ -134,7 +143,10 @@ def run(addon=None, monitor_cls=None, client_cls=None, settings_cls=None):
             running.disconnect()
             running = None
 
-        elif settings.live_notify_enabled and running is None:
+        elif (
+            settings.live_notify_enabled and running is None
+            and time_fn() - service_started_at >= _INITIAL_CONNECT_DELAY_SECONDS
+        ):
             client = None
             try:
                 token = auth.load_token(addon)
@@ -142,9 +154,20 @@ def run(addon=None, monitor_cls=None, client_cls=None, settings_cls=None):
                     client_id = addon.getSetting("client_id")
                     try:
                         client = client_cls(token["access_token"], client_id)
-                        client.connect()
                         channels = _followed_channels(token, client_id)
+                        # set_broadcasters() before connect() is the race-free order: it just
+                        # records _desired_ids while there's no background thread yet, so the
+                        # thread's very first handshake pass subscribes the real list directly.
+                        # Calling connect() first left a window where connect()'s handshake
+                        # thread could reach its "no session yet" subscribe snapshot before this
+                        # set_broadcasters() call landed - set_broadcasters() would then silently
+                        # no-op (session_id is None) and this code would log "subscribed" before
+                        # any subscription request had actually been made; live-tested on
+                        # kodi.local, the real subscribe burst then ran ~70s late via the
+                        # catchup path, landing on top of a concurrently-opened stream's own
+                        # EventSub subscribe and 429-storming both.
                         client.set_broadcasters([c["broadcaster_id"] for c in channels])
+                        client.connect()
                         _log_subscribed_channels(channels, settings.live_notify_verbose_logging)
                         _notify_already_live(
                             token, client_id, channels, settings.live_notify_verbose_logging

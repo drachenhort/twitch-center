@@ -4,6 +4,24 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.27.5] - 2026-08-27
+
+### Fixed
+- Root-caused the 429 storm that survived v0.27.4's Ratelimit-Reset-aware throttle: it wasn't
+  a reconnect, it was a startup race in `live_notify_service.py`. The service called
+  `client.connect()` (starting the background handshake thread) before
+  `client.set_broadcasters(channels)`. If the thread reached its handshake's subscribe
+  snapshot before `set_broadcasters()` landed, `set_broadcasters()` saw no session yet and
+  silently no-op'd (only recording the desired list for later) - the service then logged
+  "subscribed to N channels" immediately, before any subscription request had actually been
+  made. The real subscribe burst ran ~70s late via the handshake's catchup path, landing right
+  on top of chat's own EventSub subscribe when a stream was opened in the meantime, 429-storming
+  both. Fixed by calling `set_broadcasters()` before `connect()` - already the documented,
+  tested-correct order in `eventsub.py`'s own test suite, just not the order the service used.
+- Added a 30s delay before live-notify's first connect attempt after Kodi boot
+  (`_INITIAL_CONNECT_DELAY_SECONDS`), reducing the odds of the throttled subscribe burst
+  colliding with a stream opened right at startup.
+
 ## [0.27.4] - 2026-08-27
 
 ### Fixed
