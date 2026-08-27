@@ -4,6 +4,21 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.27.3] - 2026-08-27
+
+### Fixed
+- Found via live re-test on kodi.local: v0.27.2's fix patched the wrong file. This addon has
+  two chat overlay renderers - the plain `ChatOverlay` (fixed in v0.27.2) and a separate
+  `VariableChatOverlay` (on by default for EventSub chat, via `chat_overlay_variable_height`)
+  that reuses `ChatOverlay`'s pump thread but has its own independent `_render()`/
+  `_message_metrics()`/`_build_block()` for laying out variable-height message blocks. That
+  code called `event["text"]` unconditionally with no handling for "error"-typed events
+  (ChatClient surfacing a connection/subscription failure) or malformed events at all -
+  confirmed live as the actual `KeyError('text')` crash reported after v0.27.2 shipped,
+  reproduced by opening a stream shortly after an EventSub subscription 429. Added the same
+  normalize-before-render guard `ChatOverlay` already had, to `VariableChatOverlay`'s code
+  path.
+
 ## [0.27.2] - 2026-08-27
 
 ### Fixed

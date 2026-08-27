@@ -64,11 +64,27 @@ def _block_height(line_count, has_emotes):
     return height
 
 
+def _normalize_event_for_display(event):
+    """Returns a dict guaranteed to have "display_name" and "text" keys, so _message_metrics/
+    _build_block never need to know about "error" events or malformed input directly. An
+    "error"-typed event (ChatClient surfacing a connection/subscription failure - see
+    chat_overlay.py's _build_message_item, which handles this same case for the plain
+    renderer) has no "text" key; a real crash on kodi.local (KeyError('text') killing the
+    whole pump thread) confirmed this path is reachable, not just theoretical. Deliberately
+    drops "emotes" for both cases - an error/malformed block should never show emote art."""
+    if event.get("type") == "error":
+        return {"display_name": "[CHAT ERROR]", "text": event.get("message", "Chat connection failed")}
+    if "display_name" not in event or "text" not in event:
+        return {"display_name": "[CHAT ERROR]", "text": "Malformed chat event"}
+    return event
+
+
 def _message_metrics(event):
     """Wrapped lines, filtered emotes, and resulting block height for a message - computed
     once and shared between the eviction-cutoff pre-pass and _build_block, so a message's
     height is never calculated one way for the cutoff decision and another way for the
     control actually built."""
+    event = _normalize_event_for_display(event)
     lines = _wrap_message_lines(event["text"])
     emotes = [
         emote for emote in (event.get("emotes") or [])[:_MAX_EMOTE_SLOTS] if emote.get("url")
@@ -80,6 +96,7 @@ def _build_block(event, lines, emotes, height):
     """Build one message's controls at a placeholder y=0 - _position_block() sets the real
     position once the block's place in the column is known. lines/emotes/height come from
     _message_metrics(event), computed by the caller as part of the eviction-cutoff decision."""
+    event = _normalize_event_for_display(event)
     message_height = len(lines) * _LINE_PITCH
 
     items = []

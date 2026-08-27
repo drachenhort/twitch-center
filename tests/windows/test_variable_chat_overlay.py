@@ -260,3 +260,40 @@ def test_close_removes_all_remaining_controls():
     assert win._blocks == []
     for control in controls:
         assert control not in win._added_controls
+
+
+def test_message_metrics_for_error_event_does_not_crash():
+    # An "error"-typed event (ChatClient surfacing a connection/subscription failure) has no
+    # "text" key - _message_metrics must not KeyError on it. Real crash seen live on
+    # kodi.local: an EventSub subscription 429 produced an "error" event, which reached this
+    # function unconditionally and killed the whole pump thread with KeyError('text') - the
+    # plain ChatOverlay's _build_message_item already handled "error" events; this variable-
+    # height renderer's parallel code path never did.
+    lines, emotes, height = _message_metrics({"type": "error", "message": "HTTP 429"})
+    assert lines == ["HTTP 429"]
+    assert emotes == []
+
+
+def test_message_metrics_for_malformed_message_event_does_not_crash():
+    lines, emotes, height = _message_metrics({"type": "message", "display_name": "Bob"})
+    assert "Malformed" in lines[0]
+
+
+def test_build_block_for_error_event_shows_chat_error_label():
+    block = _build_block_for({"type": "error", "message": "HTTP 429"})
+    username_label = block["items"][0][0]
+    message_label = block["items"][1][0]
+    assert username_label.getLabel() == "[CHAT ERROR]"
+    assert message_label.getLabel() == "HTTP 429"
+
+
+def test_render_handles_an_error_event_among_normal_messages():
+    FakeChatClient.instances.clear()
+    win = _make_overlay([
+        _message_event("bob", "hi", 1),
+        {"type": "error", "message": "HTTP 429"},
+        _message_event("alice", "hello", 2),
+    ])
+    assert len(win._blocks) == 3
+    labels = [block["items"][0][0].getLabel() for block in win._blocks]
+    assert labels == ["Bob", "[CHAT ERROR]", "Alice"]
