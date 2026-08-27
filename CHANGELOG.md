@@ -4,6 +4,17 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.26.1] - 2026-08-27
+
+### Added
+- New "Log live-notify activity" setting (off by default) gates INFO-level logging for the
+  live-notify service: the subscribed followed-channel list (login names) at connect and each
+  follow-refresh, and each notification shown. Connect/disconnect status and subscription-error
+  events, previously only visible with Kodi debug logging enabled, are now logged at INFO under
+  the same toggle. Added after live-testing on kodi.local exposed that a missed notification
+  couldn't be diagnosed from the log as it stood - the service now leaves an audit trail when
+  asked to.
+
 ## [0.26.0] - 2026-08-26
 
 ### Added

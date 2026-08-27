@@ -319,3 +319,13 @@ def test_settings_xml_declares_live_notify_enabled_defaulting_to_false():
     default = setting_ids["live_notify_enabled"].find("default")
     assert default is not None
     assert default.text == "false"
+
+
+def test_settings_xml_declares_live_notify_verbose_logging_defaulting_to_false():
+    tree = ET.parse(SETTINGS_XML)
+    root = tree.getroot()
+    setting_ids = {s.attrib["id"]: s for s in root.iter("setting")}
+    assert "live_notify_verbose_logging" in setting_ids
+    default = setting_ids["live_notify_verbose_logging"].find("default")
+    assert default is not None
+    assert default.text == "false"

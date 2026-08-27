@@ -47,9 +47,23 @@ class _RunningClient:
         self.client.disconnect()
 
 
+def _followed_channels(token, client_id):
+    return api.get_followed_channels(token["access_token"], client_id, token["user_id"])
+
+
 def _followed_broadcaster_ids(token, client_id):
-    channels = api.get_followed_channels(token["access_token"], client_id, token["user_id"])
-    return [c["broadcaster_id"] for c in channels]
+    return [c["broadcaster_id"] for c in _followed_channels(token, client_id)]
+
+
+def _log_subscribed_channels(channels, verbose):
+    if not verbose:
+        return
+    names = ", ".join(c.get("broadcaster_login", c["broadcaster_id"]) for c in channels)
+    xbmc.log(
+        "script.twitch.center: live-notify: subscribed to %d followed channel(s): %s"
+        % (len(channels), names),
+        xbmc.LOGINFO,
+    )
 
 
 def _refresh_token(addon, client_id, token):
@@ -103,7 +117,9 @@ def run(addon=None, monitor_cls=None, client_cls=None, settings_cls=None):
                     try:
                         client = client_cls(token["access_token"], client_id)
                         client.connect()
-                        client.set_broadcasters(_followed_broadcaster_ids(token, client_id))
+                        channels = _followed_channels(token, client_id)
+                        client.set_broadcasters([c["broadcaster_id"] for c in channels])
+                        _log_subscribed_channels(channels, settings.live_notify_verbose_logging)
                     except api.TokenExpiredError:
                         _refresh_token(addon, client_id, token)
                         # Leave running as None either way: on success, the next tick's
@@ -127,14 +143,21 @@ def run(addon=None, monitor_cls=None, client_cls=None, settings_cls=None):
         elif settings.live_notify_enabled and running is not None:
             for event in running.drain():
                 if event.get("type") == "stream_online":
+                    if settings.live_notify_verbose_logging:
+                        xbmc.log(
+                            "script.twitch.center: live-notify: %s went live, showing notification"
+                            % event["broadcaster_user_name"],
+                            xbmc.LOGINFO,
+                        )
                     xbmcgui.Dialog().notification(
                         "Twitch Center", "%s is live" % event["broadcaster_user_name"]
                     )
                 elif event.get("type") in ("status", "subscription_error"):
-                    xbmc.log(
-                        "script.twitch.center: live-notify event: " + repr(event),
-                        xbmc.LOGDEBUG,
-                    )
+                    if settings.live_notify_verbose_logging:
+                        xbmc.log(
+                            "script.twitch.center: live-notify event: " + repr(event),
+                            xbmc.LOGINFO,
+                        )
             ticks_since_follow_refresh += 1
             if ticks_since_follow_refresh >= ticks_per_follow_refresh:
                 ticks_since_follow_refresh = 0
@@ -143,7 +166,9 @@ def run(addon=None, monitor_cls=None, client_cls=None, settings_cls=None):
                     if token is not None and token.get("user_id"):
                         client_id = addon.getSetting("client_id")
                         try:
-                            running.client.set_broadcasters(_followed_broadcaster_ids(token, client_id))
+                            channels = _followed_channels(token, client_id)
+                            running.client.set_broadcasters([c["broadcaster_id"] for c in channels])
+                            _log_subscribed_channels(channels, settings.live_notify_verbose_logging)
                         except api.TokenExpiredError:
                             refreshed = _refresh_token(addon, client_id, token)
                             if refreshed is not None:

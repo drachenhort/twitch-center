@@ -82,6 +82,18 @@ def test_live_notify_enabled_reads_addon_setting():
     assert settings.live_notify_enabled is True
 
 
+def test_live_notify_verbose_logging_defaults_to_false():
+    settings = Settings()
+    assert settings.live_notify_verbose_logging is False
+
+
+def test_live_notify_verbose_logging_reads_addon_setting():
+    addon = xbmcaddon.Addon()
+    addon.setSetting("live_notify_verbose_logging", True)
+    settings = Settings(addon=addon)
+    assert settings.live_notify_verbose_logging is True
+
+
 def test_kick_client_id_setting_is_readable_and_defaults_empty():
     addon = xbmcaddon.Addon()
     assert addon.getSetting("kick_client_id") == ""

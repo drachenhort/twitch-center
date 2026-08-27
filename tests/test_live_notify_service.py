@@ -36,6 +36,7 @@ class FakeMonitor:
 class FakeSettings:
     def __init__(self, addon):
         self.live_notify_enabled = addon.getSettingBool("live_notify_enabled")
+        self.live_notify_verbose_logging = addon.getSettingBool("live_notify_verbose_logging")
 
 
 class FakeClient:
@@ -405,7 +406,7 @@ def test_status_and_subscription_error_events_are_logged(monkeypatch):
             self.push_event({"type": "status", "state": "disconnected", "error": "boom"})
             self.push_event({"type": "subscription_error", "broadcaster_user_id": "111", "error": "boom"})
 
-    addon = FakeAddon({"live_notify_enabled": "true"})
+    addon = FakeAddon({"live_notify_enabled": "true", "live_notify_verbose_logging": "true"})
     monitor = FakeMonitor(ticks=3)
     live_notify_service.run(
         addon=addon, monitor_cls=lambda: monitor, client_cls=EmittingClient, settings_cls=FakeSettings
@@ -413,3 +414,49 @@ def test_status_and_subscription_error_events_are_logged(monkeypatch):
 
     assert any("disconnected" in m for m in logs)
     assert any("subscription_error" in m for m in logs)
+
+
+def test_status_events_not_logged_when_verbose_logging_disabled(monkeypatch):
+    """The new live_notify_verbose_logging setting defaults off - status/subscription_error
+    events must not be logged unless it's explicitly enabled."""
+    FakeClient.instances.clear()
+    monkeypatch.setattr(live_notify_service.auth, "load_token", lambda addon: {"access_token": "t", "user_id": "1"})
+    monkeypatch.setattr(
+        live_notify_service.api, "get_followed_channels", lambda *a, **kw: [{"broadcaster_id": "111"}]
+    )
+
+    logs = []
+    monkeypatch.setattr(live_notify_service.xbmc, "log", lambda msg, level=None: logs.append(msg))
+
+    class EmittingClient(FakeClient):
+        def connect(self):
+            super().connect()
+            self.push_event({"type": "status", "state": "disconnected", "error": "boom"})
+
+    addon = FakeAddon({"live_notify_enabled": "true"})  # verbose logging left at its false default
+    monitor = FakeMonitor(ticks=3)
+    live_notify_service.run(
+        addon=addon, monitor_cls=lambda: monitor, client_cls=EmittingClient, settings_cls=FakeSettings
+    )
+
+    assert not any("disconnected" in m for m in logs)
+
+
+def test_subscribed_channels_logged_only_when_verbose_logging_enabled(monkeypatch):
+    FakeClient.instances.clear()
+    monkeypatch.setattr(live_notify_service.auth, "load_token", lambda addon: {"access_token": "t", "user_id": "1"})
+    monkeypatch.setattr(
+        live_notify_service.api, "get_followed_channels",
+        lambda *a, **kw: [{"broadcaster_id": "111", "broadcaster_login": "aerospacenews"}],
+    )
+
+    logs = []
+    monkeypatch.setattr(live_notify_service.xbmc, "log", lambda msg, level=None: logs.append(msg))
+
+    addon = FakeAddon({"live_notify_enabled": "true", "live_notify_verbose_logging": "true"})
+    monitor = FakeMonitor(ticks=2)
+    live_notify_service.run(
+        addon=addon, monitor_cls=lambda: monitor, client_cls=FakeClient, settings_cls=FakeSettings
+    )
+
+    assert any("aerospacenews" in m for m in logs)

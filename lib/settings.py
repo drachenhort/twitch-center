@@ -35,3 +35,7 @@ class Settings:
     @property
     def live_notify_enabled(self):
         return self._addon.getSettingBool("live_notify_enabled")
+
+    @property
+    def live_notify_verbose_logging(self):
+        return self._addon.getSettingBool("live_notify_verbose_logging")
