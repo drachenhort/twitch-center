@@ -4,6 +4,22 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.28.1] - 2026-08-27
+
+### Fixed
+- Clip playback was completely broken: every clip failed with "Couldn't start playback. Try
+  again." and no log line (the failure was caught silently). Root cause, confirmed live on
+  kodi.local: `resolve_clip_url` derived a clip's MP4 URL by substituting its Helix
+  `thumbnail_url`'s `-preview-WxH.jpg` suffix with `.mp4` - Twitch has since moved clip
+  thumbnails to a new CDN path (`.../twitch-video-assets/.../landscape/thumb/thumb-0000000000-
+  480x272.jpg`) with no derivable video-file name, so the substitution never matched for any
+  clip. Replaced with Twitch's undocumented `VideoAccessToken_Clip` GQL query
+  (`lib/twitch/gql.py`'s new `get_clip_video_url`), the same approach other Twitch clients use -
+  returns a directly playable MP4 URL per clip id, no thumbnail parsing involved.
+- `_on_vod_selected`/`_on_clip_selected` (`lib/views/vod_clips_view.py`) now log a `LOGERROR`
+  line with the failing id/exception on `StreamUnavailableError` instead of swallowing it
+  silently - this is what made the clip bug invisible in kodi.log in the first place.
+
 ## [0.28.0] - 2026-08-27
 
 ### Removed

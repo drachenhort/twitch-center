@@ -179,6 +179,7 @@ def build_clip_list_item(clip):
     item = xbmcgui.ListItem(clip["title"])
     item.setLabel2(f"{int(clip['duration'])}s · {clip['view_count']} views")
     item.setArt({"thumb": clip["thumbnail_url"]})
+    item.setProperty("clip_id", clip["id"])
     item.setProperty("thumbnail_url", clip["thumbnail_url"])
     item.setProperty("view_count", str(clip["view_count"]))
     return item

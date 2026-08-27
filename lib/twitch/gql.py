@@ -23,6 +23,7 @@ WEB_CLIENT_ID = "kimne78kx3ncx6brgo4mv6wki5h1ko"
 
 _FOLLOWING_GAMES_QUERY_HASH = "f3c5d45175d623ed3d5ff4ca4c7de379ea6a1a4852236087dc1b81b7dbfd3114"
 _PLAYBACK_ACCESS_TOKEN_QUERY_HASH = "ed230aa1e33e07eebb8928504583da78a5173989fadfb1ac94be06a04f3cdbe9"
+_VIDEO_ACCESS_TOKEN_CLIP_QUERY_HASH = "36b89d2507fce29e5ca551df756d27c1cfe079e2ad4400b3ea50fed36d2077a"
 
 
 def _headers(website_token=None):
@@ -151,6 +152,50 @@ def get_playback_access_token(channel_login, website_token=None):
         return None
 
     return {"value": value, "signature": signature}
+
+
+def get_clip_video_url(clip_slug, website_token=None):
+    """Return the highest-quality direct MP4 URL for a clip, or None on any failure - never
+    raises. Twitch dropped the old thumbnail-URL-to-MP4 naming trick (clip thumbnails moved to
+    a CDN path with no derivable video-file name - confirmed live: current thumbnail_urls look
+    like ".../twitch-video-assets/.../landscape/thumb/thumb-0000000000-480x272.jpg", nothing a
+    suffix substitution can turn into a video file). This GQL query is the replacement -
+    same approach used by other Twitch clients (e.g. yt-dlp): the returned sourceURL is
+    directly fetchable, no token/signature needs to be appended to it (unlike live/VOD
+    playback via usher.ttvnw.net)."""
+    try:
+        response = requests.post(
+            GQL_URL,
+            json={
+                "operationName": "VideoAccessToken_Clip",
+                "variables": {"slug": clip_slug},
+                "extensions": {
+                    "persistedQuery": {
+                        "version": 1,
+                        "sha256Hash": _VIDEO_ACCESS_TOKEN_CLIP_QUERY_HASH,
+                    }
+                },
+            },
+            headers=_headers(website_token),
+            timeout=10,
+        )
+    except requests.RequestException:
+        return None
+
+    if response.status_code != 200:
+        return None
+
+    try:
+        body = response.json()
+        qualities = body["data"]["clip"]["videoQualities"]
+    except (ValueError, KeyError, TypeError):
+        return None
+
+    if not qualities:
+        return None
+
+    best = max(qualities, key=lambda q: int(q.get("quality") or 0))
+    return best.get("sourceURL") or None
 
 
 def get_vod_playback_access_token(vod_id, website_token=None):

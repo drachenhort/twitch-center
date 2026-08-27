@@ -59,12 +59,20 @@ def test_resolve_vod_url_passes_website_token_through():
     mock_get_token.assert_called_once_with("123456789", "my-website-token")
 
 
-def test_resolve_clip_url_replaces_preview_suffix_with_mp4():
-    thumb = "https://clips-media-assets2.twitch.tv/AB12CD34-preview-480x272.jpg"
-    url = stream.resolve_clip_url(thumb)
-    assert url == "https://clips-media-assets2.twitch.tv/AB12CD34.mp4"
+def test_resolve_clip_url_returns_video_url_on_success():
+    with patch.object(gql, "get_clip_video_url", return_value="https://example/1080.mp4") as mock_get:
+        url = stream.resolve_clip_url("SomeClipSlug")
+    mock_get.assert_called_once_with("SomeClipSlug", None)
+    assert url == "https://example/1080.mp4"
 
 
-def test_resolve_clip_url_raises_on_unexpected_format():
-    with pytest.raises(stream.StreamUnavailableError):
-        stream.resolve_clip_url("https://example.invalid/not-a-preview-url.jpg")
+def test_resolve_clip_url_raises_stream_unavailable_when_url_is_none():
+    with patch.object(gql, "get_clip_video_url", return_value=None):
+        with pytest.raises(stream.StreamUnavailableError):
+            stream.resolve_clip_url("SomeClipSlug")
+
+
+def test_resolve_clip_url_passes_website_token_through():
+    with patch.object(gql, "get_clip_video_url", return_value="https://example/1080.mp4") as mock_get:
+        stream.resolve_clip_url("SomeClipSlug", "my-website-token")
+    mock_get.assert_called_once_with("SomeClipSlug", "my-website-token")

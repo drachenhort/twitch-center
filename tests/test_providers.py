@@ -409,10 +409,9 @@ def test_resolve_vod_url_wraps_any_exception():
 
 def test_resolve_clip_url_dispatches_to_twitch():
     addon = xbmcaddon.Addon()
-    thumb = "https://clips-media-assets2.twitch.tv/AB12CD34-preview-480x272.jpg"
     with patch.object(twitch_stream, "resolve_clip_url", return_value="https://twitch.example/clip.mp4") as mock:
-        url = providers.resolve_clip_url(addon, thumb)
-    mock.assert_called_once_with(thumb)
+        url = providers.resolve_clip_url(addon, "SomeClipSlug")
+    mock.assert_called_once_with("SomeClipSlug", addon.getSetting("website_token"))
     assert url == "https://twitch.example/clip.mp4"
 
 
@@ -420,4 +419,4 @@ def test_resolve_clip_url_wraps_unavailable_error():
     addon = xbmcaddon.Addon()
     with patch.object(twitch_stream, "resolve_clip_url", side_effect=twitch_stream.StreamUnavailableError("x")):
         with pytest.raises(providers.StreamUnavailableError):
-            providers.resolve_clip_url(addon, "bad-url")
+            providers.resolve_clip_url(addon, "SomeClipSlug")

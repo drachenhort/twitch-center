@@ -193,7 +193,11 @@ class VodClipsView:
         try:
             url = providers.resolve_vod_url(addon, video_id)
             played = player.play_stream(url, title, platform="twitch_vod")
-        except providers.StreamUnavailableError:
+        except providers.StreamUnavailableError as exc:
+            xbmc.log(
+                "script.twitch.center: VOD unavailable (video_id=%r): %s" % (video_id, exc),
+                xbmc.LOGERROR,
+            )
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
             return
         except Exception as exc:
@@ -212,13 +216,17 @@ class VodClipsView:
         selected = control.getSelectedItem()
         if selected is None:
             return
-        thumbnail_url = selected.getProperty("thumbnail_url")
+        clip_id = selected.getProperty("clip_id")
         title = selected.getLabel()
         addon = xbmcaddon.Addon()
         try:
-            url = providers.resolve_clip_url(addon, thumbnail_url)
+            url = providers.resolve_clip_url(addon, clip_id)
             played = player.play_stream(url, title, platform="twitch_clip")
-        except providers.StreamUnavailableError:
+        except providers.StreamUnavailableError as exc:
+            xbmc.log(
+                "script.twitch.center: Clip unavailable (clip_id=%r): %s" % (clip_id, exc),
+                xbmc.LOGERROR,
+            )
             self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
             return
         except Exception as exc:

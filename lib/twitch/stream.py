@@ -1,13 +1,11 @@
 """Resolves a Twitch channel name to a playable HLS URL via Twitch's GraphQL +
 usher.ttvnw.net access-token endpoints. No xbmc* imports - pure Python, pytest-testable."""
 import random
-import re
 from urllib.parse import quote
 
 from lib.twitch import gql
 
 USHER_BASE = "https://usher.ttvnw.net"
-_CLIP_PREVIEW_SUFFIX_RE = re.compile(r"-preview-\d+x\d+\.jpg$")
 
 
 class StreamUnavailableError(Exception):
@@ -59,12 +57,14 @@ def resolve_vod_url(vod_id, website_token=None):
     )
 
 
-def resolve_clip_url(thumbnail_url):
-    """Derive a clip's direct MP4 URL from its Helix thumbnail_url (e.g.
-    ".../AB12CD34-preview-480x272.jpg" -> ".../AB12CD34.mp4"). Raises
-    StreamUnavailableError if thumbnail_url doesn't match that pattern - a well-known,
-    deterministic technique (no GQL/auth needed), but dependent on Twitch's thumbnail
-    naming convention not changing."""
-    if not _CLIP_PREVIEW_SUFFIX_RE.search(thumbnail_url):
-        raise StreamUnavailableError(thumbnail_url)
-    return _CLIP_PREVIEW_SUFFIX_RE.sub(".mp4", thumbnail_url)
+def resolve_clip_url(clip_slug, website_token=None):
+    """Return a clip's direct MP4 URL, given its Helix clip id (the "slug" in Twitch's clip
+    GQL API - same value). Raises StreamUnavailableError if it can't be resolved.
+
+    Used to be a deterministic thumbnail_url-to-MP4 suffix substitution (no GQL/auth needed) -
+    Twitch moved clip thumbnails to a CDN path with no derivable video-file name, breaking that
+    trick for every clip (confirmed live). This GQL query is the replacement."""
+    url = gql.get_clip_video_url(clip_slug, website_token)
+    if url is None:
+        raise StreamUnavailableError(clip_slug)
+    return url

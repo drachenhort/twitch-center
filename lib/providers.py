@@ -283,12 +283,13 @@ def resolve_vod_url(addon, vod_id):
         raise StreamUnavailableError(str(exc)) from exc
 
 
-def resolve_clip_url(addon, thumbnail_url):
-    """Resolve a Twitch clip's thumbnail_url to its playable direct MP4 URL. Raises
+def resolve_clip_url(addon, clip_id):
+    """Resolve a Twitch clip id to its playable direct MP4 URL. Raises
     StreamUnavailableError - never the underlying twitch_stream exception - on any
     failure, matching resolve_stream_url's contract."""
+    website_token = addon.getSetting("website_token")
     try:
-        return twitch_stream.resolve_clip_url(thumbnail_url)
+        return twitch_stream.resolve_clip_url(clip_id, website_token)
     except twitch_stream.StreamUnavailableError as exc:
         raise StreamUnavailableError(str(exc)) from exc
     except Exception as exc:

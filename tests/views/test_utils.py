@@ -33,6 +33,7 @@ def test_build_clip_list_item_sets_properties():
     }
     item = view_utils.build_clip_list_item(clip)
     assert item.getLabel() == "Great Play"
+    assert item.getProperty("clip_id") == "abc"
     assert item.getProperty("thumbnail_url") == clip["thumbnail_url"]
     assert item.getProperty("view_count") == "42"
     assert item.getLabel2() == "29s · 42 views"

@@ -145,7 +145,7 @@ def test_selecting_a_clip_resolves_and_plays_it():
         view.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
     mock_resolve.assert_called_once()
-    assert mock_resolve.call_args.args[1] == CLIPS[0]["thumbnail_url"]
+    assert mock_resolve.call_args.args[1] == CLIPS[0]["id"]
     mock_play.assert_called_once_with(
         "https://clips.example/x.mp4", "Clip 1", platform="twitch_clip"
     )
