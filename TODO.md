@@ -53,3 +53,13 @@
   not a regression from going anonymous. Anonymous requests are still capped at FULL_HD/12500kbps
   by Twitch (`AUTHZ_NOT_LOGGED_IN` blocks QUAD_HD/ULTRA_HD) - fine for now, revisit only if a
   streamer's own source is above 1080p and that cap becomes the actual limiter.
+
+- Kick version of VODs & Clips: deliberately deferred (2026-08-27) when VODs & Clips shipped for
+  Twitch - see `docs/superpowers/specs/2026-08-27-vods-clips-design.md`. Would need: (1)
+  `lib/kick/api.py` equivalents of `get_videos`/`get_clips` (Kick's API surface for this is
+  unconfirmed/unexplored - existing `lib/kick/api.py` only covers live streams, categories, and
+  channel lookup); (2) Kick's own VOD/Clip playback resolution (`lib/kick/stream.py`'s
+  `resolve_stream_url` is live-only, unauthenticated `kick.com/api/v2/channels/{slug}` - VOD/Clip
+  playback is a different, unresearched mechanism entirely); (3) a `platform` branch each in
+  `lib/providers.py`'s `resolve_vod_url`/`resolve_clip_url`, mirroring `resolve_stream_url`'s
+  existing Twitch/Kick split.
