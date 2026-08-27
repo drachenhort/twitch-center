@@ -55,6 +55,32 @@ def _followed_broadcaster_ids(token, client_id):
     return [c["broadcaster_id"] for c in _followed_channels(token, client_id)]
 
 
+def _notify_already_live(token, client_id, channels, verbose):
+    """One-off check, run only right after a fresh connect: EventSub's stream.online only fires
+    on the *transition* to live, so a followed channel that was already live before this service
+    (re)connected would otherwise never get a notification for that stream. Never raises - a
+    failure here must not be treated as a connect failure, since the subscription itself already
+    succeeded by the time this runs."""
+    try:
+        live_now = api.get_live_status(
+            token["access_token"], client_id, [c["broadcaster_id"] for c in channels]
+        )
+    except Exception as exc:
+        xbmc.log(
+            "script.twitch.center: live-notify startup live-check failed: " + repr(exc),
+            xbmc.LOGWARNING,
+        )
+        return
+    for stream in live_now:
+        xbmcgui.Dialog().notification("Twitch Center", "%s is live" % stream["user_name"])
+        if verbose:
+            xbmc.log(
+                "script.twitch.center: live-notify: %s already live at startup, showing "
+                "notification" % stream["user_name"],
+                xbmc.LOGINFO,
+            )
+
+
 def _log_subscribed_channels(channels, verbose):
     if not verbose:
         return
@@ -120,6 +146,9 @@ def run(addon=None, monitor_cls=None, client_cls=None, settings_cls=None):
                         channels = _followed_channels(token, client_id)
                         client.set_broadcasters([c["broadcaster_id"] for c in channels])
                         _log_subscribed_channels(channels, settings.live_notify_verbose_logging)
+                        _notify_already_live(
+                            token, client_id, channels, settings.live_notify_verbose_logging
+                        )
                     except api.TokenExpiredError:
                         _refresh_token(addon, client_id, token)
                         # Leave running as None either way: on success, the next tick's

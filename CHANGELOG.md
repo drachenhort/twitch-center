@@ -4,6 +4,16 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.26.2] - 2026-08-27
+
+### Added
+- Live-notify now also catches followed channels that were already live before the background
+  service connected (e.g. right at Kodi startup, or immediately after enabling the setting).
+  `stream.online` EventSub events only fire on the transition to live, so a stream already in
+  progress at connect time previously never got a notification for it. A one-off
+  `api.get_live_status` check now runs immediately after every successful initial connect to
+  cover that gap.
+
 ## [0.26.1] - 2026-08-27
 
 ### Added

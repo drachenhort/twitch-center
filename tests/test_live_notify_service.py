@@ -1,7 +1,18 @@
 import queue
 import threading
 
+import pytest
+
 from lib import live_notify_service
+
+
+@pytest.fixture(autouse=True)
+def _no_one_off_live_check_by_default(monkeypatch):
+    """The one-off "already live at startup" check (_notify_already_live) calls
+    api.get_live_status on every successful initial connect. Default it to "nobody's live" so
+    the many existing tests that only mock get_followed_channels don't each need updating, and
+    don't accidentally hit the network. Tests exercising the startup check override this."""
+    monkeypatch.setattr(live_notify_service.api, "get_live_status", lambda *a, **kw: [])
 
 
 class FakeAddon:
@@ -153,6 +164,63 @@ def test_stream_online_event_shows_notification(monkeypatch):
         addon=addon, monitor_cls=lambda: monitor, client_cls=EmittingClient, settings_cls=FakeSettings
     )
     assert ("Twitch Center", "SomeUser is live") in notifications
+
+
+def test_already_live_followed_channel_notified_at_startup(monkeypatch):
+    """EventSub's stream.online only fires on the transition to live - a followed channel that
+    was already live before the service connected would otherwise never get notified for that
+    stream. A one-off api.get_live_status check right after a successful initial connect must
+    catch this."""
+    FakeClient.instances.clear()
+    monkeypatch.setattr(live_notify_service.auth, "load_token", lambda addon: {"access_token": "t", "user_id": "1"})
+    monkeypatch.setattr(
+        live_notify_service.api, "get_followed_channels", lambda *a, **kw: [{"broadcaster_id": "111"}]
+    )
+    monkeypatch.setattr(
+        live_notify_service.api, "get_live_status",
+        lambda access_token, client_id, user_ids: [{"user_id": "111", "user_name": "AlreadyLive"}],
+    )
+
+    notifications = []
+
+    class FakeDialog:
+        def notification(self, heading, message):
+            notifications.append((heading, message))
+
+    monkeypatch.setattr(live_notify_service.xbmcgui, "Dialog", lambda: FakeDialog())
+
+    addon = FakeAddon({"live_notify_enabled": "true"})
+    monitor = FakeMonitor(ticks=2)
+    live_notify_service.run(
+        addon=addon, monitor_cls=lambda: monitor, client_cls=FakeClient, settings_cls=FakeSettings
+    )
+    assert ("Twitch Center", "AlreadyLive is live") in notifications
+
+
+def test_startup_live_check_failure_does_not_prevent_connecting(monkeypatch):
+    """A transient api.get_live_status failure during the one-off startup check must not be
+    treated as a connect failure - the subscription itself already succeeded by that point."""
+    FakeClient.instances.clear()
+    monkeypatch.setattr(live_notify_service.auth, "load_token", lambda addon: {"access_token": "t", "user_id": "1"})
+    monkeypatch.setattr(
+        live_notify_service.api, "get_followed_channels", lambda *a, **kw: [{"broadcaster_id": "111"}]
+    )
+
+    def get_live_status(*a, **kw):
+        raise RuntimeError("transient Helix failure")
+
+    monkeypatch.setattr(live_notify_service.api, "get_live_status", get_live_status)
+
+    addon = FakeAddon({"live_notify_enabled": "true"})
+    monitor = FakeMonitor(ticks=2)
+    live_notify_service.run(
+        addon=addon, monitor_cls=lambda: monitor, client_cls=FakeClient, settings_cls=FakeSettings
+    )
+    # Only one client was ever constructed - the get_live_status failure didn't trigger a
+    # disconnect-and-retry cycle. (It's disconnected at the end only as normal service shutdown
+    # when the monitor aborts, not by the startup-check failure.)
+    assert len(FakeClient.instances) == 1
+    assert FakeClient.instances[0].connected is True
 
 
 def test_initial_connect_load_token_error_is_caught_and_retried(monkeypatch):
