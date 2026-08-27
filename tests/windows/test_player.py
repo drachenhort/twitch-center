@@ -831,3 +831,38 @@ def test_play_stream_defaults_to_twitch_platform_when_unspecified():
         )
 
     assert len(FakeChatOverlay.instances) == 1
+
+
+def test_play_stream_twitch_clip_builds_plain_mp4_list_item_without_inputstream():
+    with patch("lib.windows.player.xbmc.Player") as mock_player_cls:
+        played = player.play_stream(
+            "https://clips-media-assets2.twitch.tv/AB12CD34.mp4",
+            "someclip",
+            settings=FakeSettings(False),
+            platform="twitch_clip",
+        )
+    assert played is True
+    list_item = mock_player_cls.return_value.play.call_args[0][1]
+    assert list_item.getProperty("inputstream") == ""
+    assert list_item.getMimeType() == "video/mp4"
+
+
+def test_play_stream_twitch_vod_still_uses_inputstream_adaptive():
+    # platform="twitch_vod" must fall through to the unchanged HLS/ISA branch, same as
+    # live "twitch" - only "twitch_clip" gets the new plain-file branch.
+    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
+        "lib.windows.player.xbmc.Player"
+    ) as mock_player_cls:
+        mock_helper_cls.return_value.check_inputstream.return_value = True
+        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
+
+        played = player.play_stream(
+            "https://usher.ttvnw.net/vod/123456789.m3u8",
+            "somevod",
+            settings=FakeSettings(False),
+            platform="twitch_vod",
+        )
+    assert played is True
+    list_item = mock_player_cls.return_value.play.call_args[0][1]
+    assert list_item.getProperty("inputstream") == "inputstream.adaptive"
+    assert list_item.getMimeType() == "application/x-mpegURL"
