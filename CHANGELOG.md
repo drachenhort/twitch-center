@@ -4,6 +4,19 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.27.1] - 2026-08-27
+
+### Fixed
+- Live-notify's `LiveNotifyClient` was subscribing every followed channel's `stream.online`
+  event in a tight, unthrottled loop (one Helix POST per channel, no delay). With a large
+  follow list this blew through Twitch's per-`client_id` EventSub rate limit almost instantly
+  - confirmed live: a 139-channel burst produced a wall of `429 Too Many Requests`, and since
+  the chat overlay's own EventSub subscription call shares the same `client_id`, it landed
+  inside that same rate-limited window and got 429'd too, breaking chat until the window
+  cleared. A small delay (`_SUBSCRIBE_THROTTLE_SECONDS`) between each subscribe/unsubscribe
+  call now keeps live-notify's own burst from starving other features sharing the same
+  Twitch app rate-limit budget.
+
 ## [0.27.0] - 2026-08-27
 
 ### Added

@@ -174,6 +174,15 @@ _QUEUE_MAXSIZE = 1000
 _DISCONNECT_GRACE = 0.05
 _SOCKET_RECV_TIMEOUT = 5
 _REQUESTED_KEEPALIVE_SECONDS = 10
+# LiveNotifyClient subscribes one broadcaster per Helix EventSub subscription-creation POST.
+# Firing a large followed-channel list's worth of these back-to-back exhausts Twitch's
+# per-client_id rate limit almost instantly - not just for the remaining subscribes in this
+# loop, but for any OTHER feature sharing the same client_id (e.g. ChatClient's own
+# subscription call, made moments later when a stream is opened) - confirmed live: a 139-
+# channel burst produced a wall of 429s, and the chat overlay's own EventSub subscribe
+# landed inside that same rate-limited window shortly after. A small delay between each
+# subscribe call keeps this client's own burst from starving that shared budget.
+_SUBSCRIBE_THROTTLE_SECONDS = 0.1
 
 
 def _default_socket_factory():
@@ -466,10 +475,12 @@ class LiveNotifyClient:
                     "broadcaster_user_id": broadcaster_id,
                     "error": repr(exc),
                 })
+                self._sleep_fn(_SUBSCRIBE_THROTTLE_SECONDS)
                 continue
             with self._lock:
                 if self._session_id == session_id:
                     self._active_subs[broadcaster_id] = body["data"][0]["id"]
+            self._sleep_fn(_SUBSCRIBE_THROTTLE_SECONDS)
         for broadcaster_id in to_remove:
             with self._lock:
                 subscription_id = self._active_subs.pop(broadcaster_id, None)
@@ -482,6 +493,7 @@ class LiveNotifyClient:
                         "broadcaster_user_id": broadcaster_id,
                         "error": repr(exc),
                     })
+                self._sleep_fn(_SUBSCRIBE_THROTTLE_SECONDS)
 
     def read_events(self):
         while not (self._cancel_event.is_set() and self._queue.empty()):
@@ -592,8 +604,10 @@ class LiveNotifyClient:
                     "broadcaster_user_id": broadcaster_id,
                     "error": repr(exc),
                 })
+                self._sleep_fn(_SUBSCRIBE_THROTTLE_SECONDS)
                 continue
             active_subs[broadcaster_id] = body["data"][0]["id"]
+            self._sleep_fn(_SUBSCRIBE_THROTTLE_SECONDS)
         with self._lock:
             self._session_id = session_id
             self._active_subs = active_subs

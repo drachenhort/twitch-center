@@ -4,6 +4,7 @@ import socket
 
 from lib.twitch.eventsub import (
     _OPCODE_TEXT,
+    _SUBSCRIBE_THROTTLE_SECONDS,
     ChatClient,
     _build_handshake_key,
     _build_handshake_request,
@@ -796,6 +797,48 @@ def test_live_notify_set_broadcasters_skips_broadcaster_whose_subscribe_fails():
     assert events[-1]["broadcaster_user_id"] == "bad"
     with client._lock:
         assert client._active_subs == {"good": "sub-good"}
+
+
+def test_live_notify_handshake_throttles_between_subscribe_calls():
+    # Subscribing many followed channels in a tight loop with no delay exhausts Twitch's
+    # per-client_id EventSub rate limit almost instantly, 429ing not just the remaining
+    # subscribes in this loop but any OTHER feature sharing the same client_id (e.g. the
+    # chat overlay's own subscription call, made moments later) - confirmed live on
+    # kodi.local. A small sleep between each subscribe call keeps this client's own burst
+    # from starving the shared budget.
+    sleeps = []
+
+    client = LiveNotifyClient(**_live_notify_kwargs(
+        socket_factory=_connectable_socket_factory(),
+        sleep_fn=lambda s: sleeps.append(s),
+    ))
+    client.set_broadcasters(["111", "222", "333"])
+    client.connect()
+    for event in client.read_events():
+        if event["type"] == "status" and event["state"] == "connected":
+            break
+    client.disconnect()
+
+    assert sleeps.count(_SUBSCRIBE_THROTTLE_SECONDS) == 3
+
+
+def test_live_notify_set_broadcasters_throttles_between_subscribe_calls():
+    sleeps = []
+
+    client = LiveNotifyClient(**_live_notify_kwargs(
+        socket_factory=_connectable_socket_factory(),
+        sleep_fn=lambda s: sleeps.append(s),
+    ))
+    client.connect()
+    for event in client.read_events():
+        if event["type"] == "status" and event["state"] == "connected":
+            break
+
+    sleeps.clear()
+    client.set_broadcasters(["111", "222"])
+    client.disconnect()
+
+    assert sleeps.count(_SUBSCRIBE_THROTTLE_SECONDS) == 2
 
 
 def test_live_notify_race_set_broadcasters_during_handshake_catches_up():
