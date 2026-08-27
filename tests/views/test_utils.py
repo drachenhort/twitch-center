@@ -21,6 +21,8 @@ def test_build_video_list_item_sets_properties():
     assert item.getProperty("video_id") == "999"
     assert item.getProperty("duration") == "3h8m33s"
     assert item.getProperty("view_count") == "150"
+    assert item.getLabel2() == "3h8m33s · 150 views"
+    assert item.getArt("thumb") == "https://example.invalid/thumb-%320x%180.jpg"
 
 
 def test_build_clip_list_item_sets_properties():
@@ -33,3 +35,5 @@ def test_build_clip_list_item_sets_properties():
     assert item.getLabel() == "Great Play"
     assert item.getProperty("thumbnail_url") == clip["thumbnail_url"]
     assert item.getProperty("view_count") == "42"
+    assert item.getLabel2() == "29s · 42 views"
+    assert item.getArt("thumb") == "https://clips-media-assets2.twitch.tv/AB12CD34-preview-480x272.jpg"
