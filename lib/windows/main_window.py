@@ -42,6 +42,7 @@ class MainWindow(xbmcgui.WindowXML):
         from lib.views.live_streams_view import LiveStreamsView
         from lib.views.login_view import LoginView
         from lib.views.menu_view import MenuView
+        from lib.views.vod_clips_channels_view import VodClipsChannelsView
 
         return {
             "login": LoginView,
@@ -49,6 +50,7 @@ class MainWindow(xbmcgui.WindowXML):
             "live_streams": LiveStreamsView,
             "discover": DiscoverView,
             "kick_login": KickLoginView,
+            "vod_clips_channels": VodClipsChannelsView,
         }
 
     def onInit(self):

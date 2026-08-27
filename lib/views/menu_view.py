@@ -10,6 +10,7 @@ from lib.kick import auth as kick_auth
 class MenuView:
     LIVE_STREAMS_BUTTON_ID = 501
     DISCOVER_BUTTON_ID = 502
+    VOD_CLIPS_BUTTON_ID = 503
     SETTINGS_BUTTON_ID = 504
     RELOGIN_BUTTON_ID = 505
     KICK_LOGIN_BUTTON_ID = 506
@@ -48,6 +49,8 @@ class MenuView:
             self.window._switch_view("live_streams")
         elif focus == self.DISCOVER_BUTTON_ID:
             self.window._switch_view("discover")
+        elif focus == self.VOD_CLIPS_BUTTON_ID:
+            self.window._switch_view("vod_clips_channels")
         elif focus == self.SETTINGS_BUTTON_ID:
             xbmcaddon.Addon().openSettings()
         elif focus == self.RELOGIN_BUTTON_ID:
