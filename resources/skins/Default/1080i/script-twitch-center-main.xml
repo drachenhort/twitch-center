@@ -96,12 +96,12 @@
         <aligny>center</aligny>
         <onright>501</onright>
         <onleft>501</onleft>
-        <ondown>502</ondown>
+        <ondown>503</ondown>
         <onup>506</onup>
         <label>Live Streams</label>
       </control>
-      <control type="button" id="502">
-        <description>Discover</description>
+      <control type="button" id="503">
+        <description>VODs and Clips</description>
         <posx>660</posx>
         <posy>460</posy>
         <width>600</width>
@@ -109,16 +109,31 @@
         <font>font20</font>
         <align>center</align>
         <aligny>center</aligny>
+        <onright>503</onright>
+        <onleft>503</onleft>
+        <onup>501</onup>
+        <ondown>502</ondown>
+        <label>VODs &amp; Clips</label>
+      </control>
+      <control type="button" id="502">
+        <description>Discover</description>
+        <posx>660</posx>
+        <posy>560</posy>
+        <width>600</width>
+        <height>80</height>
+        <font>font20</font>
+        <align>center</align>
+        <aligny>center</aligny>
         <onright>502</onright>
         <onleft>502</onleft>
-        <onup>501</onup>
+        <onup>503</onup>
         <ondown>504</ondown>
         <label>Discover</label>
       </control>
       <control type="button" id="504">
         <description>Settings</description>
         <posx>660</posx>
-        <posy>560</posy>
+        <posy>660</posy>
         <width>600</width>
         <height>80</height>
         <font>font20</font>
@@ -133,7 +148,7 @@
       <control type="button" id="505">
         <description>Log in again</description>
         <posx>660</posx>
-        <posy>660</posy>
+        <posy>760</posy>
         <width>600</width>
         <height>80</height>
         <font>font13</font>
@@ -148,7 +163,7 @@
       <control type="button" id="506">
         <description>Log in to Kick</description>
         <posx>660</posx>
-        <posy>760</posy>
+        <posy>860</posy>
         <width>600</width>
         <height>80</height>
         <font>font13</font>
@@ -920,6 +935,382 @@
         <onleft>308</onleft>
         <ondown>305</ondown>
         <label>Log in again</label>
+      </control>
+    </control>
+
+    <!-- ===================== VOD/CLIPS CHANNELS (700) ===================== -->
+    <control type="group" id="700">
+      <control type="label" id="705">
+        <description>Title</description>
+        <posx>64</posx>
+        <posy>48</posy>
+        <width>1200</width>
+        <height>48</height>
+        <font>Title</font>
+        <textcolor>FFE6E1E5</textcolor>
+        <label>VODs &amp; Clips</label>
+      </control>
+      <control type="label">
+        <description>Subtitle</description>
+        <posx>64</posx>
+        <posy>100</posy>
+        <width>1200</width>
+        <height>28</height>
+        <font>CardBody</font>
+        <textcolor>FFCAC4D0</textcolor>
+        <label>Pick a followed channel</label>
+      </control>
+      <control type="panel" id="701">
+        <description>Followed channels (VODs and Clips picker)</description>
+        <posx>48</posx>
+        <posy>160</posy>
+        <width>1824</width>
+        <height>860</height>
+        <onup>701</onup>
+        <ondown>701</ondown>
+        <onleft>701</onleft>
+        <onright>701</onright>
+        <orientation>horizontal</orientation>
+        <itemlayout width="300" height="90">
+          <control type="image">
+            <posx>0</posx>
+            <posy>0</posy>
+            <width>284</width>
+            <height>74</height>
+            <texture>name_box.png</texture>
+          </control>
+          <control type="label">
+            <posx>0</posx>
+            <posy>0</posy>
+            <width>284</width>
+            <height>74</height>
+            <font>CardHeadline</font>
+            <textcolor>FFE6E1E5</textcolor>
+            <align>center</align>
+            <aligny>center</aligny>
+            <scroll>false</scroll>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+        </itemlayout>
+        <focusedlayout width="300" height="90">
+          <control type="image">
+            <width>284</width>
+            <height>74</height>
+            <texture>card_surface_focus.png</texture>
+            <colordiffuse>ff0a6ed3</colordiffuse>
+          </control>
+          <control type="label">
+            <posx>0</posx>
+            <posy>0</posy>
+            <width>284</width>
+            <height>74</height>
+            <font>CardHeadline</font>
+            <textcolor>FFD0BCFF</textcolor>
+            <align>center</align>
+            <aligny>center</aligny>
+            <scroll>true</scroll>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+        </focusedlayout>
+      </control>
+      <control type="label" id="702">
+        <description>Empty followed list message</description>
+        <posx>560</posx>
+        <posy>460</posy>
+        <width>800</width>
+        <height>60</height>
+        <font>CardHeadline</font>
+        <textcolor>FFCAC4D0</textcolor>
+        <align>center</align>
+        <label></label>
+      </control>
+      <control type="label" id="703">
+        <description>Error / re-login message</description>
+        <posx>560</posx>
+        <posy>460</posy>
+        <width>800</width>
+        <height>60</height>
+        <font>CardHeadline</font>
+        <textcolor>FFCAC4D0</textcolor>
+        <align>center</align>
+        <label></label>
+      </control>
+      <control type="button" id="704">
+        <description>Log in again</description>
+        <posx>760</posx>
+        <posy>540</posy>
+        <width>400</width>
+        <height>60</height>
+        <font>CardBody</font>
+        <textcolor>FFE6E1E5</textcolor>
+        <focusedcolor>FFD0BCFF</focusedcolor>
+        <align>center</align>
+        <aligny>center</aligny>
+        <onup>701</onup>
+        <ondown>701</ondown>
+        <onleft>704</onleft>
+        <onright>704</onright>
+        <label>Log in again</label>
+        <visible>false</visible>
+      </control>
+    </control>
+
+    <!-- ===================== VOD/CLIPS CONTENT (800) ===================== -->
+    <control type="group" id="800">
+      <control type="label" id="803">
+        <description>Title (selected channel's display name)</description>
+        <posx>64</posx>
+        <posy>48</posy>
+        <width>1200</width>
+        <height>48</height>
+        <font>Title</font>
+        <textcolor>FFE6E1E5</textcolor>
+        <label></label>
+      </control>
+      <control type="label">
+        <description>VODs section label</description>
+        <posx>64</posx>
+        <posy>110</posy>
+        <width>400</width>
+        <height>32</height>
+        <font>CardHeadline</font>
+        <textcolor>FFCAC4D0</textcolor>
+        <label>VODs</label>
+      </control>
+      <control type="panel" id="801">
+        <description>VODs</description>
+        <posx>48</posx>
+        <posy>150</posy>
+        <width>1824</width>
+        <height>300</height>
+        <onup>801</onup>
+        <ondown>802</ondown>
+        <onleft>801</onleft>
+        <onright>801</onright>
+        <orientation>horizontal</orientation>
+        <itemlayout width="320" height="270">
+          <control type="image">
+            <posx>8</posx>
+            <posy>8</posy>
+            <width>304</width>
+            <height>28</height>
+            <texture>name_box.png</texture>
+          </control>
+          <control type="label">
+            <posx>8</posx>
+            <posy>8</posy>
+            <width>304</width>
+            <height>28</height>
+            <font>CardHeadline</font>
+            <textcolor>FFE6E1E5</textcolor>
+            <align>center</align>
+            <aligny>center</aligny>
+            <scroll>false</scroll>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+          <control type="image">
+            <posx>8</posx>
+            <posy>44</posy>
+            <width>304</width>
+            <height>171</height>
+            <aspectratio>scale</aspectratio>
+            <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Art(thumb)]</texture>
+            <diffuse>thumb_mask.png</diffuse>
+          </control>
+          <control type="label">
+            <posx>8</posx>
+            <posy>223</posy>
+            <width>304</width>
+            <height>28</height>
+            <font>CardBody</font>
+            <textcolor>FFCAC4D0</textcolor>
+            <aligny>center</aligny>
+            <label>$INFO[ListItem.Label2]</label>
+          </control>
+        </itemlayout>
+        <focusedlayout width="320" height="270">
+          <control type="image">
+            <width>320</width>
+            <height>270</height>
+            <texture>card_surface_focus.png</texture>
+            <colordiffuse>ff0a6ed3</colordiffuse>
+          </control>
+          <control type="image">
+            <posx>8</posx>
+            <posy>8</posy>
+            <width>304</width>
+            <height>28</height>
+            <texture>name_box.png</texture>
+          </control>
+          <control type="label">
+            <posx>8</posx>
+            <posy>8</posy>
+            <width>304</width>
+            <height>28</height>
+            <font>CardHeadline</font>
+            <textcolor>FFD0BCFF</textcolor>
+            <align>center</align>
+            <aligny>center</aligny>
+            <scroll>true</scroll>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+          <control type="image">
+            <posx>8</posx>
+            <posy>44</posy>
+            <width>304</width>
+            <height>171</height>
+            <aspectratio>scale</aspectratio>
+            <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Art(thumb)]</texture>
+            <diffuse>thumb_mask.png</diffuse>
+          </control>
+          <control type="label">
+            <posx>8</posx>
+            <posy>223</posy>
+            <width>304</width>
+            <height>28</height>
+            <font>CardBody</font>
+            <textcolor>FFE6E1E5</textcolor>
+            <aligny>center</aligny>
+            <label>$INFO[ListItem.Label2]</label>
+          </control>
+        </focusedlayout>
+      </control>
+      <control type="label">
+        <description>Clips section label</description>
+        <posx>64</posx>
+        <posy>470</posy>
+        <width>400</width>
+        <height>32</height>
+        <font>CardHeadline</font>
+        <textcolor>FFCAC4D0</textcolor>
+        <label>Clips</label>
+      </control>
+      <control type="panel" id="802">
+        <description>Clips</description>
+        <posx>48</posx>
+        <posy>510</posy>
+        <width>1824</width>
+        <height>300</height>
+        <onup>801</onup>
+        <ondown>802</ondown>
+        <onleft>802</onleft>
+        <onright>802</onright>
+        <orientation>horizontal</orientation>
+        <itemlayout width="320" height="270">
+          <control type="image">
+            <posx>8</posx>
+            <posy>8</posy>
+            <width>304</width>
+            <height>28</height>
+            <texture>name_box.png</texture>
+          </control>
+          <control type="label">
+            <posx>8</posx>
+            <posy>8</posy>
+            <width>304</width>
+            <height>28</height>
+            <font>CardHeadline</font>
+            <textcolor>FFE6E1E5</textcolor>
+            <align>center</align>
+            <aligny>center</aligny>
+            <scroll>false</scroll>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+          <control type="image">
+            <posx>8</posx>
+            <posy>44</posy>
+            <width>304</width>
+            <height>171</height>
+            <aspectratio>scale</aspectratio>
+            <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Art(thumb)]</texture>
+            <diffuse>thumb_mask.png</diffuse>
+          </control>
+          <control type="label">
+            <posx>8</posx>
+            <posy>223</posy>
+            <width>304</width>
+            <height>28</height>
+            <font>CardBody</font>
+            <textcolor>FFCAC4D0</textcolor>
+            <aligny>center</aligny>
+            <label>$INFO[ListItem.Label2]</label>
+          </control>
+        </itemlayout>
+        <focusedlayout width="320" height="270">
+          <control type="image">
+            <width>320</width>
+            <height>270</height>
+            <texture>card_surface_focus.png</texture>
+            <colordiffuse>ff0a6ed3</colordiffuse>
+          </control>
+          <control type="image">
+            <posx>8</posx>
+            <posy>8</posy>
+            <width>304</width>
+            <height>28</height>
+            <texture>name_box.png</texture>
+          </control>
+          <control type="label">
+            <posx>8</posx>
+            <posy>8</posy>
+            <width>304</width>
+            <height>28</height>
+            <font>CardHeadline</font>
+            <textcolor>FFD0BCFF</textcolor>
+            <align>center</align>
+            <aligny>center</aligny>
+            <scroll>true</scroll>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+          <control type="image">
+            <posx>8</posx>
+            <posy>44</posy>
+            <width>304</width>
+            <height>171</height>
+            <aspectratio>scale</aspectratio>
+            <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Art(thumb)]</texture>
+            <diffuse>thumb_mask.png</diffuse>
+          </control>
+          <control type="label">
+            <posx>8</posx>
+            <posy>223</posy>
+            <width>304</width>
+            <height>28</height>
+            <font>CardBody</font>
+            <textcolor>FFE6E1E5</textcolor>
+            <aligny>center</aligny>
+            <label>$INFO[ListItem.Label2]</label>
+          </control>
+        </focusedlayout>
+      </control>
+      <control type="label" id="804">
+        <description>Error / re-login message</description>
+        <posx>560</posx>
+        <posy>860</posy>
+        <width>800</width>
+        <height>60</height>
+        <font>CardHeadline</font>
+        <textcolor>FFCAC4D0</textcolor>
+        <align>center</align>
+        <label></label>
+      </control>
+      <control type="button" id="805">
+        <description>Log in again</description>
+        <posx>760</posx>
+        <posy>930</posy>
+        <width>400</width>
+        <height>60</height>
+        <font>CardBody</font>
+        <textcolor>FFE6E1E5</textcolor>
+        <focusedcolor>FFD0BCFF</focusedcolor>
+        <align>center</align>
+        <aligny>center</aligny>
+        <onup>802</onup>
+        <ondown>801</ondown>
+        <onleft>805</onleft>
+        <onright>805</onright>
+        <label>Log in again</label>
+        <visible>false</visible>
       </control>
     </control>
 

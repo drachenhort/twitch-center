@@ -329,3 +329,45 @@ def test_settings_xml_declares_live_notify_verbose_logging_defaulting_to_false()
     default = setting_ids["live_notify_verbose_logging"].find("default")
     assert default is not None
     assert default.text == "false"
+
+
+def test_menu_skin_declares_vod_clips_button():
+    root = ET.parse(MAIN_SKIN_XML).getroot()
+    control_ids = {
+        int(c.attrib["id"]) for c in root.iter("control") if "id" in c.attrib
+    }
+    assert 503 in control_ids
+
+
+def test_vod_clips_channels_skin_declares_expected_control_ids():
+    root = ET.parse(MAIN_SKIN_XML).getroot()
+    control_ids = {
+        int(c.attrib["id"]) for c in root.iter("control") if "id" in c.attrib
+    }
+    for expected_id in (701, 702, 703, 704, 705):
+        assert expected_id in control_ids
+
+
+def test_vod_clips_skin_declares_expected_control_ids():
+    root = ET.parse(MAIN_SKIN_XML).getroot()
+    control_ids = {
+        int(c.attrib["id"]) for c in root.iter("control") if "id" in c.attrib
+    }
+    for expected_id in (801, 802, 803, 804, 805):
+        assert expected_id in control_ids
+
+
+def test_vod_clips_channel_picker_default_focus_is_not_a_list():
+    # Same reasoning as test_main_skin_defaultcontrol_is_not_a_data_dependent_list:
+    # a panel/list that's still empty at skin-parse time can't be safely focused
+    # before Python's onInit populates it, so the channel panel must be type="panel"
+    # (which this codebase's convention already treats as focusable-when-empty,
+    # matching CHANNEL_LIST_ID's existing "panel" type on Live Streams), not "list".
+    root = ET.parse(MAIN_SKIN_XML).getroot()
+    assert _control_type(root, 701) == "panel"
+
+
+def test_main_skin_control_ids_are_still_unique_after_vod_clips_additions():
+    control_ids = _main_skin_control_ids()
+    duplicates = {cid for cid in control_ids if control_ids.count(cid) > 1}
+    assert not duplicates
