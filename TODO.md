@@ -1,5 +1,28 @@
 # TODO
 
+- ~~Notify when a followed streamer goes live~~ REMOVED (v0.28.0, 2026-08-27): shipped in
+  v0.26.0 as `lib/live_notify_service.py` (`LiveNotifyClient` in `lib/twitch/eventsub.py`), then
+  fully deleted after v0.27.1-0.27.6 all failed to keep its cold-start EventSub subscribe burst
+  (one `stream.online` subscription per followed channel, 140 in testing) inside Twitch's
+  per-`client_id` rate limit without breaking chat, which shares the same `client_id`'s budget.
+  Fixed-delay throttling, reactive 429 backoff, a startup race fix, and proactive
+  Ratelimit-Remaining throttling were each tried and each fell short on live re-test; the last
+  attempt got Twitch's server to close the WebSocket session outright after repeated 429s. Do
+  not reintroduce without a real fix for the underlying rate-limit problem (e.g. spreading the
+  burst over minutes instead of ~70s, not just tuning the backoff further).
+
+- ~~Clip playback~~ FIXED (v0.28.2, 2026-08-27): every clip failed silently ("Couldn't start
+  playback", no log line) because Twitch moved clip thumbnails to a CDN path
+  (`.../twitch-video-assets/.../landscape/thumb/...`) with no derivable video-file name, killing
+  the old thumbnail-URL-to-MP4 suffix-substitution trick `lib/twitch/stream.py`'s
+  `resolve_clip_url` relied on. Now resolves via Twitch's undocumented `VideoAccessToken_Clip`
+  GQL query (`lib/twitch/gql.py`'s `get_clip_video_url`) - sent as a raw query string (a guessed
+  persisted-query hash was rejected outright), with the returned MP4 URL's playbackAccessToken
+  signature/value appended as `?sig=...&token=...` (its CDN path 401s bare). Confirmed live on
+  kodi.local, both Clips and VODs. `vod_clips_view.py`'s VOD/clip selection handlers also now
+  log `StreamUnavailableError` at `LOGERROR` instead of swallowing it - that silence is why the
+  clip bug had no log trail in the first place.
+
 - ~~Tackle chat~~ DONE (v0.10.0): `lib/twitch/irc.py`'s `ChatClient` and `lib/windows/chat_overlay.py`
   are real and live-tested (Quin69, busy chat). The `chat_overlay_enabled` setting shows it
   automatically during playback; auto-reconnects, auto-scrolls, throttled rendering, closes on
