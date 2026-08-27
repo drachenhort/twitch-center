@@ -13,7 +13,7 @@
         <height>50</height>
         <font>font32</font>
         <align>center</align>
-        <label>Activate Twitch Center</label>
+        <label>Activate SIGMA Streaming Hub</label>
       </control>
       <control type="label" id="101">
         <description>User code</description>

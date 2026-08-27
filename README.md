@@ -1,4 +1,4 @@
-# Twitch Center
+# SIGMA Streaming Hub
 
 A Kodi program addon (`script.twitch.center`) for watching Twitch streams and reading their chat
 from the couch: log in with your Twitch account, browse your followed/live channels or discover
@@ -59,7 +59,7 @@ and closes itself when the stream stops or ends.
 
 ### Install via repository (recommended — enables auto-updates)
 
-Twitch Center is distributed via
+SIGMA Streaming Hub is distributed via
 [drachenhort-repo](https://github.com/drachenhort/drachenhort-repo), a dedicated Kodi addon
 repository (also serves the unrelated Jellyfin (Plex-style) addon):
 
@@ -67,7 +67,7 @@ repository (also serves the unrelated Jellyfin (Plex-style) addon):
    [`repository.drachenhort-1.0.0.zip`](https://drachenhort.github.io/drachenhort-repo/repository.drachenhort/repository.drachenhort-1.0.0.zip)
 2. In Kodi: **Add-ons → Install from zip file**, select the downloaded file.
 3. Then **Add-ons → Install from repository → drachenhort Kodi Addons → Program add-ons →
-   Twitch Center**, and install it from there.
+   SIGMA Streaming Hub**, and install it from there.
 
 Kodi then checks the repository for new versions and can auto-update the addon like any other —
 every push to this repo's `master` triggers a rebuild of drachenhort-repo's index.

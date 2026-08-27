@@ -26,7 +26,7 @@ def show_quit_prompt():
     """Display a confirmation dialog when the user attempts to quit."""
     dialog = xbmcgui.Dialog()
     return dialog.yesno(
-        "Twitch Center",
+        "SIGMA Streaming Hub",
         "Are you sure you want to quit?\nYour chat and stream will be closed.",
         nolabel="No",
         yeslabel="Yes"

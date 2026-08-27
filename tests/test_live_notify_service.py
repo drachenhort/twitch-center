@@ -163,7 +163,7 @@ def test_stream_online_event_shows_notification(monkeypatch):
     live_notify_service.run(
         addon=addon, monitor_cls=lambda: monitor, client_cls=EmittingClient, settings_cls=FakeSettings
     )
-    assert ("Twitch Center", "SomeUser is live") in notifications
+    assert ("SIGMA Streaming Hub", "SomeUser is live") in notifications
 
 
 def test_already_live_followed_channel_notified_at_startup(monkeypatch):
@@ -194,7 +194,7 @@ def test_already_live_followed_channel_notified_at_startup(monkeypatch):
     live_notify_service.run(
         addon=addon, monitor_cls=lambda: monitor, client_cls=FakeClient, settings_cls=FakeSettings
     )
-    assert ("Twitch Center", "AlreadyLive is live") in notifications
+    assert ("SIGMA Streaming Hub", "AlreadyLive is live") in notifications
 
 
 def test_startup_live_check_failure_does_not_prevent_connecting(monkeypatch):

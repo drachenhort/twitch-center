@@ -72,7 +72,7 @@ def _notify_already_live(token, client_id, channels, verbose):
         )
         return
     for stream in live_now:
-        xbmcgui.Dialog().notification("Twitch Center", "%s is live" % stream["user_name"])
+        xbmcgui.Dialog().notification("SIGMA Streaming Hub", "%s is live" % stream["user_name"])
         if verbose:
             xbmc.log(
                 "script.twitch.center: live-notify: %s already live at startup, showing "
@@ -179,7 +179,7 @@ def run(addon=None, monitor_cls=None, client_cls=None, settings_cls=None):
                             xbmc.LOGINFO,
                         )
                     xbmcgui.Dialog().notification(
-                        "Twitch Center", "%s is live" % event["broadcaster_user_name"]
+                        "SIGMA Streaming Hub", "%s is live" % event["broadcaster_user_name"]
                     )
                 elif event.get("type") in ("status", "subscription_error"):
                     if settings.live_notify_verbose_logging:

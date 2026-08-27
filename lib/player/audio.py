@@ -8,7 +8,7 @@ def cycle_audio_stream():
 
     streams = player.getAvailableAudioStreams()
     if not streams:
-        xbmc.executebuiltin("Notification(Twitch Center,No audio tracks available)")
+        xbmc.executebuiltin("Notification(SIGMA Streaming Hub,No audio tracks available)")
         return
 
     current = player.getAudioStream()
@@ -17,5 +17,5 @@ def cycle_audio_stream():
 
     label = streams[next_idx] or "Track {}".format(next_idx + 1)
     xbmc.executebuiltin(
-        "Notification(Twitch Center,Audio: {})".format(label.replace(",", ""))
+        "Notification(SIGMA Streaming Hub,Audio: {})".format(label.replace(",", ""))
     )

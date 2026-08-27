@@ -2,7 +2,7 @@
 
 _ADDON_INFO = {
     "id": "script.twitch.center",
-    "name": "Twitch Center",
+    "name": "SIGMA Streaming Hub",
     "version": "0.1.0",
 }
 

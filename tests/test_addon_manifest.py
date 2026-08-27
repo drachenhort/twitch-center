@@ -28,7 +28,7 @@ def test_addon_xml_parses_with_expected_id():
     root = tree.getroot()
     assert root.tag == "addon"
     assert root.attrib["id"] == "script.twitch.center"
-    assert root.attrib["name"] == "Twitch Center"
+    assert root.attrib["name"] == "SIGMA Streaming Hub"
 
 
 def test_addon_xml_declares_script_extension():

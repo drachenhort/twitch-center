@@ -1,5 +1,5 @@
 """
-Twitch Center addon entry point.
+SIGMA Streaming Hub addon entry point.
 
 Dispatches RunScript calls and installs the custom keymap on startup.
 """

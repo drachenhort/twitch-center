@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.26.3] - 2026-08-27
+
+### Changed
+- Renamed the addon's display name from "Twitch Center" to "SIGMA Streaming Hub" - everywhere
+  it's shown to the user (Kodi's addon browser, notification headings, the quit-confirmation
+  dialog, the skin's "Activate ..." label, README). The internal addon id
+  (`script.twitch.center`), its folder name, and all `script.twitch.center:`-prefixed log lines
+  are unchanged - this is a display-name-only rename, no reinstall or data migration needed.
+
 ## [0.26.2] - 2026-08-27
 
 ### Added
