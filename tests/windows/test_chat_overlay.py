@@ -3,7 +3,7 @@ from unittest.mock import patch
 import xbmc
 import xbmcgui
 
-from lib.windows.chat_overlay import ChatOverlay, _wrap_message_lines
+from lib.windows.chat_overlay import ChatOverlay, _build_message_item, _wrap_message_lines
 
 
 class FakeChatClient:
@@ -496,3 +496,54 @@ def test_wrap_message_lines_truncates_and_ellipsizes_past_five_lines():
     assert len(lines) == 5
     assert lines[-1].endswith("...")
     assert all(len(line) <= 26 for line in lines)
+
+
+def test_pump_handles_error_events():
+    """When EventSub/IRC connection fails, the chat overlay renders the error event
+    instead of silently showing an empty chat list. This is how the user learns that
+    chat isn't working (e.g. EventSub subscription creation failing due to rate limits
+    or subscription count from other features like live notifications)."""
+    FakeChatClient.instances.clear()
+
+    class ClientWithError(FakeChatClient):
+        def __init__(self, channel, **kwargs):
+            super().__init__(channel, **kwargs)
+            self._events = [
+                _message_event("alice", "hello", 1),
+                {"type": "error", "message": "Chat connection failed: HTTP 429"},
+            ]
+
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=ClientWithError,
+    )
+    win.onInit()
+    win._thread.join(timeout=1)
+    assert not win._thread.is_alive()
+
+    control = win.getControl(ChatOverlay.MESSAGE_LIST_ID)
+    assert control.size() == 2
+    assert control._items[0].getLabel() == "Alice"
+    assert control._items[0].getLabel2() == "hello"
+    # Error item uses "[CHAT ERROR]" as label and the error message as Label2
+    assert control._items[1].getLabel() == "[CHAT ERROR]"
+    assert "Chat connection failed" in control._items[1].getLabel2()
+
+
+def test_build_message_item_for_error_event():
+    """Error events should produce a ListItem with a distinctive label and message."""
+    item = _build_message_item({"type": "error", "message": "Connection refused"})
+    assert item.getLabel() == "[CHAT ERROR]"
+    assert item.getLabel2() == "Connection refused"
+    assert item.getArt("emote_0") == ""  # error items should have no emote art
+
+
+def test_build_message_item_for_error_event_without_message_defaults():
+    """If no 'message' field is provided, default to a generic error message."""
+    item = _build_message_item({"type": "error"})
+    assert item.getLabel() == "[CHAT ERROR]"
+    assert item.getLabel2() == "Chat connection failed"

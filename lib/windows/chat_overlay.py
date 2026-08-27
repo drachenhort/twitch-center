@@ -48,6 +48,10 @@ def _wrap_message_lines(text):
 
 
 def _build_message_item(event):
+    if event.get("type") == "error":
+        item = xbmcgui.ListItem("[CHAT ERROR]")
+        item.setLabel2(event.get("message", "Chat connection failed"))
+        return item
     item = xbmcgui.ListItem(event["display_name"])
     lines = _wrap_message_lines(event["text"])
     item.setLabel2("\n".join(lines))
@@ -123,7 +127,7 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
             for event in self._client.read_messages():
                 if self._cancel_event.is_set():
                     break
-                if event["type"] != "message":
+                if event["type"] not in ("message", "error"):
                     continue
                 before = len(self._messages)
                 self._messages.append(event)

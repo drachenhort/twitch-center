@@ -183,7 +183,10 @@ class ChatClient:
                 self._enqueue({"type": "status", "state": "connected"})
                 self._read_loop()
             except Exception:
-                pass
+                self._enqueue({
+                    "type": "error",
+                    "message": "Chat connection failed",
+                })
             finally:
                 if self._sock is not None:
                     try:

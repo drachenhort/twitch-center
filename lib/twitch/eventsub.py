@@ -261,6 +261,10 @@ class ChatClient:
                 self._read_loop()
             except Exception as exc:
                 last_error = repr(exc)
+                self._enqueue({
+                    "type": "error",
+                    "message": "Chat connection failed: " + str(exc),
+                })
             else:
                 last_error = None
             finally:
