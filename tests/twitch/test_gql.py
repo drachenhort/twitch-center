@@ -245,22 +245,30 @@ def test_get_vod_playback_access_token_passes_website_token_through():
     assert headers["Authorization"] == "OAuth my-website-token"
 
 
-def test_get_clip_video_url_returns_highest_quality_source_url():
-    body = {
+def _clip_body(qualities, signature="sig123", value="tok-value"):
+    return {
         "data": {
             "clip": {
-                "playbackAccessToken": {"value": "v", "signature": "s"},
-                "videoQualities": [
-                    {"quality": "480", "frameRate": 30, "sourceURL": "https://example/480.mp4"},
-                    {"quality": "1080", "frameRate": 60, "sourceURL": "https://example/1080.mp4"},
-                    {"quality": "720", "frameRate": 60, "sourceURL": "https://example/720.mp4"},
-                ],
+                "playbackAccessToken": {"signature": signature, "value": value},
+                "videoQualities": qualities,
             }
         }
     }
+
+
+def test_get_clip_video_url_returns_highest_quality_source_url_with_token_appended():
+    body = _clip_body(
+        [
+            {"quality": "480", "sourceURL": "https://example/480.mp4"},
+            {"quality": "1080", "sourceURL": "https://example/1080.mp4"},
+            {"quality": "720", "sourceURL": "https://example/720.mp4"},
+        ],
+        signature="sig123",
+        value="tok value",
+    )
     with patch.object(gql.requests, "post", return_value=_response(body)) as mock_post:
         result = gql.get_clip_video_url("SomeClipSlug")
-    assert result == "https://example/1080.mp4"
+    assert result == "https://example/1080.mp4?sig=sig123&token=tok%20value"
     payload = mock_post.call_args.kwargs["json"]
     assert payload["operationName"] == "VideoAccessToken_Clip"
     assert payload["variables"] == {"slug": "SomeClipSlug"}
@@ -273,7 +281,13 @@ def test_get_clip_video_url_returns_none_when_clip_missing():
 
 
 def test_get_clip_video_url_returns_none_when_no_qualities():
-    body = {"data": {"clip": {"videoQualities": []}}}
+    body = _clip_body([])
+    with patch.object(gql.requests, "post", return_value=_response(body)):
+        assert gql.get_clip_video_url("SomeClipSlug") is None
+
+
+def test_get_clip_video_url_returns_none_when_token_missing():
+    body = {"data": {"clip": {"playbackAccessToken": None, "videoQualities": [{"quality": "1080", "sourceURL": "https://example/1080.mp4"}]}}}
     with patch.object(gql.requests, "post", return_value=_response(body)):
         assert gql.get_clip_video_url("SomeClipSlug") is None
 
@@ -289,7 +303,7 @@ def test_get_clip_video_url_returns_none_on_request_exception():
 
 
 def test_get_clip_video_url_passes_website_token_through():
-    body = {"data": {"clip": {"videoQualities": [{"quality": "1080", "sourceURL": "https://example/1080.mp4"}]}}}
+    body = _clip_body([{"quality": "1080", "sourceURL": "https://example/1080.mp4"}])
     with patch.object(gql.requests, "post", return_value=_response(body)) as mock_post:
         gql.get_clip_video_url("SomeClipSlug", "my-website-token")
     headers = mock_post.call_args.kwargs["headers"]
