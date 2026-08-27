@@ -66,6 +66,30 @@ def get_live_status(access_token, client_id, user_ids):
     return results
 
 
+def get_videos(access_token, client_id, user_id, first=20):
+    """Return the given broadcaster's VODs (Helix /videos, type=archive), newest first.
+    sort=time is Helix's own default - passed explicitly so this doesn't silently change
+    if Twitch ever changes that default."""
+    body = _get(
+        HELIX_BASE + "/videos",
+        access_token, client_id,
+        params={"user_id": user_id, "type": "archive", "sort": "time", "first": first},
+    )
+    return body["data"]
+
+
+def get_clips(access_token, client_id, broadcaster_id, first=20):
+    """Return the given broadcaster's Clips (Helix /clips), sorted newest first.
+    Twitch's Clips endpoint does NOT guarantee chronological order in its response (it's
+    view-count-biased) - re-sort client-side by created_at before returning."""
+    body = _get(
+        HELIX_BASE + "/clips",
+        access_token, client_id,
+        params={"broadcaster_id": broadcaster_id, "first": first},
+    )
+    return sorted(body["data"], key=lambda clip: clip["created_at"], reverse=True)
+
+
 def get_games_for_channels(access_token, user_ids):
     """Return a dict mapping user_id -> game_id for the given broadcaster user_ids,
     derived from their current/most recent live stream."""

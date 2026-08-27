@@ -151,3 +151,58 @@ def get_playback_access_token(channel_login, website_token=None):
         return None
 
     return {"value": value, "signature": signature}
+
+
+def get_vod_playback_access_token(vod_id, website_token=None):
+    """Return a {"value", "signature"} playback access token for the given VOD id, or None
+    on any failure - never raises. Same persisted query as get_playback_access_token, with
+    isLive/isVod/vodID/login swapped for the VOD case instead of the live case.
+
+    Known limitation: the query variables here (isVod/vodID) are well-documented in
+    Twitch's public web client and high-confidence, but this persisted query's response
+    shape was captured for the LIVE case (get_playback_access_token) - whether Twitch's
+    fixed response selection set for this exact persisted hash includes
+    videoPlaybackAccessToken for a VOD request is unconfirmed until live-tested. If it
+    doesn't, this returns None the same as any other failure - no crash, VOD playback
+    just won't work until this is revisited."""
+    try:
+        response = requests.post(
+            GQL_URL,
+            json={
+                "operationName": "PlaybackAccessToken",
+                "variables": {
+                    "isLive": False,
+                    "login": "",
+                    "isVod": True,
+                    "vodID": vod_id,
+                    "playerType": "site",
+                    "platform": "web",
+                },
+                "extensions": {
+                    "persistedQuery": {
+                        "version": 1,
+                        "sha256Hash": _PLAYBACK_ACCESS_TOKEN_QUERY_HASH,
+                    }
+                },
+            },
+            headers=_headers(website_token),
+            timeout=10,
+        )
+    except requests.RequestException:
+        return None
+
+    if response.status_code != 200:
+        return None
+
+    try:
+        body = response.json()
+        token = body["data"]["videoPlaybackAccessToken"]
+        value = token["value"]
+        signature = token["signature"]
+    except (ValueError, KeyError, TypeError):
+        return None
+
+    if not value or not signature:
+        return None
+
+    return {"value": value, "signature": signature}

@@ -12,6 +12,7 @@ class FakeView:
         self.activate_calls = 0
         self.actions = []
         self.clicks = []
+        self.context = None
 
     def activate(self):
         self.activate_calls += 1
@@ -204,3 +205,65 @@ def test_switch_view_can_reach_kick_login():
     for name, group_id in win.GROUP_IDS.items():
         if name != "kick_login":
             assert win.getControl(group_id).isVisible() is False
+
+
+def test_onaction_back_uses_menu_when_view_has_no_back_target():
+    win = _make_window(initial_view="discover")
+    win.onInit()
+    with patch("lib.windows.main_window.xbmc.Player") as mock_player_cls:
+        mock_player_cls.return_value.isPlaying.return_value = False
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
+    assert win._active_name == "menu"
+
+
+def test_onaction_back_routes_through_a_declared_back_target():
+    class ContentFakeView(FakeView):
+        BACK_TARGET = "vod_clips_channels"
+
+    win = _make_window(
+        initial_view="vod_clips",
+        view_classes={"vod_clips_channels": FakeView, "vod_clips": ContentFakeView},
+    )
+    win.onInit()
+    with patch("lib.windows.main_window.xbmc.Player") as mock_player_cls:
+        mock_player_cls.return_value.isPlaying.return_value = False
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
+    assert win._active_name == "vod_clips_channels"
+
+
+def test_switch_view_stores_context_on_the_target_view():
+    win = _make_window(
+        initial_view="menu",
+        view_classes={"vod_clips_channels": FakeView, "vod_clips": FakeView},
+    )
+    win.onInit()
+    win._switch_view("vod_clips", context={"broadcaster_id": "123"})
+    assert win._views["vod_clips"].context == {"broadcaster_id": "123"}
+
+
+def test_switch_view_defaults_context_to_none():
+    win = _make_window(initial_view="menu")
+    win.onInit()
+    win._switch_view("discover")
+    assert win._views["discover"].context is None
+
+
+def test_switch_view_reentry_on_same_view_does_not_clobber_context():
+    # Kodi can re-fire onInit while a content view (e.g. vod_clips) is
+    # already active, e.g. right after fullscreen video playback ends and
+    # the window regains focus. onInit's resulting _switch_view call passes
+    # no context, which must not strand the view on a "no context" error
+    # for a channel it never actually left.
+    win = _make_window(
+        initial_view="menu",
+        view_classes={"vod_clips_channels": FakeView, "vod_clips": FakeView},
+    )
+    win.onInit()
+    win._switch_view("vod_clips", context={"broadcaster_id": "123"})
+    win._switch_view("vod_clips")
+    assert win._views["vod_clips"].context == {"broadcaster_id": "123"}
+
+
+def test_group_ids_include_the_new_vod_clips_screens():
+    assert MainWindow.GROUP_IDS["vod_clips_channels"] == 700
+    assert MainWindow.GROUP_IDS["vod_clips"] == 800

@@ -38,6 +38,8 @@ and closes itself when the stream stops or ends.
   followed-games filter row.
 - **Discover**: browse live channels by any Twitch game/category, or search by channel name,
   Twitch game name, or Kick category name.
+- **VODs & Clips**: browse a followed Twitch channel's past broadcasts and clips and play them
+  back, video-only (no chat overlay). Twitch only for now.
 - **Kick.com support**: browse and watch Kick streams alongside Twitch, interleaved by viewer
   count — no Kick login required for watching or Kick Favorites (uses Kick's public,
   unauthenticated endpoint); Discover's Kick category browsing needs only a Kick app Client
@@ -89,7 +91,8 @@ stall-recovery; the chat overlay (both IRC and EventSub engines, including the v
 EventSub-only rendering mode) with auto-reconnect and clean teardown on stream end; a persistent
 single-window UI architecture that avoids a native Kodi window-activation bug hit by the naive
 multi-window approach; [Kick.com support](docs/kick-integration-notes.md) for browsing and
-watching (`lib/kick/`), requiring no interactive Kick login for anything shipped so far.
+watching (`lib/kick/`), requiring no interactive Kick login for anything shipped so far; VODs &
+Clips (Twitch only) for browsing and playing back a followed channel's past broadcasts and clips.
 
 **In progress:** Kick chat is deliberately deferred until watching had landed and stabilized
 first — not yet started.
@@ -97,7 +100,7 @@ first — not yet started.
 **Known limitations:** anonymous IRC chat is the default Twitch chat engine (EventSub requires
 being logged in, and isn't available when playing a Discover search result); Kick has no chat
 support yet;
-no VOD/clips support on either platform (live streams only); picture-in-picture (small video box
+VODs & Clips is Twitch only (no Kick VODs/clips); picture-in-picture (small video box
 beside chat/menus, rather than fullscreen-or-nothing) is blocked on an unresolved Kodi
 playback-windowing question — see `TODO.md`.
 

@@ -47,6 +47,12 @@ def test_selecting_discover_switches_to_discover_view():
     assert window.switched_to == ["discover"]
 
 
+def test_selecting_vod_clips_switches_to_vod_clips_channels_view():
+    window = FakeMainWindow()
+    _select(window, MenuView.VOD_CLIPS_BUTTON_ID)
+    assert window.switched_to == ["vod_clips_channels"]
+
+
 
 
 def test_selecting_relogin_switches_to_login_view():

@@ -267,6 +267,12 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
         list_item = xbmcgui.ListItem(path=play_url)
         list_item.setMimeType("video/mp2t")
         list_item.setContentLookup(False)
+    elif platform == "twitch_clip":
+        # A Twitch clip is a plain direct .mp4 file, not adaptive HLS - no
+        # inputstream.adaptive involvement needed or wanted here.
+        list_item = xbmcgui.ListItem(path=play_url)
+        list_item.setMimeType("video/mp4")
+        list_item.setContentLookup(False)
     else:
         is_helper = Helper("hls")
         if not is_helper.check_inputstream():

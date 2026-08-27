@@ -267,3 +267,52 @@ def test_delete_eventsub_subscription_propagates_http_errors():
     with patch.object(api.requests, "delete", return_value=response):
         with pytest.raises(requests.RequestException):
             api.delete_eventsub_subscription("token", "client-id", "sub-123")
+
+
+def test_get_videos_returns_data():
+    body = {
+        "data": [
+            {"id": "1", "title": "Stream 1", "created_at": "2026-08-20T00:00:00Z",
+             "duration": "3h8m33s", "thumbnail_url": "https://example.invalid/1-%{width}x%{height}.jpg",
+             "view_count": 100},
+        ],
+        "pagination": {},
+    }
+    with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:
+        result = api.get_videos("token", "client-id", "user-id")
+    assert result == body["data"]
+    params = mock_get.call_args.kwargs["params"]
+    assert params["user_id"] == "user-id"
+    assert params["type"] == "archive"
+    assert params["sort"] == "time"
+    assert params["first"] == 20
+
+
+def test_get_videos_raises_token_expired_on_401():
+    with patch.object(api.requests, "get", return_value=_response({}, status_code=401)):
+        with pytest.raises(api.TokenExpiredError):
+            api.get_videos("token", "client-id", "user-id")
+
+
+def test_get_clips_returns_data_sorted_newest_first():
+    # Deliberately out-of-order response (Twitch's Clips endpoint doesn't
+    # guarantee chronological order) - get_clips must re-sort by created_at.
+    body = {
+        "data": [
+            {"id": "old", "created_at": "2026-08-01T00:00:00Z"},
+            {"id": "newest", "created_at": "2026-08-25T00:00:00Z"},
+            {"id": "middle", "created_at": "2026-08-15T00:00:00Z"},
+        ],
+    }
+    with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:
+        result = api.get_clips("token", "client-id", "broadcaster-id")
+    assert [c["id"] for c in result] == ["newest", "middle", "old"]
+    params = mock_get.call_args.kwargs["params"]
+    assert params["broadcaster_id"] == "broadcaster-id"
+    assert params["first"] == 20
+
+
+def test_get_clips_raises_token_expired_on_401():
+    with patch.object(api.requests, "get", return_value=_response({}, status_code=401)):
+        with pytest.raises(api.TokenExpiredError):
+            api.get_clips("token", "client-id", "broadcaster-id")

@@ -15,6 +15,8 @@ class MainWindow(xbmcgui.WindowXML):
         "live_streams": 200,
         "discover": 300,
         "kick_login": 600,
+        "vod_clips_channels": 700,
+        "vod_clips": 800,
     }
 
     VERSION_LABEL_ID = 900
@@ -40,6 +42,8 @@ class MainWindow(xbmcgui.WindowXML):
         from lib.views.live_streams_view import LiveStreamsView
         from lib.views.login_view import LoginView
         from lib.views.menu_view import MenuView
+        from lib.views.vod_clips_channels_view import VodClipsChannelsView
+        from lib.views.vod_clips_view import VodClipsView
 
         return {
             "login": LoginView,
@@ -47,6 +51,8 @@ class MainWindow(xbmcgui.WindowXML):
             "live_streams": LiveStreamsView,
             "discover": DiscoverView,
             "kick_login": KickLoginView,
+            "vod_clips_channels": VodClipsChannelsView,
+            "vod_clips": VodClipsView,
         }
 
     def onInit(self):
@@ -58,8 +64,9 @@ class MainWindow(xbmcgui.WindowXML):
         if version_label:
             version_label.setLabel(self._version_text)
 
-    def _switch_view(self, name):
-        old_view = self._views.get(self._active_name)
+    def _switch_view(self, name, context=None):
+        previous_name = self._active_name
+        old_view = self._views.get(previous_name)
         # Re-switching to the already-active view (Kodi re-firing onInit)
         # must not tear the view down - stopping it would cancel work that
         # is still legitimately in flight, e.g. Login's polling thread.
@@ -72,6 +79,15 @@ class MainWindow(xbmcgui.WindowXML):
                 control.setVisible(view_name == name)
         self._active_name = name
         view = self._views[name]
+        # `context` is an optional, duck-typed attribute views can read in
+        # their own activate() (same informal protocol as DEFAULT_FOCUS_ID/
+        # BACK_TARGET/stop() below). Only overwrite it when a real context
+        # was passed, or when we're actually switching to a different view -
+        # a same-view re-entry with no context argument (e.g. Kodi re-firing
+        # onInit while this view is already active) must not clobber a
+        # context the view is still legitimately using.
+        if context is not None or name != previous_name:
+            view.context = context
         # The skin's <defaultcontrol always="true"> only applies once,
         # natively, before onInit ever runs - every later view switch would
         # otherwise leave focus on a now-hidden control. Claim the view's
@@ -96,7 +112,8 @@ class MainWindow(xbmcgui.WindowXML):
             if self._active_name == "menu":
                 self.closed_event.quit_requested = True
             else:
-                self._switch_view("menu")
+                back_target = getattr(self._views[self._active_name], "BACK_TARGET", "menu")
+                self._switch_view(back_target)
             return
         if self._active_name is None:
             # Kodi can deliver input before onInit has run - there's no view
