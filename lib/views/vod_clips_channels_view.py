@@ -29,6 +29,7 @@ class VodClipsChannelsView:
     def __init__(self, window, closed_event=None):
         self.window = window
         self.closed_event = closed_event
+        self.context = None
 
     def _safe_control(self, control_id):
         try:

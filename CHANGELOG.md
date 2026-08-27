@@ -4,6 +4,13 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.27.0] - 2026-08-27
+
+### Added
+- New "VODs & Clips" screen, reachable from the main menu: pick any followed Twitch channel and
+  browse its past broadcasts (VODs) and clips, then play either back. Video-only playback (no
+  chat overlay, no ad-skip relay) - Twitch only for now.
+
 ## [0.26.3] - 2026-08-27
 
 ### Changed

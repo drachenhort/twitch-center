@@ -60,9 +60,30 @@ def test_activate_with_no_context_shows_error_without_crashing():
     window = FakeWindow()
     view = VodClipsView(window)
     view.context = None
+    # The skin declares the relogin button <visible>false</visible> by
+    # default; mirror that starting state here since FakeListControl itself
+    # defaults to visible.
+    window.getControl(VodClipsView.RELOGIN_BUTTON_ID).setVisible(False)
     view.activate()
     error_label = window.getControl(VodClipsView.ERROR_LABEL_ID)
     assert error_label.getLabel() != ""
+    # No context is not an auth failure - the relogin button must not be
+    # shown (misleading: it invites destroying a valid login session).
+    assert window.getControl(VodClipsView.RELOGIN_BUTTON_ID).isVisible() is False
+
+
+def test_activate_with_no_vods_and_no_clips_shows_neutral_message_not_relogin():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_videos", return_value=[]
+    ), patch.object(api, "get_clips", return_value=[]):
+        window = FakeWindow()
+        view = VodClipsView(window)
+        view.context = CONTEXT
+        view.activate()
+    error_label = window.getControl(VodClipsView.ERROR_LABEL_ID)
+    assert error_label.getLabel() == "No VODs or Clips for this channel."
+    assert window.getControl(VodClipsView.RELOGIN_BUTTON_ID).isVisible() is False
 
 
 def test_activate_populates_both_vods_and_clips_lists():

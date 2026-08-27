@@ -275,6 +275,11 @@ def resolve_vod_url(addon, vod_id):
     except twitch_stream.StreamUnavailableError as exc:
         raise StreamUnavailableError(str(exc)) from exc
     except Exception as exc:
+        # twitch_stream.resolve_vod_url can also let requests exceptions
+        # (HTTPError, RequestException, ...) propagate on a network failure,
+        # none of which is twitch_stream.StreamUnavailableError. Catch those
+        # too so this function never lets a raw underlying exception escape,
+        # matching resolve_stream_url's precedent above.
         raise StreamUnavailableError(str(exc)) from exc
 
 

@@ -21,6 +21,7 @@ _NETWORK_ERROR_MESSAGE = "Couldn't reach Twitch. Check your connection and reope
 _RELOGIN_MESSAGE = "Your session expired. Log in again to continue."
 _NO_CONTEXT_MESSAGE = "No channel selected. Go back and pick a followed channel."
 _PLAYBACK_ERROR_MESSAGE = "Couldn't start playback. Try again."
+_EMPTY_RESULTS_MESSAGE = "No VODs or Clips for this channel."
 
 
 class VodClipsView:
@@ -44,7 +45,13 @@ class VodClipsView:
 
     def activate(self):
         if not self.context or not self.context.get("broadcaster_id"):
-            self._show_error(_NO_CONTEXT_MESSAGE)
+            # Not an auth/network failure - don't route through _show_error,
+            # which unconditionally shows the "Log in again" button. Leave
+            # the relogin button's visibility untouched (invisible by
+            # default per the skin's <visible>false</visible>).
+            error_label = self._safe_control(self.ERROR_LABEL_ID)
+            if error_label:
+                error_label.setLabel(_NO_CONTEXT_MESSAGE)
             return
 
         title_label = self._safe_control(self.TITLE_LABEL_ID)
@@ -131,7 +138,10 @@ class VodClipsView:
         elif clips_control and clips_control.size():
             self.window.setFocusId(self.CLIPS_LIST_ID)
         else:
-            self._show_relogin_button()
+            # A channel with no VODs and no Clips is a normal, common case -
+            # not an authentication problem, so no relogin button here.
+            if error_label:
+                error_label.setLabel(_EMPTY_RESULTS_MESSAGE)
 
     def _show_error(self, message):
         vods_control = self._safe_control(self.VODS_LIST_ID)
