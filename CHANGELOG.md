@@ -4,6 +4,19 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.27.2] - 2026-08-27
+
+### Fixed
+- Chat overlay's pump thread now shows a visible "[CHAT ERROR]" item in the chat list itself
+  if it hits an unexpected exception, instead of just logging to kodi.log (which nobody
+  normally sees) and silently freezing on the last message shown.
+- `_build_message_item` now defends against a "message"-typed event missing `display_name`
+  or `text` - renders as a "[CHAT ERROR]" item instead of raising `KeyError` and killing the
+  whole pump thread. Added after a live, unconfirmed-root-cause `KeyError('text')` crash was
+  found on kodi.local shortly after a burst of EventSub subscription rate-limit errors; the
+  exact producer of the malformed event wasn't pinned down, but the pump thread must degrade
+  gracefully regardless of the cause.
+
 ## [0.27.1] - 2026-08-27
 
 ### Fixed

@@ -52,6 +52,17 @@ def _build_message_item(event):
         item = xbmcgui.ListItem("[CHAT ERROR]")
         item.setLabel2(event.get("message", "Chat connection failed"))
         return item
+    if "display_name" not in event or "text" not in event:
+        # A "message"-typed event missing the fields a real message always has - never seen
+        # from a known-good producer (irc.py/eventsub.py always include both), but a real,
+        # unconfirmed-root-cause crash on kodi.local (KeyError('text') killing the whole pump
+        # thread) means something can produce one. Degrade to a visible error item instead of
+        # crashing the caller and silently freezing chat.
+        item = xbmcgui.ListItem("[CHAT ERROR]")
+        item.setLabel2("Malformed chat event (missing %s)" % (
+            "display_name" if "display_name" not in event else "text"
+        ))
+        return item
     item = xbmcgui.ListItem(event["display_name"])
     lines = _wrap_message_lines(event["text"])
     item.setLabel2("\n".join(lines))
@@ -145,6 +156,20 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
                 "script.twitch.center: chat overlay pump thread failed: " + repr(exc),
                 xbmc.LOGERROR,
             )
+            # An unhandled exception here otherwise means the pump thread just ends - chat
+            # silently freezes on whatever was last shown, with only a kodi.log line nobody
+            # normally sees. Show something in the overlay itself before giving up.
+            try:
+                before = len(self._messages)
+                self._messages.append({
+                    "type": "error",
+                    "message": "Chat stopped unexpectedly: " + repr(exc),
+                })
+                del self._messages[:-self._MAX_MESSAGES]
+                self._total_evicted += (before + 1) - len(self._messages)
+                self._render()
+            except Exception:
+                pass
 
     def _render(self):
         # Incremental: only remove items evicted from the front and append

@@ -547,3 +547,51 @@ def test_build_message_item_for_error_event_without_message_defaults():
     item = _build_message_item({"type": "error"})
     assert item.getLabel() == "[CHAT ERROR]"
     assert item.getLabel2() == "Chat connection failed"
+
+
+def test_build_message_item_for_message_event_missing_text_shows_error_instead_of_crashing():
+    # A "message"-typed event missing "text" (or "display_name") must not crash the caller -
+    # render it as a visible error item instead, same as a connection failure. This is a
+    # defensive fallback for a real, unconfirmed-root-cause crash seen live on kodi.local
+    # (KeyError('text') in the chat overlay pump thread, right after a burst of EventSub
+    # subscription 429s) - whatever produces a malformed event, it must degrade to a visible
+    # message, not kill the whole pump thread.
+    item = _build_message_item({"type": "message", "display_name": "Bob"})
+    assert item.getLabel() == "[CHAT ERROR]"
+    assert "Malformed chat event" in item.getLabel2()
+
+
+def test_build_message_item_for_message_event_missing_display_name_shows_error():
+    item = _build_message_item({"type": "message", "text": "hello"})
+    assert item.getLabel() == "[CHAT ERROR]"
+    assert "Malformed chat event" in item.getLabel2()
+
+
+def test_pump_shows_error_item_when_unexpected_exception_occurs():
+    """If the pump loop crashes on something other than a malformed message/error event
+    (e.g. client.read_messages() itself raising), the overlay must show something instead
+    of silently freezing on the last message with only a kodi.log line nobody sees."""
+    FakeChatClient.instances.clear()
+
+    class RaisingChatClient(FakeChatClient):
+        def read_messages(self):
+            yield _message_event("alice", "hello", 1)
+            raise RuntimeError("socket exploded")
+
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=RaisingChatClient,
+    )
+    win.onInit()
+    win._thread.join(timeout=1)
+    assert not win._thread.is_alive()
+
+    control = win.getControl(ChatOverlay.MESSAGE_LIST_ID)
+    assert control.size() == 2
+    assert control._items[0].getLabel() == "Alice"
+    assert control._items[1].getLabel() == "[CHAT ERROR]"
+    assert "socket exploded" in control._items[1].getLabel2()
