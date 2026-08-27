@@ -150,3 +150,35 @@ def interleave_live_items(twitch_live, kick_live):
     tagged += [(normalized["viewer_count"], build_kick_list_item, (normalized,)) for normalized in kick_live]
     tagged.sort(key=lambda entry: entry[0], reverse=True)
     return [builder(*args) for _viewer_count, builder, args in tagged]
+
+
+def build_followed_channel_item(channel):
+    """Build a ListItem for a followed Twitch channel on the VODs & Clips channel picker -
+    every followed channel regardless of current live status (VODs/Clips exist independent
+    of whether the channel is live right now)."""
+    item = xbmcgui.ListItem(channel["broadcaster_name"])
+    item.setProperty("broadcaster_id", channel["broadcaster_id"])
+    item.setProperty("broadcaster_login", channel["broadcaster_login"])
+    item.setProperty("broadcaster_name", channel["broadcaster_name"])
+    return item
+
+
+def build_video_list_item(video):
+    """Build a ListItem for one VOD tile on the VODs & Clips content screen."""
+    item = xbmcgui.ListItem(video["title"])
+    item.setLabel2(f"{video['duration']} · {video['view_count']} views")
+    item.setArt({"thumb": thumbnail_url(video["thumbnail_url"])})
+    item.setProperty("video_id", video["id"])
+    item.setProperty("duration", video["duration"])
+    item.setProperty("view_count", str(video["view_count"]))
+    return item
+
+
+def build_clip_list_item(clip):
+    """Build a ListItem for one Clip tile on the VODs & Clips content screen."""
+    item = xbmcgui.ListItem(clip["title"])
+    item.setLabel2(f"{int(clip['duration'])}s · {clip['view_count']} views")
+    item.setArt({"thumb": clip["thumbnail_url"]})
+    item.setProperty("thumbnail_url", clip["thumbnail_url"])
+    item.setProperty("view_count", str(clip["view_count"]))
+    return item
