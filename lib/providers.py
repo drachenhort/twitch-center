@@ -263,3 +263,28 @@ def resolve_stream_url(addon, platform, identifier):
             # documented contract.
             raise StreamUnavailableError(str(exc)) from exc
     raise StreamUnavailableError("unknown platform: " + repr(platform))
+
+
+def resolve_vod_url(addon, vod_id):
+    """Resolve a Twitch VOD id to a playable HLS URL. Raises StreamUnavailableError -
+    never the underlying twitch_stream exception - on any failure, matching
+    resolve_stream_url's contract."""
+    website_token = addon.getSetting("website_token")
+    try:
+        return twitch_stream.resolve_vod_url(vod_id, website_token)
+    except twitch_stream.StreamUnavailableError as exc:
+        raise StreamUnavailableError(str(exc)) from exc
+    except Exception as exc:
+        raise StreamUnavailableError(str(exc)) from exc
+
+
+def resolve_clip_url(addon, thumbnail_url):
+    """Resolve a Twitch clip's thumbnail_url to its playable direct MP4 URL. Raises
+    StreamUnavailableError - never the underlying twitch_stream exception - on any
+    failure, matching resolve_stream_url's contract."""
+    try:
+        return twitch_stream.resolve_clip_url(thumbnail_url)
+    except twitch_stream.StreamUnavailableError as exc:
+        raise StreamUnavailableError(str(exc)) from exc
+    except Exception as exc:
+        raise StreamUnavailableError(str(exc)) from exc
