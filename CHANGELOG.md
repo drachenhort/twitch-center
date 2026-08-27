@@ -4,6 +4,16 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.26.4] - 2026-08-27
+
+### Fixed
+- Chat overlay now displays error messages when EventSub/IRC connection fails
+  (e.g. rate limits, subscription cap hit from the live-notify service) instead of
+  silently showing an empty list
+- IRC ChatClient no longer silently swallows connection exceptions — errors are
+  surfaced to the overlay just like EventSub
+- VERSION_DATE updated to match addon.xml and CHANGELOG.md
+
 ## [0.26.3] - 2026-08-27
 
 ### Changed
