@@ -15,6 +15,8 @@ class MainWindow(xbmcgui.WindowXML):
         "live_streams": 200,
         "discover": 300,
         "kick_login": 600,
+        "vod_clips_channels": 700,
+        "vod_clips": 800,
     }
 
     VERSION_LABEL_ID = 900
@@ -58,7 +60,7 @@ class MainWindow(xbmcgui.WindowXML):
         if version_label:
             version_label.setLabel(self._version_text)
 
-    def _switch_view(self, name):
+    def _switch_view(self, name, context=None):
         old_view = self._views.get(self._active_name)
         # Re-switching to the already-active view (Kodi re-firing onInit)
         # must not tear the view down - stopping it would cancel work that
@@ -72,6 +74,7 @@ class MainWindow(xbmcgui.WindowXML):
                 control.setVisible(view_name == name)
         self._active_name = name
         view = self._views[name]
+        view.context = context
         # The skin's <defaultcontrol always="true"> only applies once,
         # natively, before onInit ever runs - every later view switch would
         # otherwise leave focus on a now-hidden control. Claim the view's
@@ -96,7 +99,8 @@ class MainWindow(xbmcgui.WindowXML):
             if self._active_name == "menu":
                 self.closed_event.quit_requested = True
             else:
-                self._switch_view("menu")
+                back_target = getattr(self._views[self._active_name], "BACK_TARGET", "menu")
+                self._switch_view(back_target)
             return
         if self._active_name is None:
             # Kodi can deliver input before onInit has run - there's no view
