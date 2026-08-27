@@ -207,3 +207,39 @@ def test_get_playback_access_token_returns_none_on_missing_token_data():
 def test_get_playback_access_token_returns_none_on_unexpected_shape():
     with patch.object(gql.requests, "post", return_value=_response({"unexpected": "shape"})):
         assert gql.get_playback_access_token("somechannel") is None
+
+
+def test_get_vod_playback_access_token_returns_value_and_signature():
+    body = {"data": {"videoPlaybackAccessToken": {"value": "vod-token-json", "signature": "sig123"}}}
+    with patch.object(gql.requests, "post", return_value=_response(body)) as mock_post:
+        token = gql.get_vod_playback_access_token("123456789")
+    assert token == {"value": "vod-token-json", "signature": "sig123"}
+    variables = mock_post.call_args.kwargs["json"]["variables"]
+    assert variables["isLive"] is False
+    assert variables["isVod"] is True
+    assert variables["vodID"] == "123456789"
+    assert variables["login"] == ""
+
+
+def test_get_vod_playback_access_token_returns_none_on_missing_field():
+    body = {"data": {}}
+    with patch.object(gql.requests, "post", return_value=_response(body)):
+        assert gql.get_vod_playback_access_token("123456789") is None
+
+
+def test_get_vod_playback_access_token_returns_none_on_non_200():
+    with patch.object(gql.requests, "post", return_value=_response({}, status_code=500)):
+        assert gql.get_vod_playback_access_token("123456789") is None
+
+
+def test_get_vod_playback_access_token_returns_none_on_request_exception():
+    with patch.object(gql.requests, "post", side_effect=requests.RequestException("boom")):
+        assert gql.get_vod_playback_access_token("123456789") is None
+
+
+def test_get_vod_playback_access_token_passes_website_token_through():
+    body = {"data": {"videoPlaybackAccessToken": {"value": "v", "signature": "s"}}}
+    with patch.object(gql.requests, "post", return_value=_response(body)) as mock_post:
+        gql.get_vod_playback_access_token("123456789", "my-website-token")
+    headers = mock_post.call_args.kwargs["headers"]
+    assert headers["Authorization"] == "OAuth my-website-token"
