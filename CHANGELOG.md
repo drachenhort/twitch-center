@@ -4,6 +4,20 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.27.6] - 2026-08-27
+
+### Fixed
+- `LiveNotifyClient`'s subscribe loop only backed off reactively, after a 429 already
+  happened. Live-tested on kodi.local with v0.27.5's race fix in place: a clean cold-start
+  140-channel burst still 429'd on ~126 of 140 calls partway through the single continuous
+  subscribe loop, because Twitch's actual per-`client_id` token bucket is smaller than 140
+  requests and the burst outran it before any 429 could trigger backoff. `api.py`'s
+  `create_eventsub_subscription` now returns a dict subclass carrying the response's
+  Ratelimit-* headers (`_RateLimitedResult`); `LiveNotifyClient._throttle_delay_for_result`
+  reads `Ratelimit-Remaining` on every successful call and, once it drops to
+  `_RATE_LIMIT_LOW_WATERMARK` (5) or below, waits for `Ratelimit-Reset` before the next call -
+  proactively, before the bucket actually empties.
+
 ## [0.27.5] - 2026-08-27
 
 ### Fixed

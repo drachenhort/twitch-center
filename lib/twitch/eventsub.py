@@ -194,6 +194,10 @@ _SUBSCRIBE_THROTTLE_SECONDS = 0.5
 # Upper bound on how long a single Ratelimit-Reset-derived wait is allowed to be, so a
 # clock-skewed or malformed header can't stall the subscribe loop indefinitely.
 _SUBSCRIBE_THROTTLE_MAX_SECONDS = 60
+# Once a successful response's Ratelimit-Remaining drops to this or below, wait for the bucket
+# to refill (Ratelimit-Reset) before the next call instead of the fixed floor - proactive
+# counterpart to the reactive 429 backoff above. See _throttle_delay_for_result.
+_RATE_LIMIT_LOW_WATERMARK = 5
 
 
 def _default_socket_factory():
@@ -450,25 +454,55 @@ class LiveNotifyClient:
         self._session_id = None
         self._active_subs = {}  # broadcaster_user_id -> subscription_id
 
+    def _reset_delay_from(self, headers):
+        """Seconds until Twitch's Ratelimit-Reset (a Unix timestamp - see
+        https://dev.twitch.tv/docs/api/guide/#rate-limits), floored at
+        _SUBSCRIBE_THROTTLE_SECONDS and capped at _SUBSCRIBE_THROTTLE_MAX_SECONDS so a
+        clock-skewed or malformed header can't stall the loop indefinitely. None if `headers`
+        is missing or the header is absent/unparseable."""
+        if not headers:
+            return None
+        reset_header = headers.get("Ratelimit-Reset")
+        if reset_header is None:
+            return None
+        try:
+            delay = int(reset_header) - self._time_fn()
+        except (TypeError, ValueError):
+            return None
+        return min(max(delay, _SUBSCRIBE_THROTTLE_SECONDS), _SUBSCRIBE_THROTTLE_MAX_SECONDS)
+
     def _throttle_delay_for(self, exc):
         """How long to wait before the next subscribe/unsubscribe call, given the exception a
-        failed one just raised. On a 429 with a Ratelimit-Reset header (a Unix timestamp for
-        when Twitch's per-client_id token bucket refills - see
-        https://dev.twitch.tv/docs/api/guide/#rate-limits), wait until that refill time,
-        capped at _SUBSCRIBE_THROTTLE_MAX_SECONDS so a clock-skewed or malformed header can't
-        stall the loop indefinitely. Any other failure (network error, 400/404, a 429 with no
-        usable header) falls back to the fixed _SUBSCRIBE_THROTTLE_SECONDS floor."""
+        failed one just raised. On a 429 with a usable Ratelimit-Reset header, wait until that
+        refill time. Any other failure (network error, 400/404, a 429 with no usable header)
+        falls back to the fixed _SUBSCRIBE_THROTTLE_SECONDS floor."""
         response = getattr(exc, "response", None)
         if response is not None and getattr(response, "status_code", None) == 429:
-            reset_header = response.headers.get("Ratelimit-Reset") if response.headers else None
-            if reset_header is not None:
-                try:
-                    delay = int(reset_header) - self._time_fn()
-                except (TypeError, ValueError):
-                    delay = None
-                if delay is not None:
-                    return min(max(delay, _SUBSCRIBE_THROTTLE_SECONDS), _SUBSCRIBE_THROTTLE_MAX_SECONDS)
+            delay = self._reset_delay_from(getattr(response, "headers", None))
+            if delay is not None:
+                return delay
         return _SUBSCRIBE_THROTTLE_SECONDS
+
+    def _throttle_delay_for_result(self, result):
+        """How long to wait before the next subscribe/unsubscribe call, given a SUCCESSFUL
+        call's result. Twitch returns Ratelimit-Remaining on every response, not just 429s -
+        once it drops to _RATE_LIMIT_LOW_WATERMARK or below, wait until Ratelimit-Reset instead
+        of the fixed floor, so the loop backs off before the bucket actually empties rather than
+        only reacting after a 429 has already happened. Live-tested: reacting only on failure
+        still let ~126 of 140 cold-start subscribe calls 429, because the burst outran the
+        bucket before any 429 could trigger the (already-implemented) reactive backoff. `result`
+        may be a plain dict (existing tests, ChatClient's fire-and-forget calls) with no
+        .headers - falls back to the fixed floor in that case."""
+        headers = getattr(result, "headers", None)
+        if not headers:
+            return _SUBSCRIBE_THROTTLE_SECONDS
+        try:
+            remaining = int(headers.get("Ratelimit-Remaining"))
+        except (TypeError, ValueError):
+            return _SUBSCRIBE_THROTTLE_SECONDS
+        if remaining > _RATE_LIMIT_LOW_WATERMARK:
+            return _SUBSCRIBE_THROTTLE_SECONDS
+        return self._reset_delay_from(headers) or _SUBSCRIBE_THROTTLE_SECONDS
 
     def connect(self):
         if self._thread is not None and self._thread.is_alive():
@@ -511,7 +545,7 @@ class LiveNotifyClient:
             with self._lock:
                 if self._session_id == session_id:
                     self._active_subs[broadcaster_id] = body["data"][0]["id"]
-            self._sleep_fn(_SUBSCRIBE_THROTTLE_SECONDS)
+            self._sleep_fn(self._throttle_delay_for_result(body))
         for broadcaster_id in to_remove:
             with self._lock:
                 subscription_id = self._active_subs.pop(broadcaster_id, None)
@@ -640,7 +674,7 @@ class LiveNotifyClient:
                 self._sleep_fn(self._throttle_delay_for(exc))
                 continue
             active_subs[broadcaster_id] = body["data"][0]["id"]
-            self._sleep_fn(_SUBSCRIBE_THROTTLE_SECONDS)
+            self._sleep_fn(self._throttle_delay_for_result(body))
         with self._lock:
             self._session_id = session_id
             self._active_subs = active_subs

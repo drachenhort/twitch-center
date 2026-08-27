@@ -239,6 +239,23 @@ def test_create_eventsub_subscription_posts_expected_body():
     assert posted_body["transport"] == {"method": "websocket", "session_id": "session1"}
 
 
+def test_create_eventsub_subscription_result_carries_rate_limit_headers():
+    """LiveNotifyClient needs to see Ratelimit-Remaining on a SUCCESSFUL response too, to
+    throttle proactively before the bucket empties rather than only reacting after a 429 -
+    live-tested on kodi.local: reacting only on failure still let most of a 140-channel
+    cold-start subscribe burst 429 before backoff ever engaged."""
+    body = {"data": [{"id": "sub1"}]}
+    response = _response(body, status_code=202)
+    response.headers = {"Ratelimit-Limit": "800", "Ratelimit-Remaining": "3", "Ratelimit-Reset": "1700000000"}
+    with patch.object(api.requests, "post", return_value=response):
+        result = api.create_eventsub_subscription(
+            "token", "client123", "session1", "channel.chat.message",
+            {"broadcaster_user_id": "1", "user_id": "2"},
+        )
+    assert result == body
+    assert result.headers["Ratelimit-Remaining"] == "3"
+
+
 def test_create_eventsub_subscription_raises_on_failure():
     with patch.object(api.requests, "post", return_value=_response({}, status_code=400)):
         with pytest.raises(requests.HTTPError):

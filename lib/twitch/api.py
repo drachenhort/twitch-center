@@ -11,6 +11,20 @@ class TokenExpiredError(Exception):
     no knowledge of tokens beyond the one it was handed for this call."""
 
 
+class _RateLimitedResult(dict):
+    """A JSON response body that also carries the response's Ratelimit-* headers (see
+    https://dev.twitch.tv/docs/api/guide/#rate-limits). Behaves as a plain dict for callers
+    that only care about the body - LiveNotifyClient additionally reads .headers to throttle
+    proactively, before its subscribe-call bucket empties, instead of only reacting after a
+    429 (live-tested: reacting only on failure still let most of a cold-start 140-channel
+    subscribe burst fail, because the burst outran the bucket before any 429 triggered
+    backoff)."""
+
+    def __init__(self, data, headers):
+        super().__init__(data)
+        self.headers = headers
+
+
 def _headers(access_token, client_id):
     return {"Authorization": "Bearer " + access_token, "Client-Id": client_id}
 
@@ -177,7 +191,7 @@ def create_eventsub_subscription(access_token, client_id, session_id, sub_type, 
         timeout=10,
     )
     response.raise_for_status()
-    return response.json()
+    return _RateLimitedResult(response.json(), response.headers)
 
 
 def delete_eventsub_subscription(access_token, client_id, subscription_id):

@@ -1011,3 +1011,71 @@ def test_set_broadcasters_uses_ratelimit_reset_delay_on_429():
     client.disconnect()
 
     assert sleeps == [42]
+
+
+def _fake_result(data, headers=None):
+    """A create-subscription success result shaped like api.create_eventsub_subscription's
+    return value (a dict-like body with a .headers attribute) - or, when headers=None, a plain
+    dict, matching test fakes elsewhere in this file and ChatClient's fire-and-forget usage."""
+    if headers is None:
+        return data
+    result = dict(data)
+
+    class _Result(dict):
+        pass
+
+    wrapped = _Result(result)
+    wrapped.headers = headers
+    return wrapped
+
+
+def test_throttle_delay_for_result_uses_base_throttle_when_remaining_is_high():
+    client = LiveNotifyClient(**_live_notify_kwargs(time_fn=lambda: 1000.0))
+    result = _fake_result({}, headers={"Ratelimit-Remaining": "100", "Ratelimit-Reset": "1010"})
+    assert client._throttle_delay_for_result(result) == _SUBSCRIBE_THROTTLE_SECONDS
+
+
+def test_throttle_delay_for_result_waits_until_reset_when_remaining_is_low():
+    client = LiveNotifyClient(**_live_notify_kwargs(time_fn=lambda: 1000.0))
+    result = _fake_result({}, headers={"Ratelimit-Remaining": "2", "Ratelimit-Reset": "1015"})
+    assert client._throttle_delay_for_result(result) == 15
+
+
+def test_throttle_delay_for_result_falls_back_to_base_throttle_with_no_headers():
+    client = LiveNotifyClient(**_live_notify_kwargs())
+    assert client._throttle_delay_for_result({"data": [{"id": "x"}]}) == _SUBSCRIBE_THROTTLE_SECONDS
+
+
+def test_throttle_delay_for_result_falls_back_to_base_throttle_with_unparseable_remaining():
+    client = LiveNotifyClient(**_live_notify_kwargs())
+    result = _fake_result({}, headers={"Ratelimit-Remaining": "not-a-number"})
+    assert client._throttle_delay_for_result(result) == _SUBSCRIBE_THROTTLE_SECONDS
+
+
+def test_set_broadcasters_slows_down_proactively_before_bucket_empties():
+    """Even on SUCCESSFUL calls, a low Ratelimit-Remaining must trigger the Ratelimit-Reset
+    wait - reacting only after a 429 (the pre-existing behavior) still let most of a cold-start
+    140-channel burst 429, because the burst outran the bucket before any 429 could happen."""
+    sleeps = []
+
+    def create_subscription_fn(access_token, client_id, session_id, sub_type, condition):
+        return _fake_result(
+            {"data": [{"id": "sub-" + condition["broadcaster_user_id"]}]},
+            headers={"Ratelimit-Remaining": "1", "Ratelimit-Reset": "1030"},
+        )
+
+    client = LiveNotifyClient(**_live_notify_kwargs(
+        socket_factory=_connectable_socket_factory(),
+        create_subscription_fn=create_subscription_fn,
+        sleep_fn=lambda s: sleeps.append(s),
+        time_fn=lambda: 1000.0,
+    ))
+    client.connect()
+    for event in client.read_events():
+        if event["type"] == "status" and event["state"] == "connected":
+            break
+
+    client.set_broadcasters(["111"])
+    client.disconnect()
+
+    assert sleeps == [30]
