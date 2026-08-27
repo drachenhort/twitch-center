@@ -14,7 +14,8 @@ All notable changes to this project are documented here. Format loosely follows
   query as a raw `query` string instead of a persisted query; (2) the clip's `sourceURL` alone
   401s - its CDN path (`.../nauth/...`) requires the accompanying `playbackAccessToken`
   signature/value appended as `?sig=...&token=...`, the same pattern live/VOD playback already
-  uses via usher.ttvnw.net. `get_clip_video_url` now does both.
+  uses via usher.ttvnw.net. `get_clip_video_url` now does both. Confirmed live on kodi.local:
+  clips play.
 
 ## [0.28.1] - 2026-08-27
 
