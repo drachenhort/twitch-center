@@ -4,6 +4,7 @@ import socket
 
 from lib.twitch.eventsub import (
     _OPCODE_TEXT,
+    _SUBSCRIBE_THROTTLE_MAX_SECONDS,
     _SUBSCRIBE_THROTTLE_SECONDS,
     ChatClient,
     _build_handshake_key,
@@ -918,3 +919,95 @@ def test_stream_online_notification_yields_stream_online_event():
         "broadcaster_user_login": "someuser",
         "broadcaster_user_name": "SomeUser",
     }
+
+
+def _fake_429_error(reset_at):
+    """A requests.HTTPError-shaped exception carrying a 429 response with a Ratelimit-Reset
+    header, without depending on the real requests library - _throttle_delay_for only reads
+    .response.status_code and .response.headers, duck-typed like the rest of this module's
+    exception handling."""
+    class FakeResponse:
+        status_code = 429
+        headers = {"Ratelimit-Reset": str(reset_at)}
+
+    class FakeHTTPError(Exception):
+        response = FakeResponse()
+
+    return FakeHTTPError("429 Client Error: Too Many Requests")
+
+
+def test_throttle_delay_for_429_waits_until_ratelimit_reset():
+    client = LiveNotifyClient(**_live_notify_kwargs(time_fn=lambda: 1000.0))
+    exc = _fake_429_error(reset_at=1010)
+    assert client._throttle_delay_for(exc) == 10
+
+
+def test_throttle_delay_for_429_floors_at_base_throttle_when_reset_already_passed():
+    # Ratelimit-Reset in the past (clock skew, or the bucket already refilled by the time we
+    # got here) must not produce a negative or zero sleep.
+    client = LiveNotifyClient(**_live_notify_kwargs(time_fn=lambda: 1000.0))
+    exc = _fake_429_error(reset_at=990)
+    assert client._throttle_delay_for(exc) == _SUBSCRIBE_THROTTLE_SECONDS
+
+
+def test_throttle_delay_for_429_caps_at_max_throttle():
+    client = LiveNotifyClient(**_live_notify_kwargs(time_fn=lambda: 1000.0))
+    exc = _fake_429_error(reset_at=1000 + _SUBSCRIBE_THROTTLE_MAX_SECONDS + 500)
+    assert client._throttle_delay_for(exc) == _SUBSCRIBE_THROTTLE_MAX_SECONDS
+
+
+def test_throttle_delay_for_429_with_unparseable_header_falls_back_to_base_throttle():
+    client = LiveNotifyClient(**_live_notify_kwargs())
+
+    class FakeResponse:
+        status_code = 429
+        headers = {"Ratelimit-Reset": "not-a-number"}
+
+    class FakeHTTPError(Exception):
+        response = FakeResponse()
+
+    assert client._throttle_delay_for(FakeHTTPError()) == _SUBSCRIBE_THROTTLE_SECONDS
+
+
+def test_throttle_delay_for_non_429_exception_falls_back_to_base_throttle():
+    client = LiveNotifyClient(**_live_notify_kwargs())
+    assert client._throttle_delay_for(RuntimeError("network blip")) == _SUBSCRIBE_THROTTLE_SECONDS
+
+
+def test_throttle_delay_for_429_with_no_headers_falls_back_to_base_throttle():
+    client = LiveNotifyClient(**_live_notify_kwargs())
+
+    class FakeResponse:
+        status_code = 429
+        headers = {}
+
+    class FakeHTTPError(Exception):
+        response = FakeResponse()
+
+    assert client._throttle_delay_for(FakeHTTPError()) == _SUBSCRIBE_THROTTLE_SECONDS
+
+
+def test_set_broadcasters_uses_ratelimit_reset_delay_on_429():
+    sleeps = []
+
+    def create_subscription_fn(access_token, client_id, session_id, sub_type, condition):
+        raise _fake_429_error(reset_at=1042)
+
+    client = LiveNotifyClient(**_live_notify_kwargs(
+        socket_factory=_connectable_socket_factory(),
+        create_subscription_fn=create_subscription_fn,
+        sleep_fn=lambda s: sleeps.append(s),
+        time_fn=lambda: 1000.0,
+    ))
+    client.connect()
+    for event in client.read_events():
+        if event["type"] == "status" and event["state"] == "connected":
+            break
+
+    client.set_broadcasters(["111"])
+    for event in client.read_events():
+        if event["type"] == "subscription_error":
+            break
+    client.disconnect()
+
+    assert sleeps == [42]

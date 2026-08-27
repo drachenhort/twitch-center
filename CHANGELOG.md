@@ -4,6 +4,18 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.27.4] - 2026-08-27
+
+### Fixed
+- v0.27.1's fixed 0.1s subscribe throttle wasn't enough live: with the chat overlay's own
+  EventSub subscription competing for the same per-`client_id` Twitch rate-limit bucket at
+  the same time, a second live test still saw a full 140-channel resubscribe get 429'd on
+  every request even with throttling. `LiveNotifyClient` now reads Twitch's documented
+  `Ratelimit-Reset` header (a Unix timestamp for when the token bucket refills - see
+  https://dev.twitch.tv/docs/api/guide/#rate-limits) on a 429 and waits until that exact
+  time instead of a fixed guess, capped at 60s to bound a malformed/clock-skewed header.
+  The fixed 0.5s delay (bumped from 0.1s) remains the floor for the normal, non-429 case.
+
 ## [0.27.3] - 2026-08-27
 
 ### Fixed
