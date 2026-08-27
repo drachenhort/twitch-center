@@ -110,18 +110,3 @@ msgctxt "#30029"
 msgid "Runs a small local relay that strips Twitch's stitched ad segments out of the live stream before playback, instead of playing through inputstream.adaptive directly. Experimental - if playback misbehaves, turn this off first before reporting anything else as a bug."
 msgstr ""
 
-msgctxt "#30030"
-msgid "Notify when followed streamers go live"
-msgstr ""
-
-msgctxt "#30031"
-msgid "Requires being logged in to Twitch. Runs a persistent background Kodi service that keeps one EventSub WebSocket connection open, subscribed to your followed channels' stream.online events, and shows a notification when one of them goes live."
-msgstr ""
-
-msgctxt "#30032"
-msgid "Log live-notify activity"
-msgstr ""
-
-msgctxt "#30033"
-msgid "Logs the subscribed followed-channel list and each notification shown by the live-notify service to kodi.log at INFO level, for troubleshooting. Off by default to avoid log noise."
-msgstr ""

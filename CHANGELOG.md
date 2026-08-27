@@ -4,6 +4,23 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.28.0] - 2026-08-27
+
+### Removed
+- The live-notify feature (background EventSub subscriptions to followed channels'
+  `stream.online` events, with a Kodi notification when one goes live). Live-tested
+  extensively across v0.27.1-0.27.6 trying to make the cold-start subscribe burst for a
+  large followed-channel list (140 in testing) fit within Twitch's per-`client_id`
+  EventSub rate limit: a throttled delay wasn't enough, a Ratelimit-Reset-aware reactive
+  backoff wasn't enough, and a startup race fix plus a proactive Ratelimit-Remaining
+  throttle still weren't enough - the final live test saw Twitch's server close the
+  WebSocket session outright after repeated 429s, risking a resubscribe-everything retry
+  loop. Not worth the complexity or the risk of breaking chat (which shares the same
+  `client_id`'s rate-limit budget) for a non-essential feature. Removed
+  `lib/live_notify_service.py`, `LiveNotifyClient` (`lib/twitch/eventsub.py`), the
+  `live_notify_enabled`/`live_notify_verbose_logging` settings, and the `xbmc.service`
+  addon.xml extension.
+
 ## [0.27.6] - 2026-08-27
 
 ### Fixed
