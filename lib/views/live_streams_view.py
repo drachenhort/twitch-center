@@ -17,6 +17,7 @@ ERROR_LABEL_ID = 203
 RELOGIN_BUTTON_ID = 204
 GAMES_LIST_ID = 205
 TITLE_LABEL_ID = 207
+REFRESH_BUTTON_ID = 206
 
 _MISSING_TOKEN_MESSAGE = "You're not logged in. Reopen the addon to log in."
 _EMPTY_FOLLOWED_MESSAGE = "You're not following anyone yet."
@@ -66,6 +67,7 @@ class LiveStreamsView:
     RELOGIN_BUTTON_ID = RELOGIN_BUTTON_ID
     GAMES_LIST_ID = GAMES_LIST_ID
     TITLE_LABEL_ID = TITLE_LABEL_ID
+    REFRESH_BUTTON_ID = REFRESH_BUTTON_ID
 
     def __init__(self, window, closed_event=None, settings=None):
         self.window = window
@@ -285,12 +287,17 @@ class LiveStreamsView:
                 self._on_game_selected()
             elif focus == self.CHANNEL_LIST_ID:
                 self._on_channel_selected()
+            elif focus == self.REFRESH_BUTTON_ID:
+                self._on_refresh()
         elif action.getId() == xbmcgui.ACTION_CONTEXT_MENU:
             if self.window.getFocusId() == self.CHANNEL_LIST_ID:
                 self._on_context_menu()
 
     def handle_click(self, control_id):
         pass
+
+    def _on_refresh(self):
+        self.activate()
 
     def _on_context_menu(self):
         control = self._safe_control(self.CHANNEL_LIST_ID)

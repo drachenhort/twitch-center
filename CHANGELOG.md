@@ -4,6 +4,16 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.28.3] - 2026-08-29
+
+### Changed
+- Live Streams grid now shows 3 rows instead of 2 (card height 275px -> 260px, panel
+  unchanged at 800px tall).
+- Added a Refresh button to Live Streams (skin button id 206) so the user can re-pull
+  followed/live status without leaving the view and going back to the main menu.
+- Games filter pills and the Refresh button now use the card surface art (name_box.png /
+  card_surface_focus.png) instead of bare text, matching the channel grid's card look.
+
 ## [0.28.2] - 2026-08-27
 
 ### Fixed
