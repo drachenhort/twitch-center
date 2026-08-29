@@ -19,7 +19,7 @@ from lib.windows.main_window import MainWindow
 # Release date of the version in addon.xml - bump this alongside the version number and
 # CHANGELOG.md entry for every shipped feature/fix, so the on-screen label always matches
 # the most recent changelog entry rather than drifting out of sync.
-VERSION_DATE = "2026-08-27"
+VERSION_DATE = "2026-08-29"
 
 
 def show_quit_prompt():

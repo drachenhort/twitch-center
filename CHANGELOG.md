@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.28.4] - 2026-08-29
+
+### Fixed
+- On-screen version label's build date was still 2026-08-27 (stale from the previous
+  release) - bumped to match this release's actual date.
+
 ## [0.28.3] - 2026-08-29
 
 ### Changed
