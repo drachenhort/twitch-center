@@ -4,6 +4,31 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.28.7] - 2026-08-29
+
+### Changed
+- Grew the channel thumbnail further (110px -> 160px) and moved to 3 rows (card height
+  266px) as a middle ground between thumbnail size and row count. Column count is not a
+  fixed number - the skin's panel control wraps by row count (from height) and grows
+  columns to fit however many channels are actually live, so it will show more or fewer
+  columns depending on how many channels are live at any given time.
+
+## [0.28.6] - 2026-08-29
+
+### Changed
+- Grew the channel thumbnail in the Live Streams grid cards (100px -> 110px) by
+  compacting the header/game/platform rows around it, after 0.28.5 shrank cards to
+  fit 4 rows. No layout change to row/column count.
+
+## [0.28.5] - 2026-08-29
+
+### Changed
+- Live Streams grid now shows 4 rows instead of 3 (card height 195px, panel unchanged at
+  800px tall) - 12 cards visible at once (3 columns x 4 rows), still scrollable for more.
+  Columns are stuck at 3 regardless of declared item width (tested 415/400/300/250px, all
+  render exactly 3 columns while row count correctly tracks height) - root cause not found;
+  shipping with 3 columns x 4 rows for now.
+
 ## [0.28.4] - 2026-08-29
 
 ### Fixed
