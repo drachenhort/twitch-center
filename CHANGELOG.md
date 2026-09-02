@@ -4,6 +4,13 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.28.9] - 2026-09-02
+
+### Changed
+- No functional change - corrected TODO.md's "Follow raids" entry (both chat engines already
+  parse raid notifications into a `"raid"` event; only a consumer to prompt/auto-switch
+  playback is missing) and dropped the picture-in-picture idea.
+
 ## [0.28.8] - 2026-09-02
 
 ### Fixed
