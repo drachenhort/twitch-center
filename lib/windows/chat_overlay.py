@@ -101,23 +101,37 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
         self._total_evicted = 0
         self._control_evicted = 0
 
-    # Actions that should reach the player's own OSD/context menu instead of
-    # being swallowed by this dialog - without this, the overlay (which is
-    # the focused, topmost window during playback) eats these and the user
-    # has to close chat before opening player options. ACTION_SELECT_ITEM is
-    # included because on at least one CEC remote setup, Select/Enter (not a
-    # dedicated OSD/context-menu button) is what triggers the player's OSD -
-    # the overlay has no meaningful use for Select itself (chat has nothing
-    # clickable), so forwarding it here doesn't lose any overlay function.
+    # Actions that should open the player's OSD instead of being swallowed
+    # by this dialog - without this, the overlay (which is the focused,
+    # topmost window during playback) eats these and the user has to close
+    # chat before opening player options. ACTION_SELECT_ITEM is included
+    # because on at least one CEC remote setup, Select/Enter (not a
+    # dedicated OSD button) is what triggers the player's OSD - the overlay
+    # has no meaningful use for Select itself (chat has nothing clickable),
+    # so forwarding it here doesn't lose any overlay function.
+    #
+    # This must use ActivateWindow(12901), not the Action() builtin.
+    # Action() routes to whatever window is currently active - which is
+    # still this same non-modal dialog, since show() never releases
+    # topmost/focus status to the video layer beneath. Routing through
+    # Action() re-enters this same onAction and forwards again, forever
+    # (confirmed live: id=7/id=117 forwarding repeating every ~100ms render
+    # tick, never actually opening the OSD). ActivateWindow instead pushes
+    # the OSD dialog (window id 12901) directly onto the window stack, so it
+    # opens over the overlay regardless of current focus, and backing out of
+    # it pops back to the still-open overlay underneath.
+    #
+    # ACTION_CONTEXT_MENU is deliberately not forwarded: there's no
+    # equivalent fixed window id for it (its content depends on whatever
+    # window/item was active), so the same technique doesn't apply.
     _PLAYER_FORWARD_ACTIONS = (
         xbmcgui.ACTION_SHOW_OSD,
-        xbmcgui.ACTION_CONTEXT_MENU,
         xbmcgui.ACTION_SELECT_ITEM,
     )
 
     def onAction(self, action):
         if action.getId() in self._PLAYER_FORWARD_ACTIONS:
-            xbmc.executebuiltin("Action(%d)" % action.getId())
+            xbmc.executebuiltin("ActivateWindow(12901)")
             return
         super().onAction(action)
 

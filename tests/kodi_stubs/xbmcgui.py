@@ -210,6 +210,9 @@ class WindowXMLDialog(WindowXML):
     def doModal(self):
         pass
 
+    def onAction(self, action):
+        pass
+
 
 class Dialog:
     # Test-controllable: set before calling contextmenu() to control which

@@ -4,6 +4,18 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.28.8] - 2026-09-02
+
+### Fixed
+- Chat overlay swallowing the player's OSD/Select action instead of letting it reach the
+  player. The old fix (`Action()` builtin) forwarded to whatever window is currently
+  active - which is the overlay itself (a non-modal dialog that stays topmost/focused),
+  so the forward re-entered the overlay's own `onAction` and looped forever instead of
+  reaching the player. Now uses `ActivateWindow(12901)` to push the OSD dialog directly
+  onto the window stack, bypassing active-window routing entirely; closing OSD pops back
+  to the still-open chat overlay. `ACTION_CONTEXT_MENU` forwarding dropped - no fixed
+  window id exists for it, so the same technique doesn't apply.
+
 ## [0.28.7] - 2026-08-29
 
 ### Changed

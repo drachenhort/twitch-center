@@ -89,7 +89,7 @@ def test_oninit_forwards_engine_credentials_to_chat_client_cls():
     assert client.user_id == "456"
 
 
-def test_onaction_forwards_osd_and_context_menu_to_player_without_closing():
+def test_onaction_forwards_osd_and_select_to_player_without_closing():
     win = ChatOverlay(
         "script-twitch-center-chat-overlay.xml",
         "/tmp",
@@ -100,12 +100,31 @@ def test_onaction_forwards_osd_and_context_menu_to_player_without_closing():
     )
     for action_id in (
         xbmcgui.ACTION_SHOW_OSD,
-        xbmcgui.ACTION_CONTEXT_MENU,
         xbmcgui.ACTION_SELECT_ITEM,
     ):
         with patch.object(xbmc, "executebuiltin") as executebuiltin:
             win.onAction(xbmcgui.Action(action_id))
-        executebuiltin.assert_called_once_with("Action(%d)" % action_id)
+        # ActivateWindow pushes the OSD dialog directly onto the window
+        # stack instead of routing an Action() through the currently active
+        # window - which is this same non-modal dialog, so Action() would
+        # just re-enter onAction and loop forever instead of reaching the
+        # player (confirmed live: id=7/id=117 forwarding repeating every
+        # ~100ms tick, never opening the OSD).
+        executebuiltin.assert_called_once_with("ActivateWindow(12901)")
+
+
+def test_onaction_does_not_forward_context_menu():
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=FakeChatClient,
+    )
+    with patch.object(xbmc, "executebuiltin") as executebuiltin:
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_CONTEXT_MENU))
+    executebuiltin.assert_not_called()
 
 
 def test_pump_renders_messages_and_ignores_status_and_raid_events():
