@@ -23,6 +23,20 @@
   log `StreamUnavailableError` at `LOGERROR` instead of swallowing it - that silence is why the
   clip bug had no log trail in the first place.
 
+- ~~Chat overlay blocking player OSD/Select~~ FIXED (v0.28.8, 2026-09-02): Enter/Select
+  during chat overlay did nothing (or, after an interim fix attempt, looped forever) instead
+  of opening the player's OSD - user had to close chat (Back) first to reach it. Root cause
+  was two stacked bugs in `lib/windows/chat_overlay.py`'s `onAction`: (1)
+  `xbmc.executebuiltin("Action(%d)" % id)` passed a numeric id where the `Action()` builtin
+  wants a name string, failing silently; (2) even fixed to use the name, `Action()` routes to
+  whatever window is currently active - which is the overlay itself (non-modal, stays
+  topmost/focused) - so the forward just re-entered the overlay's own `onAction` and looped.
+  Fixed by using `ActivateWindow(12901)` to push the OSD dialog directly onto the window
+  stack instead, bypassing active-window routing; closing OSD pops back to the still-open
+  overlay. `ACTION_CONTEXT_MENU` forwarding dropped (no fixed window id for it). Confirmed
+  live on both the dev Kodi instance and kodi.local over the real CEC remote - the original
+  reported symptom.
+
 - ~~Tackle chat~~ DONE (v0.10.0): `lib/twitch/irc.py`'s `ChatClient` and `lib/windows/chat_overlay.py`
   are real and live-tested (Quin69, busy chat). The `chat_overlay_enabled` setting shows it
   automatically during playback; auto-reconnects, auto-scrolls, throttled rendering, closes on
