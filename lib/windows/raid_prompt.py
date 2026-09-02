@@ -1,5 +1,16 @@
-"""Modal confirm dialog shown when the watched channel raids out to another one - offers
-to switch playback there, auto-accepting after a countdown unless declined."""
+"""Non-modal confirm dialog shown when the watched channel raids out to another one -
+offers to switch playback there, auto-accepting after a countdown unless declined.
+
+Must stay non-modal (show()/close()), never doModal(): doModal() is invoked from
+ChatOverlay's background pump thread here, not the addon's single main/invoker thread
+(which already runs its own persistent doModal() loop for MainWindow for the addon's whole
+lifetime). Kodi's modal-dialog wait loop isn't safe to enter from a second thread - closing
+it from a third thread (this dialog's own countdown timer) doesn't properly unwind Kodi's
+internal modal-dialog counter, leaving it stuck permanently: confirmed live via kodi.log
+("Activate of window '10000' refused because there are active modal dialogs", still true
+27+ minutes after the dialog should have closed, blocking every remote button that tried to
+activate a new window). show()/close() is the same non-modal pattern ChatOverlay itself
+already uses safely from background threads elsewhere in this codebase."""
 import threading
 import time
 
@@ -22,19 +33,21 @@ class RaidPromptDialog(xbmcgui.WindowXMLDialog):
         super().__init__(*args, **kwargs)
         self._countdown_seconds = countdown_seconds
         self._sleep_fn = sleep_fn or time.sleep
-        self._accepted = True
         self._display_name = ""
         self._to_channel = ""
         self._viewer_count = 0
+        self._on_result = None
         self._thread = None
+        self._finish_lock = threading.Lock()
+        self._finished = False
 
-    def prompt(self, display_name, to_channel, viewer_count):
+    def prompt(self, display_name, to_channel, viewer_count, on_result):
         self._display_name = display_name
         self._to_channel = to_channel
         self._viewer_count = viewer_count
-        self._accepted = True
-        self.doModal()
-        return self._accepted
+        self._on_result = on_result
+        self._finished = False
+        self.show()
 
     def onInit(self):
         self._update_label(self._countdown_seconds)
@@ -47,8 +60,7 @@ class RaidPromptDialog(xbmcgui.WindowXMLDialog):
             self._sleep_fn(1)
             remaining -= 1
             self._update_label(remaining)
-        self._accepted = True
-        self.close()
+        self._finish(True)
 
     def _update_label(self, remaining):
         control = self._safe_control(self.COUNTDOWN_LABEL_ID)
@@ -66,14 +78,22 @@ class RaidPromptDialog(xbmcgui.WindowXMLDialog):
         except Exception:
             return None
 
+    def _finish(self, accepted):
+        with self._finish_lock:
+            if self._finished:
+                return
+            self._finished = True
+        self.close()
+        on_result = self._on_result
+        if on_result is not None:
+            on_result(accepted)
+
     def onClick(self, control_id):
         if control_id == self.DECLINE_BUTTON_ID:
-            self._accepted = False
-            self.close()
+            self._finish(False)
 
     def onAction(self, action):
         if action.getId() in self._DECLINE_ACTIONS:
-            self._accepted = False
-            self.close()
+            self._finish(False)
             return
         super().onAction(action)

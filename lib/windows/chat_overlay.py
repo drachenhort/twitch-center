@@ -211,13 +211,18 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
             "Default",
             "1080i",
         )
-        accepted = prompt.prompt(
+        to_channel = event["to_channel"]
+
+        def on_result(accepted):
+            if accepted:
+                self._play_channel_fn(to_channel)
+
+        prompt.prompt(
             display_name=event["display_name"],
-            to_channel=event["to_channel"],
+            to_channel=to_channel,
             viewer_count=event["viewer_count"],
+            on_result=on_result,
         )
-        if accepted:
-            self._play_channel_fn(event["to_channel"])
 
     def _script_path(self):
         import xbmcaddon

@@ -4,6 +4,23 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.29.2] - 2026-09-02
+
+### Fixed
+- Raid-follow prompt leaving the remote completely unresponsive after accepting a raid.
+  `RaidPromptDialog.prompt()` called `self.doModal()` from `ChatOverlay`'s background pump
+  thread rather than the addon's single main/invoker thread (which already runs its own
+  persistent `doModal()` loop for `MainWindow` for the addon's whole lifetime). Kodi's
+  modal-dialog wait loop isn't safe to enter from a second thread - closing it from a third
+  thread (the dialog's own countdown timer) didn't properly unwind Kodi's internal
+  modal-dialog counter, leaving it stuck permanently. Confirmed live via kodi.log:
+  `Activate of window '10000' refused because there are active modal dialogs`, still true
+  27+ minutes after the dialog should have closed, blocking every remote button that tried
+  to activate a new window (Home, menus, etc.). Fixed by switching `RaidPromptDialog` to
+  the same non-modal `show()`/`close()` pattern `ChatOverlay` itself already uses safely
+  from background threads elsewhere in this codebase - `prompt()` now takes an `on_result`
+  callback instead of blocking and returning a bool.
+
 ## [0.29.1] - 2026-09-02
 
 ### Changed

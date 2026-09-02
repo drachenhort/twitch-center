@@ -177,9 +177,9 @@ class FakeRaidPrompt:
         self.prompt_calls = []
         FakeRaidPrompt.instances.append(self)
 
-    def prompt(self, display_name, to_channel, viewer_count):
+    def prompt(self, display_name, to_channel, viewer_count, on_result):
         self.prompt_calls.append((display_name, to_channel, viewer_count))
-        return FakeRaidPrompt.next_answer
+        on_result(FakeRaidPrompt.next_answer)
 
 
 def _raid_out_event(to_channel="target", display_name="Target", viewer_count=17, index=1):

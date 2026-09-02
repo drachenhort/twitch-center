@@ -48,13 +48,20 @@
   Follow endpoints from the Helix API in Feb 2023. Third-party apps can no longer follow/unfollow
   programmatically; only Twitch's own web/app UI can. Dead end, don't attempt.
 
-- ~~Follow raids~~ DONE and VERIFIED LIVE (v0.29.0, 2026-09-02) on kodi.local: raid fired,
-  prompt shown, auto-accepted after the countdown, playback switched cleanly to the
+- ~~Follow raids~~ DONE and VERIFIED LIVE (v0.29.0-v0.29.2, 2026-09-02) on kodi.local: raid
+  fired, prompt shown, auto-accepted after the countdown, playback switched cleanly to the
   raided-into channel with a fresh chat overlay, no errors in kodi.log. Playback resolution
   confirmed unchanged across the switch too - both the pre-raid channel (`cringer`) and the
   raided-into channel (`aavak`) negotiated the same `1920x1080, max allowed: 1920x1080`
   (same `FULL_HD`/12500kbps anonymous-playback cap both times, no downgrade after
-  switching). `follow_raids_enabled` setting (default on) - when the watched channel raids
+  switching). v0.29.2 fixed a real bug found on that same first live test: the remote went
+  completely unresponsive after accepting the raid, because `RaidPromptDialog` used a modal
+  dialog (`doModal()`) from a background thread instead of the addon's single main thread,
+  leaving Kodi's window manager permanently stuck thinking a dialog was open (kodi.log:
+  `Activate of window '10000' refused because there are active modal dialogs`, still true
+  27+ minutes later) - fixed by switching to the same non-modal `show()`/`close()` pattern
+  the chat overlay itself already used safely; re-verified live afterward, remote stayed
+  responsive. `follow_raids_enabled` setting (default on) - when the watched channel raids
   out, `lib/windows/raid_prompt.py`'s `RaidPromptDialog` shows a 15s-countdown prompt
   (Decline to stay, countdown reaching zero or Select to switch), then `chat_overlay.py`'s
   `_handle_raid_out` resolves and plays the target channel via the same
