@@ -48,21 +48,24 @@
   Follow endpoints from the Helix API in Feb 2023. Third-party apps can no longer follow/unfollow
   programmatically; only Twitch's own web/app UI can. Dead end, don't attempt.
 
-- ~~Follow raids~~ DONE (v0.29.0, 2026-09-02), confirmed working live on kodi.local: raid
-  fired, prompt shown, auto-accepted after the countdown, playback switched cleanly to the
-  raided-into channel with a fresh chat overlay, no errors. `follow_raids_enabled` setting
-  (default on) - when
-  the watched channel raids out, `lib/windows/raid_prompt.py`'s `RaidPromptDialog` shows a
-  15s-countdown prompt (Decline to stay, countdown reaching zero or Select to switch),
-  then `chat_overlay.py`'s `_handle_raid_out` resolves and plays the target channel via the
-  same `providers.resolve_stream_url` + `player.play_stream` pattern
-  `live_streams_view.py`'s `_play_channel` already uses. EventSub-only: `lib/twitch/
-  eventsub.py` now subscribes to `channel.raid` with `from_broadcaster_user_id` (a second,
-  separate subscription alongside the existing `to_broadcaster_user_id` one for incoming
-  raids) and yields a `"raid_out"` event with the destination channel. IRC has no
-  equivalent - Twitch's `USERNOTICE`/`msg-id=raid` only fires in the destination channel's
-  chat, never the source's - so under the (default) `irc` chat engine this silently never
-  fires, same as any other unhandled event type.
+- ~~Follow raids~~ DONE and VERIFIED LIVE (v0.29.0, 2026-09-02) on kodi.local: raid fired,
+  prompt shown, auto-accepted after the countdown, playback switched cleanly to the
+  raided-into channel with a fresh chat overlay, no errors in kodi.log. Playback resolution
+  confirmed unchanged across the switch too - both the pre-raid channel (`cringer`) and the
+  raided-into channel (`aavak`) negotiated the same `1920x1080, max allowed: 1920x1080`
+  (same `FULL_HD`/12500kbps anonymous-playback cap both times, no downgrade after
+  switching). `follow_raids_enabled` setting (default on) - when the watched channel raids
+  out, `lib/windows/raid_prompt.py`'s `RaidPromptDialog` shows a 15s-countdown prompt
+  (Decline to stay, countdown reaching zero or Select to switch), then `chat_overlay.py`'s
+  `_handle_raid_out` resolves and plays the target channel via the same
+  `providers.resolve_stream_url` + `player.play_stream` pattern `live_streams_view.py`'s
+  `_play_channel` already uses. EventSub-only: `lib/twitch/eventsub.py` now subscribes to
+  `channel.raid` with `from_broadcaster_user_id` (a second, separate subscription alongside
+  the existing `to_broadcaster_user_id` one for incoming raids) and yields a `"raid_out"`
+  event with the destination channel. IRC has no equivalent - Twitch's
+  `USERNOTICE`/`msg-id=raid` only fires in the destination channel's chat, never the
+  source's - so under the (default) `irc` chat engine this silently never fires, same as
+  any other unhandled event type.
 
 - ~~Migrate chat from IRC to EventSub~~ DONE (v0.16.0), as a selectable `chat_engine` setting
   rather than a full replacement - `lib/twitch/eventsub.py`'s `ChatClient` is available alongside
