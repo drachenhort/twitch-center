@@ -4,6 +4,23 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.29.0] - 2026-09-02
+
+### Added
+- "Follow raids" - when the streamer you're watching raids out to another channel, shows a
+  prompt offering to switch playback there, with a 15-second countdown that auto-accepts if
+  not declined. New `follow_raids_enabled` setting (Settings > General, default on).
+  `lib/windows/raid_prompt.py`'s `RaidPromptDialog` is a custom modal (Decline button, live
+  countdown label, Back also declines); on accept, `chat_overlay.py`'s `_handle_raid_out`
+  resolves and plays the target channel via the same `providers.resolve_stream_url` +
+  `player.play_stream` pattern already used elsewhere for channel selection. EventSub-only:
+  `lib/twitch/eventsub.py` gained a second `channel.raid` subscription
+  (`from_broadcaster_user_id`, alongside the existing incoming-raid one) yielding a new
+  `"raid_out"` event with the destination channel - IRC's `USERNOTICE`/`msg-id=raid` only
+  ever fires in the *destination* channel's chat, so the IRC engine (the default) has no
+  way to detect an outgoing raid at all; under IRC this feature silently never fires, same
+  as any other unhandled chat event type. Pending live confirmation of an actual raid firing.
+
 ## [0.28.9] - 2026-09-02
 
 ### Changed

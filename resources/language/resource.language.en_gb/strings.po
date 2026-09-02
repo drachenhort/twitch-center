@@ -110,3 +110,11 @@ msgctxt "#30029"
 msgid "Runs a small local relay that strips Twitch's stitched ad segments out of the live stream before playback, instead of playing through inputstream.adaptive directly. Experimental - if playback misbehaves, turn this off first before reporting anything else as a bug."
 msgstr ""
 
+msgctxt "#30030"
+msgid "Follow raids"
+msgstr ""
+
+msgctxt "#30031"
+msgid "When the streamer you're watching raids out to another channel, shows a prompt offering to switch playback there, auto-accepting after 15 seconds if not declined. Only works with the EventSub chat engine - IRC has no way to detect an outgoing raid."
+msgstr ""
+

@@ -6,6 +6,7 @@ import time
 import xbmc
 import xbmcgui
 
+from lib.settings import Settings
 from lib.twitch.irc import ChatClient
 
 # Caps how often the message list is rebuilt, regardless of message rate -
@@ -84,6 +85,7 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
 
     def __init__(self, *args, channel, access_token=None, client_id=None,
                  broadcaster_user_id=None, user_id=None, chat_client_cls=None, time_fn=None,
+                 settings=None, raid_prompt_cls=None, play_channel_fn=None,
                  **kwargs):
         super().__init__(*args, **kwargs)
         self.channel = channel
@@ -93,6 +95,9 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
         self._user_id = user_id
         self._chat_client_cls = chat_client_cls or ChatClient
         self._time_fn = time_fn or time.time
+        self._settings = settings or Settings()
+        self._raid_prompt_cls = raid_prompt_cls
+        self._play_channel_fn = play_channel_fn or self._play_channel
         self._client = None
         self._messages = []
         self._cancel_event = threading.Event()
@@ -152,6 +157,9 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
             for event in self._client.read_messages():
                 if self._cancel_event.is_set():
                     break
+                if event["type"] == "raid_out":
+                    self._handle_raid_out(event)
+                    continue
                 if event["type"] not in ("message", "error"):
                     continue
                 before = len(self._messages)
@@ -184,6 +192,55 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
                 self._render()
             except Exception:
                 pass
+
+    def _handle_raid_out(self, event):
+        # Only reachable via the EventSub chat engine - lib/twitch/irc.py has no way to
+        # detect an outgoing raid at all (Twitch's IRC USERNOTICE for msg-id=raid only
+        # fires in the destination channel's chat), so the IRC engine never produces a
+        # "raid_out" event in the first place. See lib/twitch/eventsub.py's
+        # "channel.raid" handling for how the two raid directions are distinguished.
+        if not self._settings.follow_raids_enabled:
+            return
+        prompt_cls = self._raid_prompt_cls
+        if prompt_cls is None:
+            from lib.windows.raid_prompt import RaidPromptDialog
+            prompt_cls = RaidPromptDialog
+        prompt = prompt_cls(
+            "script-twitch-center-raid-prompt.xml",
+            self._script_path(),
+            "Default",
+            "1080i",
+        )
+        accepted = prompt.prompt(
+            display_name=event["display_name"],
+            to_channel=event["to_channel"],
+            viewer_count=event["viewer_count"],
+        )
+        if accepted:
+            self._play_channel_fn(event["to_channel"])
+
+    def _script_path(self):
+        import xbmcaddon
+        return xbmcaddon.Addon().getAddonInfo("path")
+
+    def _play_channel(self, to_channel):
+        import xbmcaddon
+        from lib import providers
+        from lib.windows import player
+        try:
+            url = providers.resolve_stream_url(xbmcaddon.Addon(), "twitch", to_channel)
+            player.play_stream(
+                url, to_channel, platform="twitch",
+                access_token=self._access_token, client_id=self._client_id,
+                user_id=self._user_id,
+            )
+        except Exception as exc:
+            xbmc.log(
+                "script.twitch.center: raid auto-switch to %r failed: %s" % (
+                    to_channel, repr(exc)
+                ),
+                xbmc.LOGERROR,
+            )
 
     def _render(self):
         # Incremental: only remove items evicted from the front and append

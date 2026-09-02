@@ -315,13 +315,16 @@ def test_connect_performs_handshake_then_subscribes_before_connected_status():
     client.disconnect()
 
     assert events[0] == {"type": "status", "state": "connected"}
-    assert len(subscribe_calls) == 2
-    types = {call[3] for call in subscribe_calls}
-    assert types == {"channel.chat.message", "channel.raid"}
+    assert len(subscribe_calls) == 3
+    raid_calls = [c for c in subscribe_calls if c[3] == "channel.raid"]
+    assert len(raid_calls) == 2
     chat_call = next(c for c in subscribe_calls if c[3] == "channel.chat.message")
     assert chat_call[4] == {"broadcaster_user_id": "1", "user_id": "2"}
-    raid_call = next(c for c in subscribe_calls if c[3] == "channel.raid")
-    assert raid_call[4] == {"to_broadcaster_user_id": "1"}
+    raid_conditions = {tuple(c[4].items()) for c in raid_calls}
+    assert raid_conditions == {
+        (("to_broadcaster_user_id", "1"),),
+        (("from_broadcaster_user_id", "1"),),
+    }
 
 
 def _connected_fake_socket(extra_frames=b""):
@@ -448,6 +451,51 @@ def test_raid_notification_yields_raid_event():
         "from_channel": "coolraider",
         "display_name": "CoolRaider",
         "viewer_count": 42,
+        "timestamp": 1787011200000,
+    }
+
+
+def test_outgoing_raid_notification_yields_raid_out_event():
+    # Same channel.raid subscription_type as an incoming raid, but the event's
+    # from_broadcaster_user_id matches OUR watched channel (broadcaster_user_id="1" per
+    # _client_kwargs) instead of to_broadcaster_user_id - meaning we're the one raiding
+    # OUT, not being raided into. Must be distinguished from test_raid_notification_yields_
+    # raid_event's incoming case, which has no from/to id fields at all (existing IRC-style
+    # fixtures never carried them) and must keep yielding a plain "raid" event.
+    notification = {
+        "metadata": {
+            "message_type": "notification",
+            "subscription_type": "channel.raid",
+            "message_timestamp": "2026-08-18T00:00:00Z",
+        },
+        "payload": {
+            "event": {
+                "from_broadcaster_user_id": "1",
+                "from_broadcaster_user_login": "somechannel",
+                "from_broadcaster_user_name": "SomeChannel",
+                "to_broadcaster_user_id": "999",
+                "to_broadcaster_user_login": "raidtarget",
+                "to_broadcaster_user_name": "RaidTarget",
+                "viewers": 17,
+            }
+        },
+    }
+    fake = _connected_fake_socket(_server_text_frame(notification))
+    client = ChatClient(**_client_kwargs(socket_factory=lambda: fake))
+    client.connect()
+
+    events = []
+    for event in client.read_messages():
+        events.append(event)
+        if event["type"] == "raid_out":
+            break
+    client.disconnect()
+
+    assert events[-1] == {
+        "type": "raid_out",
+        "to_channel": "raidtarget",
+        "display_name": "RaidTarget",
+        "viewer_count": 17,
         "timestamp": 1787011200000,
     }
 

@@ -31,3 +31,7 @@ class Settings:
     @property
     def skip_twitch_ads(self):
         return self._addon.getSettingBool("skip_twitch_ads")
+
+    @property
+    def follow_raids_enabled(self):
+        return self._addon.getSettingBool("follow_raids_enabled")

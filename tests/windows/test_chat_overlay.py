@@ -160,6 +160,126 @@ def test_pump_renders_messages_and_ignores_status_and_raid_events():
     assert control._items[1].getLabel2() == "hi there"
 
 
+class FakeSettings:
+    def __init__(self, follow_raids_enabled=True):
+        self.follow_raids_enabled = follow_raids_enabled
+
+
+class FakeRaidPrompt:
+    """Records the args passed to raid_prompt_cls(...) and .prompt(...) and returns a
+    pre-configured accept/decline answer - stands in for the real RaidPromptDialog
+    (a WindowXMLDialog, not unit-testable end-to-end) so ChatOverlay's own decision logic
+    (skip when disabled, switch on accept, stay put on decline) can be tested in isolation."""
+    instances = []
+
+    def __init__(self, *args, **kwargs):
+        self.init_args = args
+        self.prompt_calls = []
+        FakeRaidPrompt.instances.append(self)
+
+    def prompt(self, display_name, to_channel, viewer_count):
+        self.prompt_calls.append((display_name, to_channel, viewer_count))
+        return FakeRaidPrompt.next_answer
+
+
+def _raid_out_event(to_channel="target", display_name="Target", viewer_count=17, index=1):
+    return {
+        "type": "raid_out",
+        "to_channel": to_channel,
+        "display_name": display_name,
+        "viewer_count": viewer_count,
+        "timestamp": index,
+    }
+
+
+def test_pump_switches_channel_when_raid_prompt_accepted():
+    FakeChatClient.instances.clear()
+    FakeRaidPrompt.instances.clear()
+    FakeRaidPrompt.next_answer = True
+
+    class ClientWithRaidOut(FakeChatClient):
+        def __init__(self, channel, **kwargs):
+            super().__init__(channel, **kwargs)
+            self._events = [_raid_out_event()]
+
+    switch_calls = []
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=ClientWithRaidOut,
+        settings=FakeSettings(follow_raids_enabled=True),
+        raid_prompt_cls=FakeRaidPrompt,
+        play_channel_fn=lambda to_channel: switch_calls.append(to_channel),
+    )
+    win.onInit()
+    win._thread.join(timeout=1)
+
+    assert len(FakeRaidPrompt.instances) == 1
+    assert FakeRaidPrompt.instances[0].prompt_calls == [("Target", "target", 17)]
+    assert switch_calls == ["target"]
+
+
+def test_pump_stays_put_when_raid_prompt_declined():
+    FakeChatClient.instances.clear()
+    FakeRaidPrompt.instances.clear()
+    FakeRaidPrompt.next_answer = False
+
+    class ClientWithRaidOut(FakeChatClient):
+        def __init__(self, channel, **kwargs):
+            super().__init__(channel, **kwargs)
+            self._events = [_raid_out_event()]
+
+    switch_calls = []
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=ClientWithRaidOut,
+        settings=FakeSettings(follow_raids_enabled=True),
+        raid_prompt_cls=FakeRaidPrompt,
+        play_channel_fn=lambda to_channel: switch_calls.append(to_channel),
+    )
+    win.onInit()
+    win._thread.join(timeout=1)
+
+    assert len(FakeRaidPrompt.instances) == 1
+    assert switch_calls == []
+
+
+def test_pump_skips_raid_prompt_when_follow_raids_disabled():
+    FakeChatClient.instances.clear()
+    FakeRaidPrompt.instances.clear()
+    FakeRaidPrompt.next_answer = True
+
+    class ClientWithRaidOut(FakeChatClient):
+        def __init__(self, channel, **kwargs):
+            super().__init__(channel, **kwargs)
+            self._events = [_raid_out_event()]
+
+    switch_calls = []
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=ClientWithRaidOut,
+        settings=FakeSettings(follow_raids_enabled=False),
+        raid_prompt_cls=FakeRaidPrompt,
+        play_channel_fn=lambda to_channel: switch_calls.append(to_channel),
+    )
+    win.onInit()
+    win._thread.join(timeout=1)
+
+    assert FakeRaidPrompt.instances == []
+    assert switch_calls == []
+
+
 def test_pump_wraps_long_messages_onto_multiple_lines():
     FakeChatClient.instances.clear()
 

@@ -48,13 +48,20 @@
   Follow endpoints from the Helix API in Feb 2023. Third-party apps can no longer follow/unfollow
   programmatically; only Twitch's own web/app UI can. Dead end, don't attempt.
 
-- Follow raids: feasible, and closer than it looks. Both chat engines already parse the raid
-  notification into a `{"type": "raid", "from_channel", "display_name", "viewer_count",
-  "timestamp"}` event - `lib/twitch/irc.py:80` (`USERNOTICE`/`msg-id=raid`) and
-  `lib/twitch/eventsub.py:394` (`channel.raid` subscription). What's missing is a consumer:
-  `lib/windows/chat_overlay.py`'s `_pump_messages` currently just ignores `"raid"` events
-  (only handles `"message"`/`"error"`) - still need to prompt/auto-switch playback to the
-  raided-into channel when one arrives.
+- ~~Follow raids~~ IMPLEMENTED (v0.29.0, 2026-09-02), pending live confirmation of an actual
+  raid firing (hard to trigger on demand - needs a real EventSub session plus a streamer
+  actually raiding out during testing). `follow_raids_enabled` setting (default on) - when
+  the watched channel raids out, `lib/windows/raid_prompt.py`'s `RaidPromptDialog` shows a
+  15s-countdown prompt (Decline to stay, countdown reaching zero or Select to switch),
+  then `chat_overlay.py`'s `_handle_raid_out` resolves and plays the target channel via the
+  same `providers.resolve_stream_url` + `player.play_stream` pattern
+  `live_streams_view.py`'s `_play_channel` already uses. EventSub-only: `lib/twitch/
+  eventsub.py` now subscribes to `channel.raid` with `from_broadcaster_user_id` (a second,
+  separate subscription alongside the existing `to_broadcaster_user_id` one for incoming
+  raids) and yields a `"raid_out"` event with the destination channel. IRC has no
+  equivalent - Twitch's `USERNOTICE`/`msg-id=raid` only fires in the destination channel's
+  chat, never the source's - so under the (default) `irc` chat engine this silently never
+  fires, same as any other unhandled event type.
 
 - ~~Migrate chat from IRC to EventSub~~ DONE (v0.16.0), as a selectable `chat_engine` setting
   rather than a full replacement - `lib/twitch/eventsub.py`'s `ChatClient` is available alongside

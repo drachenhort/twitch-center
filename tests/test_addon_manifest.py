@@ -22,6 +22,14 @@ MAIN_SKIN_XML = (
     / "1080i"
     / "script-twitch-center-main.xml"
 )
+RAID_PROMPT_SKIN_XML = (
+    Path(__file__).resolve().parent.parent
+    / "resources"
+    / "skins"
+    / "Default"
+    / "1080i"
+    / "script-twitch-center-raid-prompt.xml"
+)
 
 def test_addon_xml_parses_with_expected_id():
     tree = ET.parse(ADDON_XML)
@@ -152,12 +160,27 @@ def test_chat_overlay_skin_xml_declares_six_emote_image_slots_per_layout():
         found_ids = {int(c.attrib["id"]) for c in image_controls}
         assert found_ids == expected_ids, f"{layout_tag}: expected {expected_ids}, got {found_ids}"
 
+
         for control in image_controls:
             index = int(control.attrib["id"]) - 110
             texture = control.find("texture").text
             visible = control.find("visible").text
             assert texture == f"$INFO[ListItem.Art(emote_{index})]"
             assert visible == f"!String.IsEmpty(ListItem.Art(emote_{index}))"
+
+
+def test_raid_prompt_skin_xml_declares_countdown_label_and_decline_button_ids():
+    from lib.windows.raid_prompt import RaidPromptDialog
+
+    tree = ET.parse(RAID_PROMPT_SKIN_XML)
+    root = tree.getroot()
+    control_ids = {
+        int(control.attrib["id"])
+        for control in root.iter("control")
+        if "id" in control.attrib
+    }
+    assert RaidPromptDialog.COUNTDOWN_LABEL_ID in control_ids
+    assert RaidPromptDialog.DECLINE_BUTTON_ID in control_ids
 
 
 def _main_skin_control_ids():

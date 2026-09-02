@@ -321,6 +321,15 @@ class ChatClient:
             self._access_token, self._client_id, session_id, "channel.raid",
             {"to_broadcaster_user_id": self._broadcaster_user_id},
         )
+        # Separate subscription (not just a second condition on the same one - Twitch's
+        # API requires one subscription per condition) for raids the watched channel
+        # sends OUT, not just ones it receives - needed to detect "this streamer just
+        # raided somewhere else" so playback can follow. See _handle_payload's
+        # "channel.raid" branch for how the two directions are told apart.
+        self._create_subscription_fn(
+            self._access_token, self._client_id, session_id, "channel.raid",
+            {"from_broadcaster_user_id": self._broadcaster_user_id},
+        )
         self._last_message_at = self._time_fn()
 
     def _read_handshake_response(self):
@@ -392,13 +401,25 @@ class ChatClient:
                 "emotes": _extract_emotes(event.get("message", {}).get("fragments")),
             })
         elif subscription_type == "channel.raid":
-            self._enqueue({
-                "type": "raid",
-                "from_channel": event["from_broadcaster_user_login"],
-                "display_name": event["from_broadcaster_user_name"],
-                "viewer_count": event["viewers"],
-                "timestamp": timestamp,
-            })
+            if event.get("from_broadcaster_user_id") == self._broadcaster_user_id:
+                # The watched channel is the one raiding OUT - Twitch's event payload
+                # carries both directions' ids regardless of which condition (from/to)
+                # triggered the subscription, so this is how the two are distinguished.
+                self._enqueue({
+                    "type": "raid_out",
+                    "to_channel": event["to_broadcaster_user_login"],
+                    "display_name": event["to_broadcaster_user_name"],
+                    "viewer_count": event["viewers"],
+                    "timestamp": timestamp,
+                })
+            else:
+                self._enqueue({
+                    "type": "raid",
+                    "from_channel": event["from_broadcaster_user_login"],
+                    "display_name": event["from_broadcaster_user_name"],
+                    "viewer_count": event["viewers"],
+                    "timestamp": timestamp,
+                })
         else:
             self._enqueue({"type": "raw", "line": json.dumps(payload)})
 
