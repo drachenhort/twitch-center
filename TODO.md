@@ -44,39 +44,17 @@
   removed - `chat_display_mode`'s three-way overlay/standalone/both choice is gone, replaced by
   this single boolean.
 
-- Picture-in-picture: no system-level PiP (small floating video while browsing OTHER Kodi
-  screens/menus) - not a thing Kodi's addon API supports.
-
-  What the user actually wants: video playing in a SMALL BOX with chat laid out around/beside it
-  in the SAME screen, when chat is toggled on - not fullscreen video with a dialog on top. Would be
-  a separate mode alongside `chat_overlay_enabled`, not replacing it - video large on the left,
-  chat strip on the right, Back stops playback and returns to Home (same as today's fullscreen
-  Back behavior).
-
-  **Blocked on an unresolved core-mechanism question, live-tested 2026-08-12, not solved:**
-  - A custom `WindowXMLDialog` with a `<control type="videowindow">` sized as a box, with
-    `xbmc.Player().play(url, listitem)` called while that window is active, does NOT confine
-    playback to the box - it renders fullscreen, ignoring the control's geometry entirely
-    (confirmed via screenshot).
-  - `xbmc.Player().play(url, listitem, windowed=True)` DOES produce genuinely boxed (non-
-    fullscreen) video (confirmed via screenshot) - but it appears to kick the active window back
-    to Kodi's own system Home screen underneath the box, not stay on our own custom skin/window
-    with its own chat-list layout beside it.
-  - Neither combination alone gives "our own skin, video box + our own chat list beside it in the
-    same window." Something's missing - possibly re-asserting/re-activating our own window after
-    the `windowed=True` call, a different control/window-type combination entirely, or a
-    fundamentally different mechanism than either tried so far. Needs more live-Kodi spike
-    investigation before a real design/plan can be written - don't start implementation planning
-    on an assumed mechanism again.
-
 - Follow current streamer from the addon: NOT possible - Twitch removed the Create/Delete User
   Follow endpoints from the Helix API in Feb 2023. Third-party apps can no longer follow/unfollow
   programmatically; only Twitch's own web/app UI can. Dead end, don't attempt.
 
-- Follow raids: feasible. When a streamer raids out, Twitch IRC sends a `USERNOTICE` with
-  `msg-id=raid` naming the target channel. `lib/twitch/irc.py` already holds a chat connection -
-  parse that message and prompt/auto-switch playback to the raided-into channel. No EventSub
-  needed, just handling a message type that's already flowing through chat.
+- Follow raids: feasible, and closer than it looks. Both chat engines already parse the raid
+  notification into a `{"type": "raid", "from_channel", "display_name", "viewer_count",
+  "timestamp"}` event - `lib/twitch/irc.py:80` (`USERNOTICE`/`msg-id=raid`) and
+  `lib/twitch/eventsub.py:394` (`channel.raid` subscription). What's missing is a consumer:
+  `lib/windows/chat_overlay.py`'s `_pump_messages` currently just ignores `"raid"` events
+  (only handles `"message"`/`"error"`) - still need to prompt/auto-switch playback to the
+  raided-into channel when one arrives.
 
 - ~~Migrate chat from IRC to EventSub~~ DONE (v0.16.0), as a selectable `chat_engine` setting
   rather than a full replacement - `lib/twitch/eventsub.py`'s `ChatClient` is available alongside
