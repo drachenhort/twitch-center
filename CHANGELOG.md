@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.29.1] - 2026-09-02
+
+### Changed
+- No functional change - confirmed kodi.local was already running v0.29.0 (identical code
+  to this tag; only TODO.md changed since), re-verified reachable and responsive.
+
 ## [0.29.0] - 2026-09-02
 
 ### Added
