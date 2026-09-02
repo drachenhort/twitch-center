@@ -48,9 +48,10 @@
   Follow endpoints from the Helix API in Feb 2023. Third-party apps can no longer follow/unfollow
   programmatically; only Twitch's own web/app UI can. Dead end, don't attempt.
 
-- ~~Follow raids~~ IMPLEMENTED (v0.29.0, 2026-09-02), pending live confirmation of an actual
-  raid firing (hard to trigger on demand - needs a real EventSub session plus a streamer
-  actually raiding out during testing). `follow_raids_enabled` setting (default on) - when
+- ~~Follow raids~~ DONE (v0.29.0, 2026-09-02), confirmed working live on kodi.local: raid
+  fired, prompt shown, auto-accepted after the countdown, playback switched cleanly to the
+  raided-into channel with a fresh chat overlay, no errors. `follow_raids_enabled` setting
+  (default on) - when
   the watched channel raids out, `lib/windows/raid_prompt.py`'s `RaidPromptDialog` shows a
   15s-countdown prompt (Decline to stay, countdown reaching zero or Select to switch),
   then `chat_overlay.py`'s `_handle_raid_out` resolves and plays the target channel via the
