@@ -4,6 +4,18 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.29.3] - 2026-09-04
+
+### Fixed
+- Discover's Kick category search silently missing live streamers under categories where
+  Kick lists multiple distinct category IDs sharing the same name (e.g. two separate "EVE
+  Online" categories, one dead, one with live streams). Search only fetched streams for the
+  first name match returned by Kick's API, so a duplicate with zero live streams could mask
+  a livelier one under a different ID. Fixed by fetching streams from every matching
+  category and merging them by viewer count. Confirmed live: Kick's `/public/v2/categories`
+  search for "eve online" returns both category id 166 (0 live streams) and id 1067 (4 live,
+  including streamer ContempoEnterprises) - previously only id 166's (empty) results showed.
+
 ## [0.29.2] - 2026-09-02
 
 ### Fixed

@@ -307,6 +307,37 @@ def test_pressing_search_in_kick_mode_searches_categories_then_lists_its_streams
     assert results_control.getListItem(0).getProperty("platform") == "kick"
 
 
+def test_pressing_search_in_kick_mode_merges_streams_from_duplicate_category_matches():
+    # Kick can return multiple distinct category IDs sharing the same name
+    # (e.g. two separate "EVE Online" categories) - streams from every
+    # match must be merged, not just the first match's.
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    addon.setSetting("kick_client_secret", "csecret")
+    matches = [{"id": 166, "name": "EVE Online"}, {"id": 1067, "name": "EVE Online"}]
+    other_stream = dict(KICK_CATEGORY_STREAM, id="99", login="contempoenterprises", viewer_count=29)
+
+    def fake_get_streams(addon, category_id):
+        return {166: [], 1067: [other_stream]}[category_id]
+
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(
+        providers, "search_kick_categories", return_value=matches
+    ), patch.object(
+        providers, "get_kick_category_streams", side_effect=fake_get_streams
+    ):
+        win = DiscoverView(FakeWindow())
+        win.activate()
+        _switch_to_kick_search_mode(win)
+        win.window.getControl(DiscoverView.SEARCH_EDIT_ID).setText("eve online")
+        win.window.setFocusId(DiscoverView.SEARCH_BUTTON_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    results_control = win.window.getControl(DiscoverView.RESULTS_LIST_ID)
+    assert results_control.size() == 1
+    assert results_control.getListItem(0).getProperty("broadcaster_login") == "contempoenterprises"
+
+
 def test_pressing_search_in_kick_mode_shows_message_when_no_category_matches():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     addon.setSetting("kick_client_secret", "csecret")

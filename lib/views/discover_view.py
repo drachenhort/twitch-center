@@ -215,8 +215,12 @@ class DiscoverView:
         self._populate_results([_build_stream_item(stream_data) for stream_data in streams])
 
     def _load_kick_category_search_results(self, addon, query):
-        # Same "take the best/first match" convention as _load_game_search_results -
-        # Kick's name filter is a substring match, not exact.
+        # Kick's name filter is a substring match, not exact, and Kick lists
+        # multiple distinct category IDs under the same name (e.g. two
+        # separate "EVE Online" categories) - taking only the first match's
+        # streams can show an empty/near-empty duplicate while a livelier
+        # one sits under a different ID. Pull streams from every match and
+        # merge them so none of the duplicates get silently dropped.
         matches = providers.search_kick_categories(addon, query)
         if not matches:
             self._populate_results([])
@@ -224,7 +228,8 @@ class DiscoverView:
             if empty_label:
                 empty_label.setLabel(_EMPTY_KICK_CATEGORY_SEARCH_MESSAGE)
             return
-        streams = providers.get_kick_category_streams(addon, matches[0]["id"])
+        stream_lists = [providers.get_kick_category_streams(addon, match["id"]) for match in matches]
+        streams = providers.merge_by_viewer_count(*stream_lists)
         self._populate_results([_build_kick_result_item(r) for r in streams])
 
     def _on_game_selected(self):
