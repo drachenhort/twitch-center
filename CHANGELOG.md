@@ -4,6 +4,18 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.29.4] - 2026-09-04
+
+### Added
+- Discover's Kick category row now live-filters to matching category names as you type
+  a Kick search, instead of only offering a "jump straight to the best match's streams"
+  Search button. Kick has ~19,000 categories total - far too many to browse as a flat
+  list - so this reuses the existing top-categories row and its selection handler:
+  typing narrows the row, selecting an entry loads that category's live streams.
+  Implemented as a debounced background poll of the search edit box (Kodi's edit
+  control has no text-changed callback), since typing speed shouldn't fire a search
+  per keystroke.
+
 ## [0.29.3] - 2026-09-04
 
 ### Fixed

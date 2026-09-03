@@ -307,6 +307,89 @@ def test_pressing_search_in_kick_mode_searches_categories_then_lists_its_streams
     assert results_control.getListItem(0).getProperty("platform") == "kick"
 
 
+def test_live_kick_filter_populates_category_row_with_matches():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    matches = [{"id": 166, "name": "EVE Online"}, {"id": 1067, "name": "EVE Online"}]
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(
+        providers, "get_kick_top_categories", return_value=KICK_TOP_CATEGORIES
+    ), patch.object(
+        providers, "search_kick_categories", return_value=matches
+    ) as mock_search:
+        win = DiscoverView(FakeWindow())
+        win.activate()
+        win._apply_live_kick_filter("eve online")
+        win.stop()
+
+    mock_search.assert_called_once_with(addon, "eve online")
+    kick_control = win.window.getControl(DiscoverView.KICK_CATEGORIES_LIST_ID)
+    assert kick_control.size() == 2
+    assert kick_control.getListItem(0).getLabel() == "EVE Online"
+    assert kick_control.getListItem(0).getProperty("category_id") == "166"
+
+
+def test_live_kick_filter_restores_top_categories_when_query_cleared():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(
+        providers, "get_kick_top_categories", return_value=KICK_TOP_CATEGORIES
+    ), patch.object(
+        providers, "search_kick_categories", return_value=[{"id": 166, "name": "EVE Online"}]
+    ):
+        win = DiscoverView(FakeWindow())
+        win.activate()
+        win._apply_live_kick_filter("eve")
+        win._apply_live_kick_filter("")
+        win.stop()
+
+    kick_control = win.window.getControl(DiscoverView.KICK_CATEGORIES_LIST_ID)
+    assert kick_control.size() == len(KICK_TOP_CATEGORIES)
+    assert kick_control.getListItem(0).getLabel() == KICK_TOP_CATEGORIES[0]["name"]
+
+
+def test_selecting_a_live_filtered_category_loads_its_streams():
+    # The live filter reuses the existing top-categories row and its
+    # existing selection handler - selecting a filtered-in category should
+    # behave exactly like selecting one from the top-categories row.
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(
+        providers, "get_kick_top_categories", return_value=KICK_TOP_CATEGORIES
+    ), patch.object(
+        providers, "search_kick_categories", return_value=[{"id": 1067, "name": "EVE Online"}]
+    ), patch.object(
+        providers, "get_kick_category_streams", return_value=[KICK_CATEGORY_STREAM]
+    ) as mock_get_streams:
+        win = DiscoverView(FakeWindow())
+        win.activate()
+        win._apply_live_kick_filter("eve online")
+        kick_control = win.window.getControl(DiscoverView.KICK_CATEGORIES_LIST_ID)
+        kick_control.selectItem(0)
+        win.window.setFocusId(DiscoverView.KICK_CATEGORIES_LIST_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        win.stop()
+
+    mock_get_streams.assert_called_once_with(addon, "1067")
+    results_control = win.window.getControl(DiscoverView.RESULTS_LIST_ID)
+    assert results_control.size() == 1
+
+
+def test_stop_cancels_the_live_filter_poll_thread():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(providers, "get_kick_top_categories", return_value=KICK_TOP_CATEGORIES):
+        win = DiscoverView(FakeWindow())
+        win.activate()
+        assert win._live_filter_cancel is not None
+        assert not win._live_filter_cancel.is_set()
+        win.stop()
+        assert win._live_filter_cancel.is_set()
+
+
 def test_pressing_search_in_kick_mode_merges_streams_from_duplicate_category_matches():
     # Kick can return multiple distinct category IDs sharing the same name
     # (e.g. two separate "EVE Online" categories) - streams from every

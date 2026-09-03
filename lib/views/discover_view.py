@@ -1,7 +1,14 @@
 """Discover view: browse live channels by any game, or search by channel name,
 Twitch game/category name, or Kick category name (toggle via
 SEARCH_MODE_TOGGLE_ID). Also browses Kick's top categories in a separate row.
-Not a Window subclass - see MainWindow."""
+In Kick search mode, that row live-filters to matching category names as the
+user types (Kick has ~19k categories - far too many to browse as a flat
+list), so results are reached by selecting a category rather than jumping
+straight to the best match's streams. Not a Window subclass - see MainWindow.
+"""
+import threading
+import time
+
 import xbmc
 import xbmcaddon
 import xbmcgui
@@ -11,6 +18,9 @@ from lib.twitch import api, auth
 from lib.views import utils as view_utils
 from lib.views.kick_favorites_menu import show_kick_favorite_context_menu
 from lib.windows import player
+
+_LIVE_FILTER_POLL_INTERVAL = 0.25
+_LIVE_FILTER_DEBOUNCE = 0.5
 
 RESULTS_LIST_ID = 301
 EMPTY_LABEL_ID = 302
@@ -61,6 +71,8 @@ class DiscoverView:
         # Shared across every view hosted by MainWindow, which bootstraps it.
         self.closed_event = closed_event
         self._search_mode = "channels"
+        self._kick_top_categories = []
+        self._live_filter_cancel = None
 
     def _safe_control(self, control_id):
         """Safely retrieve a control, returning None if it doesn't exist."""
@@ -92,10 +104,66 @@ class DiscoverView:
             )
             self._show_error(_NETWORK_ERROR_MESSAGE)
 
+        # Re-switching to this same view (Kodi re-firing onInit, or the user
+        # navigating back to Discover) calls activate() again - cancel any
+        # earlier poll thread first so they don't pile up.
+        self.stop()
+        self._live_filter_cancel = threading.Event()
+        threading.Thread(
+            target=self._live_filter_poll, args=(self._live_filter_cancel,), daemon=True
+        ).start()
+
+    def stop(self):
+        if self._live_filter_cancel is not None:
+            self._live_filter_cancel.set()
+
+    def _live_filter_poll(self, cancel_event):
+        """Background poll driving Kick's live category filter (see module
+        docstring) - Kodi's edit control has no text-changed callback, so
+        polling getText() is the only way to detect typing. Ticks every
+        _LIVE_FILTER_POLL_INTERVAL; a query is applied once the text has sat
+        unchanged for _LIVE_FILTER_DEBOUNCE seconds, so normal typing speed
+        never fires a search per keystroke."""
+        last_text = None
+        last_change = 0.0
+        applied_text = None
+        while not cancel_event.wait(_LIVE_FILTER_POLL_INTERVAL):
+            try:
+                if self._search_mode != "kick":
+                    continue
+                if self.window.getFocusId() != self.SEARCH_EDIT_ID:
+                    continue
+                control = self._safe_control(self.SEARCH_EDIT_ID)
+                if control is None:
+                    continue
+                text = (control.getText() or "").strip()
+            except Exception:
+                continue
+            now = time.monotonic()
+            if text != last_text:
+                last_text = text
+                last_change = now
+                continue
+            if text == applied_text or now - last_change < _LIVE_FILTER_DEBOUNCE:
+                continue
+            applied_text = text
+            self._apply_live_kick_filter(text)
+
+    def _apply_live_kick_filter(self, query):
+        if not query:
+            self._populate_kick_categories(self._kick_top_categories)
+            return
+        try:
+            matches = providers.search_kick_categories(xbmcaddon.Addon(), query)
+        except Exception:
+            return
+        self._populate_kick_categories(matches)
+
     def _load_games(self, addon, client_id, token):
         games = api.get_top_games(token["access_token"], client_id)
         self._populate_games(games)
         kick_categories = providers.get_kick_top_categories(addon)
+        self._kick_top_categories = kick_categories
         self._populate_kick_categories(kick_categories)
         # Claim focus on the now-populated games list explicitly rather than
         # leaving it wherever the previous view left it - same race-avoidance
