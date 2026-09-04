@@ -76,7 +76,7 @@ def test_build_list_item_live_sets_label2_and_thumbnail():
     assert item.getLabel() == "Bob"
     assert "Just Chatting" in item.getLabel2()
     assert "50" in item.getLabel2()
-    assert item.getArt("thumb") == "https://example.invalid/320x180.jpg"
+    assert item.getArt("thumb").startswith("https://example.invalid/320x180.jpg?_tc=")
     assert item.getProperty("broadcaster_id") == "2"
 
 

@@ -253,6 +253,26 @@ def test_search_kick_categories_returns_matches_when_configured():
     assert result == [{"id": 3, "name": "EVE Online"}]
 
 
+def test_search_kick_categories_falls_back_to_trailing_words():
+    addon = xbmcaddon.Addon()
+    _set_kick_app_credentials(addon)
+
+    seen_queries = []
+
+    def fake_search_categories(access_token, query):
+        seen_queries.append(query)
+        if query == "warships":
+            return [{"id": 3, "name": "Warships"}]
+        return []
+
+    with patch.object(kick_auth, "get_app_access_token", return_value="apptok"):
+        result = providers.search_kick_categories(
+            addon, "world of warships", search_categories_fn=fake_search_categories
+        )
+    assert result == [{"id": 3, "name": "Warships"}]
+    assert seen_queries == ["world of warships", "of warships", "warships"]
+
+
 def test_search_kick_categories_returns_empty_list_on_error():
     addon = xbmcaddon.Addon()
     _set_kick_app_credentials(addon)

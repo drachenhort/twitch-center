@@ -5,12 +5,26 @@ lean. Only imports from xbmc* (Kodi) and standard library — no lib.* or
 lib.views.* circular dependencies.
 """
 
+import time
+
 import xbmcgui
 
 
 def thumbnail_url(raw_url, width=320, height=180):
     """Replace {width}/{height} placeholders in a Twitch thumbnail URL."""
     return raw_url.replace("{width}", str(width)).replace("{height}", str(height))
+
+
+def _cache_busted(url):
+    """Append a 5-minute-bucketed query param so Kodi's texture cache (keyed by
+    URL) refetches instead of serving a stale local copy on refresh. Bucketed
+    to 5 min since that's roughly how often Twitch/Kick regenerate the CDN
+    snapshot anyway - busting faster wouldn't get a newer image."""
+    if not url:
+        return url
+    bucket = int(time.time() // 300)
+    sep = "&" if "?" in url else "?"
+    return f"{url}{sep}_tc={bucket}"
 
 
 # ---------------------------------------------------------------------------
@@ -36,7 +50,7 @@ def build_stream_item(stream_data):
     """Build a ListItem for a live Twitch stream entry (from Helix)."""
     item = xbmcgui.ListItem(stream_data["user_name"])
     item.setLabel2(_game_viewers_label(stream_data["game_name"], stream_data["viewer_count"]))
-    item.setArt({"thumb": thumbnail_url(stream_data["thumbnail_url"])})
+    item.setArt({"thumb": _cache_busted(thumbnail_url(stream_data["thumbnail_url"]))})
     return _set_stream_properties(
         item,
         stream_data["user_id"],
@@ -53,7 +67,7 @@ def build_channel_item(channel):
     is_live = channel.get("is_live")
     item = xbmcgui.ListItem(channel["display_name"])
     item.setLabel2("Live - " + channel.get("game_name", "") if is_live else "Offline")
-    item.setArt({"thumb": channel.get("thumbnail_url", "")})
+    item.setArt({"thumb": _cache_busted(channel.get("thumbnail_url", ""))})
     return _set_stream_properties(
         item,
         channel.get("id", ""),
@@ -69,7 +83,7 @@ def build_kick_result_item(normalized):
     """Build a ListItem for a Kick stream/channel result."""
     item = xbmcgui.ListItem(normalized["display_name"])
     item.setLabel2(_game_viewers_label(normalized["game_name"], normalized["viewer_count"]))
-    item.setArt({"thumb": normalized["thumbnail_url"]})
+    item.setArt({"thumb": _cache_busted(normalized["thumbnail_url"])})
     return _set_stream_properties(
         item,
         normalized["id"],
@@ -91,7 +105,7 @@ def build_live_list_item(channel, stream_data):
     """Build a ListItem for a live followed Twitch channel on Live Streams."""
     item = xbmcgui.ListItem(channel["broadcaster_name"])
     item.setLabel2(_game_viewers_label(stream_data["game_name"], stream_data["viewer_count"]))
-    item.setArt({"thumb": thumbnail_url(stream_data["thumbnail_url"])})
+    item.setArt({"thumb": _cache_busted(thumbnail_url(stream_data["thumbnail_url"]))})
     return _set_live_list_properties(
         item,
         channel["broadcaster_id"],
@@ -106,7 +120,7 @@ def build_kick_list_item(normalized):
     """Build a ListItem for a live followed Kick channel on Live Streams."""
     item = xbmcgui.ListItem(normalized["display_name"])
     item.setLabel2(_game_viewers_label(normalized["game_name"], normalized["viewer_count"]))
-    item.setArt({"thumb": normalized["thumbnail_url"]})
+    item.setArt({"thumb": _cache_busted(normalized["thumbnail_url"])})
     return _set_live_list_properties(
         item,
         normalized["id"],

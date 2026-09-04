@@ -86,7 +86,7 @@ def test_build_stream_item_sets_label2_and_thumbnail():
     assert item.getLabel() == "Alice"
     assert "Just Chatting" in item.getLabel2()
     assert "500" in item.getLabel2()
-    assert item.getArt("thumb") == "https://example.invalid/320x180.jpg"
+    assert item.getArt("thumb").startswith("https://example.invalid/320x180.jpg?_tc=")
     assert item.getProperty("broadcaster_id") == "1"
     assert item.getProperty("game_name") == "Just Chatting"
     assert item.getProperty("viewer_count") == "500"
@@ -97,7 +97,7 @@ def test_build_channel_item_live_shows_game_and_live_status():
     assert item.getLabel() == "Bob"
     assert "Live" in item.getLabel2()
     assert "League of Legends" in item.getLabel2()
-    assert item.getArt("thumb") == "https://example.invalid/bob.jpg"
+    assert item.getArt("thumb").startswith("https://example.invalid/bob.jpg?_tc=")
     assert item.getProperty("broadcaster_id") == "2"
     assert item.getProperty("game_name") == "League of Legends"
 

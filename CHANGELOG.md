@@ -4,6 +4,16 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.29.6] - 2026-09-04
+
+### Fixed
+- Kick category search now falls back to trailing words when the full query has no hits, so e.g. "world of warships" finds a Kick category actually named just "Warships" (Kick's `name` filter is a plain substring match of the whole query, unlike Twitch's fuzzier search)
+
+## [0.29.5] - 2026-09-04
+
+### Fixed
+- Stream/channel preview thumbnails now carry a 5-minute-bucketed cache-busting query param, so Kodi's texture cache (keyed by URL) refetches on refresh instead of serving an indefinitely stale local copy
+
 ## [0.29.4] - 2026-09-04
 
 ### Added

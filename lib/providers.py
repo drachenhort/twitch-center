@@ -159,16 +159,32 @@ def search_kick_categories(addon, query, search_categories_fn=None):
     """Return Kick categories matching `query` by name, or [] if no Kick app
     credentials are configured or the call fails - never raises. Mirrors
     get_kick_top_categories's silent-empty contract; Discover's search
-    treats an empty result the same as "nothing found", not an error."""
+    treats an empty result the same as "nothing found", not an error.
+
+    Kick's `name` filter is a plain substring match of the WHOLE query
+    against the category name (see lib.kick.api.search_categories) - it
+    finds "World of Warships" from "warships" fine, but not from "world of
+    warships" when the category is actually just named "Warships", since
+    the full query is then no longer a substring of the shorter name. If
+    the full query has no hits, retry with its trailing words only,
+    dropping one leading word at a time, since a franchise's generic
+    prefix ("World of", "Call of") is usually what's missing from the
+    Kick-side name, not the distinctive tail."""
     if search_categories_fn is None:
         search_categories_fn = _kick_search_categories
     access_token = _kick_app_access_token(addon)
     if access_token is None:
         return []
-    try:
-        return search_categories_fn(access_token, query)
-    except Exception:
-        return []
+    words = query.split()
+    for attempt in range(len(words)):
+        candidate = " ".join(words[attempt:])
+        try:
+            matches = search_categories_fn(access_token, candidate)
+        except Exception:
+            return []
+        if matches:
+            return matches
+    return []
 
 
 def _normalize_kick_live_stream_entry(entry):
