@@ -5,12 +5,13 @@ platform. No xbmc* imports - Kodi access happens only through the `addon`
 parameter callers pass in, same discipline as lib/settings.py."""
 import json
 
+from lib import kick_category_cache
 from lib.kick import auth as kick_auth
 from lib.kick import stream as kick_stream
+from lib.kick.api import get_all_categories as _kick_get_all_categories
 from lib.kick.api import get_live_streams as _kick_get_live_streams
 from lib.kick.api import get_top_categories as _kick_get_top_categories
 from lib.kick.api import get_unofficial_channel as _kick_get_unofficial_channel
-from lib.kick.api import search_categories as _kick_search_categories
 from lib.twitch import stream as twitch_stream
 
 
@@ -155,36 +156,54 @@ def get_kick_top_categories(addon, get_top_categories_fn=None):
         return []
 
 
-def search_kick_categories(addon, query, search_categories_fn=None):
-    """Return Kick categories matching `query` by name, or [] if no Kick app
-    credentials are configured or the call fails - never raises. Mirrors
-    get_kick_top_categories's silent-empty contract; Discover's search
-    treats an empty result the same as "nothing found", not an error.
+def search_kick_categories(
+    addon, query, get_all_categories_fn=None, load_cache_fn=None, save_cache_fn=None
+):
+    """Return Kick categories whose name contains `query` anywhere
+    (case-insensitive), or [] if no Kick app credentials are configured or
+    the lookup fails - never raises. Mirrors get_kick_top_categories's
+    silent-empty contract; Discover's search treats an empty result the same
+    as "nothing found", not an error.
 
-    Kick's `name` filter is a plain substring match of the WHOLE query
-    against the category name (see lib.kick.api.search_categories) - it
-    finds "World of Warships" from "warships" fine, but not from "world of
-    warships" when the category is actually just named "Warships", since
-    the full query is then no longer a substring of the shorter name. If
-    the full query has no hits, retry with its trailing words only,
-    dropping one leading word at a time, since a franchise's generic
-    prefix ("World of", "Call of") is usually what's missing from the
-    Kick-side name, not the distinctive tail."""
-    if search_categories_fn is None:
-        search_categories_fn = _kick_search_categories
+    Kick's own /public/v2/categories `name` filter (lib.kick.api.
+    search_categories) only prefix-matches the category name, so it can't
+    find "EVE Online" from "online" - "online" is never a prefix of that
+    name. There's no server-side substring search, so this searches a local
+    cache of the full category catalog instead (see kick_category_cache) and
+    filters it client-side. The cache is built lazily on first use (a ~19k-
+    row catalog pull) and then kept indefinitely - refresh_kick_categories_cache
+    is what the "Refresh Kick categories" settings action calls to update it
+    later, since new Kick categories won't otherwise ever appear here."""
+    if load_cache_fn is None:
+        load_cache_fn = kick_category_cache.load
+    try:
+        categories = load_cache_fn(addon)
+        if categories is None:
+            categories = refresh_kick_categories_cache(
+                addon, get_all_categories_fn=get_all_categories_fn, save_cache_fn=save_cache_fn
+            )
+    except Exception:
+        return []
+    query_lower = query.lower()
+    return [category for category in categories if query_lower in category["name"].lower()]
+
+
+def refresh_kick_categories_cache(addon, get_all_categories_fn=None, save_cache_fn=None):
+    """Fetch Kick's full category catalog and overwrite the local cache file.
+    Raises if Kick app credentials aren't configured or the fetch fails -
+    unlike the rest of this module's Kick helpers, callers here (the lazy
+    build in search_kick_categories, and the "Refresh Kick categories"
+    settings action) need to know it actually happened."""
+    if get_all_categories_fn is None:
+        get_all_categories_fn = _kick_get_all_categories
+    if save_cache_fn is None:
+        save_cache_fn = kick_category_cache.save
     access_token = _kick_app_access_token(addon)
     if access_token is None:
-        return []
-    words = query.split()
-    for attempt in range(len(words)):
-        candidate = " ".join(words[attempt:])
-        try:
-            matches = search_categories_fn(access_token, candidate)
-        except Exception:
-            return []
-        if matches:
-            return matches
-    return []
+        raise RuntimeError("Kick app credentials not configured (set Kick Client Secret in Settings).")
+    categories = get_all_categories_fn(access_token)
+    save_cache_fn(addon, categories)
+    return categories
 
 
 def _normalize_kick_live_stream_entry(entry):

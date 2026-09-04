@@ -1,3 +1,4 @@
+import pytest
 import xbmcaddon
 
 from lib import providers
@@ -236,53 +237,102 @@ def test_get_kick_top_categories_returns_empty_list_on_error():
 
 def test_search_kick_categories_returns_empty_list_when_no_kick_app_credentials():
     addon = xbmcaddon.Addon()
-    assert providers.search_kick_categories(addon, "eve") == []
+
+    def load_cache(addon):
+        return None
+
+    assert providers.search_kick_categories(addon, "eve", load_cache_fn=load_cache) == []
 
 
-def test_search_kick_categories_returns_matches_when_configured():
+def test_search_kick_categories_uses_cache_when_present():
     addon = xbmcaddon.Addon()
-    _set_kick_app_credentials(addon)
 
-    def fake_search_categories(access_token, query):
-        assert access_token == "apptok"
-        assert query == "eve"
-        return [{"id": 3, "name": "EVE Online"}]
+    def load_cache(addon):
+        return [{"id": 3, "name": "EVE Online"}, {"id": 5, "name": "Minecraft"}]
 
-    with patch.object(kick_auth, "get_app_access_token", return_value="apptok"):
-        result = providers.search_kick_categories(addon, "eve", search_categories_fn=fake_search_categories)
+    def get_all_categories(access_token):
+        raise AssertionError("should not fetch when cache is already populated")
+
+    result = providers.search_kick_categories(
+        addon, "eve", load_cache_fn=load_cache, get_all_categories_fn=get_all_categories
+    )
     assert result == [{"id": 3, "name": "EVE Online"}]
 
 
-def test_search_kick_categories_falls_back_to_trailing_words():
+def test_search_kick_categories_matches_substring_anywhere_in_name():
+    """Kick's own search API only prefix-matches, so "online" alone would
+    never find "EVE Online" from Kick directly - this is exactly the case
+    the local cache + client-side substring search exists to fix."""
+    addon = xbmcaddon.Addon()
+
+    def load_cache(addon):
+        return [{"id": 3, "name": "EVE Online"}, {"id": 9, "name": "Online Soccer Manager"}]
+
+    result = providers.search_kick_categories(addon, "online", load_cache_fn=load_cache)
+    assert result == [{"id": 3, "name": "EVE Online"}, {"id": 9, "name": "Online Soccer Manager"}]
+
+
+def test_search_kick_categories_builds_cache_lazily_when_missing():
     addon = xbmcaddon.Addon()
     _set_kick_app_credentials(addon)
+    saved = {}
 
-    seen_queries = []
+    def load_cache(addon):
+        return None
 
-    def fake_search_categories(access_token, query):
-        seen_queries.append(query)
-        if query == "warships":
-            return [{"id": 3, "name": "Warships"}]
-        return []
+    def save_cache(addon, categories):
+        saved["categories"] = categories
+
+    def get_all_categories(access_token):
+        assert access_token == "apptok"
+        return [{"id": 3, "name": "EVE Online"}]
 
     with patch.object(kick_auth, "get_app_access_token", return_value="apptok"):
         result = providers.search_kick_categories(
-            addon, "world of warships", search_categories_fn=fake_search_categories
+            addon,
+            "eve",
+            load_cache_fn=load_cache,
+            save_cache_fn=save_cache,
+            get_all_categories_fn=get_all_categories,
         )
-    assert result == [{"id": 3, "name": "Warships"}]
-    assert seen_queries == ["world of warships", "of warships", "warships"]
+    assert result == [{"id": 3, "name": "EVE Online"}]
+    assert saved["categories"] == [{"id": 3, "name": "EVE Online"}]
 
 
 def test_search_kick_categories_returns_empty_list_on_error():
     addon = xbmcaddon.Addon()
-    _set_kick_app_credentials(addon)
 
-    def failing(access_token, query):
+    def load_cache(addon):
         raise Exception("boom")
 
-    with patch.object(kick_auth, "get_app_access_token", return_value="apptok"):
-        result = providers.search_kick_categories(addon, "eve", search_categories_fn=failing)
+    result = providers.search_kick_categories(addon, "eve", load_cache_fn=load_cache)
     assert result == []
+
+
+def test_refresh_kick_categories_cache_raises_when_no_kick_app_credentials():
+    addon = xbmcaddon.Addon()
+    with pytest.raises(RuntimeError):
+        providers.refresh_kick_categories_cache(addon)
+
+
+def test_refresh_kick_categories_cache_fetches_and_saves():
+    addon = xbmcaddon.Addon()
+    _set_kick_app_credentials(addon)
+    saved = {}
+
+    def get_all_categories(access_token):
+        assert access_token == "apptok"
+        return [{"id": 3, "name": "EVE Online"}]
+
+    def save_cache(addon, categories):
+        saved["categories"] = categories
+
+    with patch.object(kick_auth, "get_app_access_token", return_value="apptok"):
+        result = providers.refresh_kick_categories_cache(
+            addon, get_all_categories_fn=get_all_categories, save_cache_fn=save_cache
+        )
+    assert result == [{"id": 3, "name": "EVE Online"}]
+    assert saved["categories"] == [{"id": 3, "name": "EVE Online"}]
 
 
 def test_get_kick_category_streams_returns_empty_list_when_no_kick_app_credentials():

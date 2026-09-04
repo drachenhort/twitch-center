@@ -89,13 +89,42 @@ def get_top_categories(access_token, first=20):
     return [{"id": category["id"], "name": category["name"]} for category in body["data"]]
 
 
+def get_all_categories(access_token, page_size=100):
+    """Return every Kick category as a list of {"id", "name"} dicts, by
+    paging GET /public/v2/categories to exhaustion via its cursor (confirmed
+    live: `cursor` is the opaque pagination.next_cursor from the previous
+    page; an empty next_cursor means the last page). This is a full ~19k-row
+    catalog pull (~190 requests at the max page_size of 100) - callers should
+    cache the result rather than calling this per search. Exists because
+    Kick's `name` filter (see search_categories) only prefix-matches, so
+    finding a category by a word anywhere in its name (e.g. "online" inside
+    "EVE Online") requires pulling the whole list and filtering client-side."""
+    results = []
+    cursor = None
+    while True:
+        params = {"limit": page_size}
+        if cursor:
+            params["cursor"] = cursor
+        body = _get(API_BASE_V2 + "/categories", access_token, params=params)
+        for category in body["data"]:
+            results.append({"id": category["id"], "name": category["name"]})
+        cursor = body.get("pagination", {}).get("next_cursor")
+        if not cursor:
+            break
+    return results
+
+
 def search_categories(access_token, query, first=20):
     """Return Kick categories whose name matches `query`, via GET
-    /public/v2/categories's `name` filter param (confirmed live
-    2026-08-23: case-insensitive substring match, e.g. "eve" matches "EVE
-    Online"). Kick's own category data can list the same name more than
-    once under different ids (confirmed live) - deduped here by id,
-    keeping first-seen order."""
+    /public/v2/categories's `name` filter param (confirmed live 2026-09-04:
+    case-insensitive PREFIX match against the category name - "eve" matches
+    "EVE Online" because it's a prefix, but "online" does NOT, since "online"
+    is never a prefix of "EVE Online". Not a substring match anywhere in the
+    name, despite this function's name - see get_all_categories/
+    lib.providers for the client-side substring search built on top of that
+    limitation). Kick's own category data can list the same name more than
+    once under different ids (confirmed live) - deduped here by id, keeping
+    first-seen order."""
     body = _get(API_BASE_V2 + "/categories", access_token, params={"name": query, "limit": first})
     seen = set()
     results = []

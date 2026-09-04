@@ -118,3 +118,11 @@ msgctxt "#30031"
 msgid "When the streamer you're watching raids out to another channel, shows a prompt offering to switch playback there, auto-accepting after 15 seconds if not declined. Only works with the EventSub chat engine - IRC has no way to detect an outgoing raid."
 msgstr ""
 
+msgctxt "#30032"
+msgid "Refresh Kick categories"
+msgstr ""
+
+msgctxt "#30033"
+msgid "Kick's category search matches against a local copy of its full category list, built once on first search and not updated automatically. Run this after new games are added on Kick, or if search results seem out of date."
+msgstr ""
+

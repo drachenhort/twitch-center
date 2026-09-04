@@ -4,6 +4,14 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.30.0] - 2026-09-04
+
+### Fixed
+- Kick category search now actually finds a match anywhere in a category's name (e.g. "online" finding "EVE Online") - previously used Kick's own `name` filter directly, which turned out to be a prefix match, not substring, so a word matching the middle of a name (like "Online" being the second word of "EVE Online") could never be found no matter how the query was split
+
+### Added
+- Kick category search builds a local cache of Kick's full category catalog (~19k entries) on first use and searches that instead, since Kick's API can't do substring search server-side; a new "Refresh Kick categories" button in Settings rebuilds it on demand
+
 ## [0.29.6] - 2026-09-04
 
 ### Fixed

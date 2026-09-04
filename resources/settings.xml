@@ -95,6 +95,12 @@
           </constraints>
           <control type="edit" format="string"/>
         </setting>
+        <setting id="action_refresh_kick_categories" type="action" label="30032" help="30033">
+          <level>0</level>
+          <control type="button" format="action">
+            <data>RunScript(script.twitch.center,refresh_kick_categories)</data>
+          </control>
+        </setting>
         <setting id="kick_redirect_port" type="integer" label="30021" help="30023">
           <level>2</level>
           <default>8919</default>

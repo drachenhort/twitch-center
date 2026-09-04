@@ -90,6 +90,34 @@ def test_get_top_categories_returns_id_and_name():
     assert mock_get.call_args.kwargs["params"] == {"limit": 2}
 
 
+def test_get_all_categories_pages_until_cursor_empty():
+    page1 = {
+        "data": [{"id": 1, "name": "Apex Legends"}, {"id": 2, "name": "Fortnite"}],
+        "pagination": {"next_cursor": "abc"},
+    }
+    page2 = {
+        "data": [{"id": 3, "name": "EVE Online"}],
+        "pagination": {"next_cursor": ""},
+    }
+    with patch.object(api.requests, "get", side_effect=[_response(page1), _response(page2)]) as mock_get:
+        result = api.get_all_categories("token", page_size=2)
+    assert result == [
+        {"id": 1, "name": "Apex Legends"},
+        {"id": 2, "name": "Fortnite"},
+        {"id": 3, "name": "EVE Online"},
+    ]
+    assert mock_get.call_args_list[0].kwargs["params"] == {"limit": 2}
+    assert mock_get.call_args_list[1].kwargs["params"] == {"limit": 2, "cursor": "abc"}
+
+
+def test_get_all_categories_single_page():
+    body = {"data": [{"id": 1, "name": "Apex Legends"}], "pagination": {"next_cursor": ""}}
+    with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:
+        result = api.get_all_categories("token")
+    assert result == [{"id": 1, "name": "Apex Legends"}]
+    assert mock_get.call_count == 1
+
+
 def test_search_categories_returns_id_and_name():
     body = {"data": [{"id": 3, "name": "EVE Online", "thumbnail": "https://example.invalid/eve.jpg", "tags": []}]}
     with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:
