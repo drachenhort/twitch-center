@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.30.1] - 2026-09-06
+
+### Fixed
+- Raid-follow prompt froze silently on a live raid instead of switching channels - `RaidPromptDialog._countdown`'s background thread had no exception handling, so any error inside it died with zero trace (Python's default uncaught-thread-exception output goes to stderr, which Kodi's log doesn't capture), leaving the dialog stuck on its last shown countdown value until the original stream ended on its own and the UI fell back to the main menu. The countdown now logs any failure and still finishes as accepted instead of hanging forever.
+
 ## [0.30.0] - 2026-09-04
 
 ### Fixed

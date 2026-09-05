@@ -14,6 +14,7 @@ already uses safely from background threads elsewhere in this codebase."""
 import threading
 import time
 
+import xbmc
 import xbmcgui
 
 _DEFAULT_COUNTDOWN_SECONDS = 15
@@ -55,11 +56,23 @@ class RaidPromptDialog(xbmcgui.WindowXMLDialog):
         self._thread.start()
 
     def _countdown(self):
-        remaining = self._countdown_seconds
-        while remaining > 0:
-            self._sleep_fn(1)
-            remaining -= 1
-            self._update_label(remaining)
+        # An uncaught exception here otherwise kills this thread silently - Python's default
+        # thread excepthook writes to stderr, which Kodi's log doesn't capture, so the dialog
+        # just freezes forever on whatever was last shown with zero trace in kodi.log
+        # (confirmed live: raid prompt loaded, then total silence until the stream itself hit
+        # eof over a minute later - no auto-switch attempt, no error, nothing). Fail visibly,
+        # and fail safe by still finishing as accepted rather than leaving the dialog stuck.
+        try:
+            remaining = self._countdown_seconds
+            while remaining > 0:
+                self._sleep_fn(1)
+                remaining -= 1
+                self._update_label(remaining)
+        except Exception as exc:
+            xbmc.log(
+                "script.twitch.center: raid prompt countdown failed: " + repr(exc),
+                xbmc.LOGERROR,
+            )
         self._finish(True)
 
     def _update_label(self, remaining):

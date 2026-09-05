@@ -95,6 +95,28 @@ def test_decline_after_countdown_already_finished_does_not_invoke_on_result_twic
     assert results == [True]
 
 
+def test_countdown_exception_still_finishes_instead_of_hanging_forever():
+    # A background-thread exception here otherwise dies silently (Python's default thread
+    # excepthook writes to stderr, which Kodi's log never captures) and leaves the dialog
+    # frozen forever - confirmed live via a real raid where the countdown never progressed
+    # and no error appeared anywhere in kodi.log. The countdown must still resolve.
+    results = []
+    dialog = _dialog(countdown_seconds=2)
+    def _boom_after_init(remaining):
+        if remaining != dialog._countdown_seconds:
+            raise RuntimeError("boom")
+
+    with patch.object(dialog, "close"):
+        dialog._update_label = _boom_after_init
+        dialog.prompt(
+            display_name="X", to_channel="target", viewer_count=5, on_result=results.append
+        )
+        dialog.onInit()
+        dialog._thread.join(timeout=1)
+        assert not dialog._thread.is_alive()
+    assert results == [True]
+
+
 def test_countdown_label_shows_raid_details_and_final_second():
     dialog = _dialog(countdown_seconds=2)
     with patch.object(dialog, "close"):
