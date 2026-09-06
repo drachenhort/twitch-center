@@ -48,9 +48,22 @@ class RaidPromptDialog(xbmcgui.WindowXMLDialog):
         self._viewer_count = viewer_count
         self._on_result = on_result
         self._finished = False
+        # Diagnostic trace for the "raid prompt closed near-instantly, no exception
+        # anywhere" failure seen live 2026-09-06 - onInit's own try/except never fired,
+        # so something outside onInit is behind it. Pin down exactly which stage runs
+        # last next time this happens.
+        xbmc.log("script.twitch.center: raid prompt prompt() calling show()", xbmc.LOGINFO)
         self.show()
+        xbmc.log("script.twitch.center: raid prompt prompt() show() returned", xbmc.LOGINFO)
+
+    def onDeinit(self):
+        xbmc.log(
+            "script.twitch.center: raid prompt onDeinit (finished=%r)" % (self._finished,),
+            xbmc.LOGINFO,
+        )
 
     def onInit(self):
+        xbmc.log("script.twitch.center: raid prompt onInit entered", xbmc.LOGINFO)
         # Kodi's GUI-callback invoker can swallow an exception here without ever
         # reaching kodi.log when debug logging is off, leaving the dialog stuck
         # exactly like the countdown-thread failure documented above but with no

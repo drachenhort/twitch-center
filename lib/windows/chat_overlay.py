@@ -199,7 +199,9 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
         # fires in the destination channel's chat), so the IRC engine never produces a
         # "raid_out" event in the first place. See lib/twitch/eventsub.py's
         # "channel.raid" handling for how the two raid directions are distinguished.
+        xbmc.log("script.twitch.center: _handle_raid_out entered: " + repr(event), xbmc.LOGINFO)
         if not self._settings.follow_raids_enabled:
+            xbmc.log("script.twitch.center: _handle_raid_out: follow_raids disabled, skipping", xbmc.LOGINFO)
             return
         prompt_cls = self._raid_prompt_cls
         if prompt_cls is None:
@@ -211,9 +213,11 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
             "Default",
             "1080i",
         )
+        xbmc.log("script.twitch.center: _handle_raid_out: dialog constructed", xbmc.LOGINFO)
         to_channel = event["to_channel"]
 
         def on_result(accepted):
+            xbmc.log("script.twitch.center: _handle_raid_out: on_result accepted=%r" % (accepted,), xbmc.LOGINFO)
             if accepted:
                 self._play_channel_fn(to_channel)
 
@@ -223,6 +227,7 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
             viewer_count=event["viewer_count"],
             on_result=on_result,
         )
+        xbmc.log("script.twitch.center: _handle_raid_out: prompt() call returned", xbmc.LOGINFO)
 
     def _script_path(self):
         import xbmcaddon
