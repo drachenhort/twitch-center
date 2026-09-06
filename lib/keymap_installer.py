@@ -1,6 +1,7 @@
 import os
 import xbmc
 import xbmcaddon
+import xbmcvfs
 
 
 def _build_keymap(key, remote):
@@ -27,7 +28,7 @@ def _build_keymap(key, remote):
 
 def install():
     addon = xbmcaddon.Addon()
-    profile_path = xbmc.translatePath(addon.getAddonInfo("profile"))
+    profile_path = xbmcvfs.translatePath(addon.getAddonInfo("profile"))
 
     key = addon.getSetting("audio_cycle_key").strip()
     remote = addon.getSetting("audio_cycle_remote").strip()

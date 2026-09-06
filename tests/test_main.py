@@ -1,6 +1,18 @@
 import threading
+from unittest.mock import patch
+
+import pytest
 
 from lib import main
+
+
+@pytest.fixture(autouse=True)
+def _noop_keymap_install():
+    # run()'s default-launch path installs the keymap unconditionally - not
+    # what these tests are about, and the real installer touches the
+    # filesystem via xbmcvfs.translatePath, which FakeAddon doesn't support.
+    with patch.object(main.keymap_installer, "install"):
+        yield
 
 
 class FakeAddon:
@@ -281,3 +293,95 @@ def test_run_does_not_quit_when_user_cancels_prompt():
     assert len(prompts) == 1
     assert FakeMainWindow.instances[0].closed_event.is_set()
     assert not getattr(FakeMainWindow.instances[0].closed_event, "quit_requested", False)
+
+
+def test_run_dispatches_action_instead_of_launching_a_second_main_window():
+    # A RunScript(script.twitch.center,<action>) call (keymap or settings
+    # button) used to fall through to the normal launch path and construct a
+    # second MainWindow alongside the persistent one - confirmed live
+    # 2026-09-06 (a window-flicker with no actual effect from the action).
+    FakeMainWindow.instances.clear()
+    with patch.object(main, "dispatch") as mock_dispatch:
+        main.run(
+            ["main.py", "refresh_kick_categories"],
+            addon=FakeAddon(token=None),
+            main_window_cls=FakeMainWindow,
+            monitor_cls=FakeMonitor,
+        )
+    mock_dispatch.assert_called_once_with("refresh_kick_categories", mock_dispatch.call_args[0][1])
+    assert FakeMainWindow.instances == []
+
+
+def test_run_installs_keymap_on_normal_launch_but_not_on_dispatch():
+    FakeMainWindow.instances.clear()
+    calls = []
+    main.run(
+        [],
+        addon=FakeAddon(token=None),
+        main_window_cls=FakeMainWindow,
+        monitor_cls=FakeMonitor,
+        keymap_installer_fn=lambda: calls.append("launch"),
+    )
+    assert calls == ["launch"]
+
+    calls.clear()
+    with patch.object(main, "dispatch"):
+        main.run(
+            ["main.py", "cycle_audio"],
+            addon=FakeAddon(token=None),
+            main_window_cls=FakeMainWindow,
+            monitor_cls=FakeMonitor,
+            keymap_installer_fn=lambda: calls.append("dispatch"),
+        )
+    assert calls == []
+
+
+def test_dispatch_routes_cycle_audio_to_audio_module():
+    with patch.object(main.audio, "cycle_audio_stream") as mock_cycle:
+        main.dispatch("cycle_audio", addon=FakeAddon())
+    mock_cycle.assert_called_once_with()
+
+
+def test_dispatch_routes_refresh_kick_categories():
+    with patch.object(main, "_refresh_kick_categories") as mock_refresh:
+        addon = FakeAddon()
+        main.dispatch("refresh_kick_categories", addon)
+    mock_refresh.assert_called_once_with(addon)
+
+
+def test_dispatch_logs_unknown_action():
+    with patch.object(main.xbmc, "log") as mock_log:
+        main.dispatch("something_unexpected", addon=FakeAddon())
+    assert mock_log.call_count == 1
+    assert "something_unexpected" in mock_log.call_args[0][0]
+
+
+def test_refresh_kick_categories_shows_success_notification():
+    addon = FakeAddon()
+    with patch.object(
+        main.providers, "refresh_kick_categories_cache", return_value=[{"id": 1, "name": "EVE Online"}]
+    ), patch.object(main.xbmcgui, "Dialog") as mock_dialog_cls, patch.object(
+        main.xbmcgui, "DialogProgressBG"
+    ) as mock_progress_cls:
+        main._refresh_kick_categories(addon)
+
+    mock_progress_cls.return_value.create.assert_called_once()
+    mock_progress_cls.return_value.close.assert_called_once()
+    notification = mock_dialog_cls.return_value.notification
+    notification.assert_called_once()
+    assert "1" in notification.call_args[0][1]
+
+
+def test_refresh_kick_categories_shows_failure_notification_on_error():
+    addon = FakeAddon()
+    with patch.object(
+        main.providers, "refresh_kick_categories_cache", side_effect=RuntimeError("no credentials")
+    ), patch.object(main.xbmcgui, "Dialog") as mock_dialog_cls, patch.object(
+        main.xbmcgui, "DialogProgressBG"
+    ) as mock_progress_cls:
+        main._refresh_kick_categories(addon)
+
+    mock_progress_cls.return_value.close.assert_called_once()
+    notification = mock_dialog_cls.return_value.notification
+    notification.assert_called_once()
+    assert "failed" in notification.call_args[0][1].lower()

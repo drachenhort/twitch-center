@@ -228,3 +228,14 @@ class Dialog:
 
     def notification(self, heading, message, icon=None, time=None):
         Dialog.notifications.append((heading, message))
+
+
+class DialogProgressBG:
+    def create(self, heading, message=""):
+        pass
+
+    def update(self, percent=0, heading=None, message=None):
+        pass
+
+    def close(self):
+        pass

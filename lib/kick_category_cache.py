@@ -11,17 +11,22 @@ Stored as a JSON file in the addon's profile directory rather than via
 addon.setSetting/getSetting (as lib.kick.auth does for tokens) - a ~19k-row
 catalog is far too big for settings.xml storage. This is the only lib/kick*
 module that imports xbmc directly (translatePath is unavoidable to resolve a
-real filesystem path), same exception lib/keymap_installer.py makes."""
+real filesystem path), same exception lib/keymap_installer.py makes.
+
+Uses xbmcvfs.translatePath, not xbmc.translatePath - the latter was removed
+in Kodi 21 (confirmed live: AttributeError on kodi.local's Kodi 21.3, which
+made every Kick category search silently return "nothing found" since this
+was the first thing search_kick_categories's cache lookup called)."""
 import json
 import os
 
-import xbmc
+import xbmcvfs
 
 CACHE_FILENAME = "kick_categories_cache.json"
 
 
 def cache_path(addon):
-    profile_path = xbmc.translatePath(addon.getAddonInfo("profile"))
+    profile_path = xbmcvfs.translatePath(addon.getAddonInfo("profile"))
     return os.path.join(profile_path, CACHE_FILENAME)
 
 

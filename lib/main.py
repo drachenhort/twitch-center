@@ -13,6 +13,8 @@ import xbmc
 import xbmcaddon
 import xbmcgui
 
+from lib import keymap_installer, providers
+from lib.player import audio
 from lib.twitch import auth
 from lib.windows.main_window import MainWindow
 
@@ -33,7 +35,51 @@ def show_quit_prompt():
     )
 
 
-def run(argv, addon=None, main_window_cls=None, monitor_cls=None):
+def dispatch(action, addon):
+    """Route a RunScript action (from a keymap binding or a Settings action
+    button - see resources/settings.xml and lib/keymap_installer.py) to its
+    handler, instead of falling through to the normal MainWindow launch below.
+
+    This used to live in the addon.xml-unused, orphaned root addon.py -
+    addon.xml's actual script entry point is this file, whose run() ignored
+    argv entirely, so a RunScript(script.twitch.center,refresh_kick_categories)
+    or (...,cycle_audio) call just launched a second, redundant MainWindow
+    instance instead of doing anything - confirmed live 2026-09-06 (settings
+    button gave a window-flicker/sound with no actual refresh or feedback)."""
+    if action == "cycle_audio":
+        audio.cycle_audio_stream()
+    elif action == "refresh_kick_categories":
+        _refresh_kick_categories(addon)
+    else:
+        xbmc.log(
+            "script.twitch.center: unknown action '{}'".format(action),
+            xbmc.LOGWARNING,
+        )
+
+
+def _refresh_kick_categories(addon):
+    """Handler for the "Refresh Kick categories" settings button - rebuilds
+    the local category cache search runs against (see
+    lib.kick_category_cache), since Kick's search API can't be queried live
+    for this and the cache otherwise never updates itself."""
+    dialog = xbmcgui.Dialog()
+    progress = xbmcgui.DialogProgressBG()
+    progress.create("SIGMA Streaming Hub", "Refreshing Kick categories...")
+    try:
+        categories = providers.refresh_kick_categories_cache(addon)
+    except Exception as exc:
+        xbmc.log(
+            "script.twitch.center: Kick category cache refresh failed: " + repr(exc),
+            xbmc.LOGERROR,
+        )
+        dialog.notification("SIGMA Streaming Hub", "Kick category refresh failed - see log.")
+        return
+    finally:
+        progress.close()
+    dialog.notification("SIGMA Streaming Hub", "Kick categories updated ({} found).".format(len(categories)))
+
+
+def run(argv, addon=None, main_window_cls=None, monitor_cls=None, keymap_installer_fn=None):
     """Construct MainWindow once and block until it closes for real.
 
     Kodi's xbmc.python.script addons run to completion and tear down; a
@@ -42,11 +88,23 @@ def run(argv, addon=None, main_window_cls=None, monitor_cls=None):
     xbmc.Monitor() wait loop until either Kodi is shutting down or the
     window signals (via its closed_event) that it's done. This is the same
     wait-loop shape as before the persistent-window migration - only window
-    construction collapsed from "one per screen transition" to "once, ever"."""
+    construction collapsed from "one per screen transition" to "once, ever".
+
+    A RunScript(script.twitch.center,<action>) call (keymap or settings
+    button) arrives here as an extra argv element - dispatch it instead of
+    launching a second MainWindow alongside the persistent one; this is the
+    only invocation that needs the keymap installed (it's what makes the
+    cycle_audio binding exist at all), so skip that for a dispatch call."""
     addon = addon or xbmcaddon.Addon()
     main_window_cls = main_window_cls or MainWindow
     monitor_cls = monitor_cls or xbmc.Monitor
+    keymap_installer_fn = keymap_installer_fn or keymap_installer.install
 
+    if len(argv) > 1:
+        dispatch(argv[1], addon)
+        return
+
+    keymap_installer_fn()
     token = auth.load_token(addon)
     initial_view = "menu" if token else "login"
     version_text = "v%s (%s)" % (addon.getAddonInfo("version"), VERSION_DATE)

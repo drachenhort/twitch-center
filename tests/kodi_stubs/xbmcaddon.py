@@ -10,6 +10,7 @@ _ADDON_INFO = {
 class Addon:
     def __init__(self, id=None):
         self._settings = {}
+        self._info = dict(_ADDON_INFO)
 
     def getSetting(self, id):
         return self._settings.get(id, "")
@@ -24,7 +25,7 @@ class Addon:
         self._settings[id] = value
 
     def getAddonInfo(self, key):
-        return _ADDON_INFO.get(key, "")
+        return self._info.get(key, "")
 
     def openSettings(self):
         pass

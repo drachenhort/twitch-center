@@ -8,7 +8,7 @@ import os
 import xml.etree.ElementTree as ET
 import zipfile
 
-INCLUDES = ["addon.xml", "addon.py", "icon.png", "lib", "resources"]
+INCLUDES = ["addon.xml", "icon.png", "lib", "resources"]
 
 
 def get_addon_id(source_dir):

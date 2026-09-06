@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.30.4] - 2026-09-06
+
+### Fixed
+- Kick category search still failed after the previous fix - the local category cache lookup used `xbmc.translatePath`, which was removed in Kodi 21 (`AttributeError: module 'xbmc' has no attribute 'translatePath'`). Every search silently hit this and returned "nothing found" with no error, since it was swallowed by the same broad exception handling meant for genuine lookup failures. Switched to `xbmcvfs.translatePath`, the current API, along with `lib/keymap_installer.py`'s identical use of the removed call.
+- The "Refresh Kick categories" settings button (and the `cycle_audio` remote/keyboard binding) silently did nothing useful - addon.xml's real script entry point is `lib/main.py`, but its `run()` ignored the action argument entirely and just launched a redundant second `MainWindow` instance alongside the persistent one. The actual dispatch logic lived in a root `addon.py` that was never wired to anything and has been removed; `lib/main.py` now dispatches these actions itself.
+
 ## [0.30.3] - 2026-09-06
 
 ### Fixed
