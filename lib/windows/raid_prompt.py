@@ -51,9 +51,27 @@ class RaidPromptDialog(xbmcgui.WindowXMLDialog):
         self.show()
 
     def onInit(self):
-        self._update_label(self._countdown_seconds)
-        self._thread = threading.Thread(target=self._countdown, daemon=True)
-        self._thread.start()
+        # Kodi's GUI-callback invoker can swallow an exception here without ever
+        # reaching kodi.log when debug logging is off, leaving the dialog stuck
+        # exactly like the countdown-thread failure documented above but with no
+        # trace at all - log explicitly so this failure mode is never invisible again.
+        try:
+            # The dialog itself is easy to miss over live video (it's not modal and has
+            # no attention-grabbing animation) - Kodi's built-in notification sound gives
+            # an audible cue even when nobody's looking at the screen.
+            xbmcgui.Dialog().notification(
+                "Raid incoming",
+                "%s is raiding to %s" % (self._display_name, self._to_channel),
+            )
+            self._update_label(self._countdown_seconds)
+            self._thread = threading.Thread(target=self._countdown, daemon=True)
+            self._thread.start()
+        except Exception as exc:
+            xbmc.log(
+                "script.twitch.center: raid prompt onInit failed: " + repr(exc),
+                xbmc.LOGERROR,
+            )
+            self._finish(True)
 
     def _countdown(self):
         # An uncaught exception here otherwise kills this thread silently - Python's default

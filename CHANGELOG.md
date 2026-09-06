@@ -4,6 +4,14 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.30.2] - 2026-09-06
+
+### Fixed
+- Raid prompt was effectively invisible during live playback - both it and the main menu's dim overlay panel referenced a `black.png` texture that was never shipped in `resources/skins/Default/media`, so the panel silently failed to render (Kodi only logs this as a debug-level `CGUITextureManager` warning, invisible with debug logging off) and the countdown label/Decline button were left floating with no background, easy to miss entirely over video. Switched both to the skin's existing `colors/white.png` + `colordiffuse` tinting technique, which is already used everywhere else in this skin for solid-color panels.
+
+### Added
+- Raid prompt now also fires Kodi's built-in notification sound + toast when it opens, so a raid isn't missed if nobody's looking at the screen at that moment.
+
 ## [0.30.1] - 2026-09-06
 
 ### Fixed

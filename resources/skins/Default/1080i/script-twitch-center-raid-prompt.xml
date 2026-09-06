@@ -7,7 +7,7 @@
       <posy>420</posy>
       <width>800</width>
       <height>240</height>
-      <texture>black.png</texture>
+      <texture colordiffuse="CC000000">colors/white.png</texture>
     </control>
     <control type="label" id="202">
       <description>Countdown message</description>
