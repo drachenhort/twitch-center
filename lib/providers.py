@@ -156,6 +156,16 @@ def get_kick_top_categories(addon, get_top_categories_fn=None):
         return []
 
 
+def kick_category_cache_exists(addon, load_cache_fn=None):
+    """True once the local Kick category cache has been built - callers can
+    use this to warn before the one-time ~19k-row catalog pull search_kick_categories
+    triggers lazily on first use, which takes well over a minute on a real
+    device's network and gives no feedback of its own while it runs."""
+    if load_cache_fn is None:
+        load_cache_fn = kick_category_cache.load
+    return load_cache_fn(addon) is not None
+
+
 def search_kick_categories(
     addon, query, get_all_categories_fn=None, load_cache_fn=None, save_cache_fn=None
 ):

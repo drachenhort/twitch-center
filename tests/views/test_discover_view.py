@@ -289,6 +289,8 @@ def test_pressing_search_in_kick_mode_searches_categories_then_lists_its_streams
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
         api, "get_top_games", return_value=TOP_GAMES
     ), patch.object(
+        providers, "kick_category_cache_exists", return_value=True
+    ), patch.object(
         providers, "search_kick_categories", return_value=matches
     ) as mock_search, patch.object(
         providers, "get_kick_category_streams", return_value=[KICK_CATEGORY_STREAM]
@@ -405,6 +407,8 @@ def test_pressing_search_in_kick_mode_merges_streams_from_duplicate_category_mat
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
         api, "get_top_games", return_value=TOP_GAMES
     ), patch.object(
+        providers, "kick_category_cache_exists", return_value=True
+    ), patch.object(
         providers, "search_kick_categories", return_value=matches
     ), patch.object(
         providers, "get_kick_category_streams", side_effect=fake_get_streams
@@ -427,6 +431,8 @@ def test_pressing_search_in_kick_mode_shows_message_when_no_category_matches():
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
         api, "get_top_games", return_value=TOP_GAMES
     ), patch.object(
+        providers, "kick_category_cache_exists", return_value=True
+    ), patch.object(
         providers, "search_kick_categories", return_value=[]
     ), patch.object(providers, "get_kick_category_streams") as mock_get_streams:
         win = DiscoverView(FakeWindow())
@@ -438,6 +444,33 @@ def test_pressing_search_in_kick_mode_shows_message_when_no_category_matches():
 
     mock_get_streams.assert_not_called()
     assert win.window.getControl(DiscoverView.EMPTY_LABEL_ID).getLabel() != ""
+    assert win.window.getControl(DiscoverView.RESULTS_LIST_ID).size() == 0
+
+
+def test_pressing_search_in_kick_mode_shows_distinct_message_when_cache_build_fails():
+    # search_kick_categories swallows a failed lazy cache build the same as a
+    # genuine "no match" and returns [] either way - if the cache still doesn't
+    # exist after the attempt, that's a failed build, not an empty result, and
+    # should tell the user something different than "no matching category".
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    addon.setSetting("kick_client_secret", "csecret")
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_top_games", return_value=TOP_GAMES
+    ), patch.object(
+        providers, "kick_category_cache_exists", return_value=False
+    ), patch.object(
+        providers, "search_kick_categories", return_value=[]
+    ), patch.object(providers, "get_kick_category_streams") as mock_get_streams:
+        win = DiscoverView(FakeWindow())
+        win.activate()
+        _switch_to_kick_search_mode(win)
+        win.window.getControl(DiscoverView.SEARCH_EDIT_ID).setText("eve online")
+        win.window.setFocusId(DiscoverView.SEARCH_BUTTON_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    mock_get_streams.assert_not_called()
+    label = win.window.getControl(DiscoverView.EMPTY_LABEL_ID).getLabel()
+    assert "index" in label.lower() or "network" in label.lower()
     assert win.window.getControl(DiscoverView.RESULTS_LIST_ID).size() == 0
 
 

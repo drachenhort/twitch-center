@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.30.3] - 2026-09-06
+
+### Fixed
+- Discover's Kick category search (e.g. "eve online") could silently return "nothing found" on first use - the local category cache it depends on is built lazily on first search via a ~130-request, well-over-a-minute catalog pull, with no feedback while it runs, and any failure partway through it was swallowed silently by `search_kick_categories`'s broad error handling. A notification now warns before the first-time build starts, and a distinct message now appears if the build actually failed instead of the generic "no matching category" message.
+
 ## [0.30.2] - 2026-09-06
 
 ### Fixed

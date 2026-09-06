@@ -37,6 +37,13 @@ _MISSING_KICK_TOKEN_MESSAGE = "Set your Kick app's Client Secret in Settings to 
 _EMPTY_RESULTS_MESSAGE = "Nothing found."
 _EMPTY_GAME_SEARCH_MESSAGE = "No matching game found."
 _EMPTY_KICK_CATEGORY_SEARCH_MESSAGE = "No matching Kick category found."
+_KICK_CACHE_BUILD_FAILED_MESSAGE = (
+    "Couldn't build the Kick category index (network issue?) - try searching again, "
+    "or use Settings > Refresh Kick categories."
+)
+_KICK_CACHE_BUILDING_NOTIFICATION = (
+    "Building Kick category index for the first time - this can take a minute..."
+)
 _EMPTY_GAMES_MESSAGE = "No games to browse right now."
 _NETWORK_ERROR_MESSAGE = "Couldn't reach Twitch. Check your connection and reopen the addon."
 _RELOGIN_MESSAGE = "Your session expired. Log in again to continue."
@@ -289,12 +296,22 @@ class DiscoverView:
         # streams can show an empty/near-empty duplicate while a livelier
         # one sits under a different ID. Pull streams from every match and
         # merge them so none of the duplicates get silently dropped.
+        cache_missing_before = not providers.kick_category_cache_exists(addon)
         matches = providers.search_kick_categories(addon, query)
         if not matches:
             self._populate_results([])
             empty_label = self._safe_control(self.EMPTY_LABEL_ID)
             if empty_label:
-                empty_label.setLabel(_EMPTY_KICK_CATEGORY_SEARCH_MESSAGE)
+                # search_kick_categories swallows a failed cache build silently and
+                # returns [] the same as a genuine "no match" - if the cache still
+                # doesn't exist after a lazy-build attempt, that's what happened here,
+                # not a real empty result (confirmed live 2026-09-06: the catalog pull
+                # is ~130 sequential HTTP requests and takes well over a minute, with
+                # nothing telling the user it's even running).
+                if cache_missing_before and not providers.kick_category_cache_exists(addon):
+                    empty_label.setLabel(_KICK_CACHE_BUILD_FAILED_MESSAGE)
+                else:
+                    empty_label.setLabel(_EMPTY_KICK_CATEGORY_SEARCH_MESSAGE)
             return
         stream_lists = [providers.get_kick_category_streams(addon, match["id"]) for match in matches]
         streams = providers.merge_by_viewer_count(*stream_lists)
@@ -405,6 +422,10 @@ class DiscoverView:
             if not addon.getSetting("kick_client_secret"):
                 self._show_results_error(_MISSING_KICK_TOKEN_MESSAGE)
                 return
+            if not providers.kick_category_cache_exists(addon):
+                xbmcgui.Dialog().notification(
+                    "SIGMA Streaming Hub", _KICK_CACHE_BUILDING_NOTIFICATION, time=8000
+                )
             try:
                 self._load_kick_category_search_results(addon, query)
             except Exception as exc:

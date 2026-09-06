@@ -235,6 +235,24 @@ def test_get_kick_top_categories_returns_empty_list_on_error():
     assert result == []
 
 
+def test_kick_category_cache_exists_true_when_cache_present():
+    addon = xbmcaddon.Addon()
+
+    def load_cache(addon):
+        return [{"id": 3, "name": "EVE Online"}]
+
+    assert providers.kick_category_cache_exists(addon, load_cache_fn=load_cache) is True
+
+
+def test_kick_category_cache_exists_false_when_cache_missing():
+    addon = xbmcaddon.Addon()
+
+    def load_cache(addon):
+        return None
+
+    assert providers.kick_category_cache_exists(addon, load_cache_fn=load_cache) is False
+
+
 def test_search_kick_categories_returns_empty_list_when_no_kick_app_credentials():
     addon = xbmcaddon.Addon()
 
