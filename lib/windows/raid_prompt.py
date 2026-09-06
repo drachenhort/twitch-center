@@ -56,12 +56,6 @@ class RaidPromptDialog(xbmcgui.WindowXMLDialog):
         self.show()
         xbmc.log("script.twitch.center: raid prompt prompt() show() returned", xbmc.LOGINFO)
 
-    def onDeinit(self):
-        xbmc.log(
-            "script.twitch.center: raid prompt onDeinit (finished=%r)" % (self._finished,),
-            xbmc.LOGINFO,
-        )
-
     def onInit(self):
         xbmc.log("script.twitch.center: raid prompt onInit entered", xbmc.LOGINFO)
         # Kodi's GUI-callback invoker can swallow an exception here without ever
@@ -127,6 +121,10 @@ class RaidPromptDialog(xbmcgui.WindowXMLDialog):
             if self._finished:
                 return
             self._finished = True
+        # If the window closes without this line appearing first in kodi.log, the
+        # close didn't come from our own code at all (decline, countdown fail-safe,
+        # or the onInit exception handler) - something external force-closed it.
+        xbmc.log("script.twitch.center: raid prompt _finish(accepted=%r)" % (accepted,), xbmc.LOGINFO)
         self.close()
         on_result = self._on_result
         if on_result is not None:
@@ -138,6 +136,10 @@ class RaidPromptDialog(xbmcgui.WindowXMLDialog):
 
     def onAction(self, action):
         if action.getId() in self._DECLINE_ACTIONS:
+            xbmc.log(
+                "script.twitch.center: raid prompt declined via action id %r" % (action.getId(),),
+                xbmc.LOGINFO,
+            )
             self._finish(False)
             return
         super().onAction(action)
