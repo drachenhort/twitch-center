@@ -1,4 +1,5 @@
 """Non-modal chat overlay shown during playback."""
+import queue
 import textwrap
 import threading
 import time
@@ -8,6 +9,26 @@ import xbmcgui
 
 from lib.settings import Settings
 from lib.twitch.irc import ChatClient
+
+# Raid prompts must be constructed and shown from the main/invoker thread, not
+# from this module's own background pump thread - constructing a WindowXMLDialog
+# there let Kodi run its C++ Window Init/Deinit lifecycle (confirmed live via
+# kodi.log) but never delivered the onInit callback to Python at all, leaving
+# the dialog silently non-functional (no countdown, no visible content, no
+# fail-safe accept - just an instant, silent close). lib.main's run() loop
+# drains this queue once a second on the real main thread instead.
+PENDING_RAID_PROMPTS = queue.Queue()
+
+
+def drain_pending_raid_prompts():
+    """Run every raid-prompt-construction callable queued so far. Must be
+    called from the main/invoker thread - see PENDING_RAID_PROMPTS above."""
+    while True:
+        try:
+            show_prompt = PENDING_RAID_PROMPTS.get_nowait()
+        except queue.Empty:
+            return
+        show_prompt()
 
 # Caps how often the message list is rebuilt, regardless of message rate -
 # a busy channel's chat can arrive several messages/second, and without
@@ -207,27 +228,34 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
         if prompt_cls is None:
             from lib.windows.raid_prompt import RaidPromptDialog
             prompt_cls = RaidPromptDialog
-        prompt = prompt_cls(
-            "script-twitch-center-raid-prompt.xml",
-            self._script_path(),
-            "Default",
-            "1080i",
-        )
-        xbmc.log("script.twitch.center: _handle_raid_out: dialog constructed", xbmc.LOGINFO)
+        script_path = self._script_path()
         to_channel = event["to_channel"]
+        display_name = event["display_name"]
+        viewer_count = event["viewer_count"]
 
         def on_result(accepted):
             xbmc.log("script.twitch.center: _handle_raid_out: on_result accepted=%r" % (accepted,), xbmc.LOGINFO)
             if accepted:
                 self._play_channel_fn(to_channel)
 
-        prompt.prompt(
-            display_name=event["display_name"],
-            to_channel=to_channel,
-            viewer_count=event["viewer_count"],
-            on_result=on_result,
-        )
-        xbmc.log("script.twitch.center: _handle_raid_out: prompt() call returned", xbmc.LOGINFO)
+        def show_prompt():
+            prompt = prompt_cls(
+                "script-twitch-center-raid-prompt.xml",
+                script_path,
+                "Default",
+                "1080i",
+            )
+            xbmc.log("script.twitch.center: _handle_raid_out: dialog constructed", xbmc.LOGINFO)
+            prompt.prompt(
+                display_name=display_name,
+                to_channel=to_channel,
+                viewer_count=viewer_count,
+                on_result=on_result,
+            )
+            xbmc.log("script.twitch.center: _handle_raid_out: prompt() call returned", xbmc.LOGINFO)
+
+        PENDING_RAID_PROMPTS.put(show_prompt)
+        xbmc.log("script.twitch.center: _handle_raid_out: queued for main thread", xbmc.LOGINFO)
 
     def _script_path(self):
         import xbmcaddon

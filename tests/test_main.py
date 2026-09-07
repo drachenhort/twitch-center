@@ -216,6 +216,37 @@ def test_run_switches_to_menu_again_after_a_second_login():
     assert FakeMainWindow.instances[-1].switched_to == ["menu", "menu"]
 
 
+def test_run_drains_pending_raid_prompts_on_the_main_thread_each_tick():
+    # Constructing/showing a raid prompt from ChatOverlay's own background
+    # pump thread let Kodi's window lifecycle run but never delivered the
+    # onInit callback to Python at all - confirmed live 2026-09-07 (instant,
+    # silent close with zero exception). chat_overlay.PENDING_RAID_PROMPTS
+    # exists so this main-thread loop can construct it instead.
+    FakeMainWindow.instances.clear()
+
+    class SlowCloseFakeMainWindow(FakeMainWindow):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.closed_event = threading.Event()
+
+    class TickingMonitor:
+        def __init__(self):
+            self.calls = 0
+
+        def waitForAbort(self, timeout=None):
+            self.calls += 1
+            if self.calls >= 2:
+                FakeMainWindow.instances[-1].closed_event.set()
+            return False
+
+    calls = []
+    main.chat_overlay.PENDING_RAID_PROMPTS.put(lambda: calls.append("shown"))
+    main.run(
+        [], addon=FakeAddon(token=None), main_window_cls=SlowCloseFakeMainWindow, monitor_cls=TickingMonitor
+    )
+    assert calls == ["shown"]
+
+
 def test_run_prompts_before_quit_and_exits_when_confirmed():
     FakeMainWindow.instances.clear()
 

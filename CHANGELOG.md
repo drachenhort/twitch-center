@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.30.5] - 2026-09-07
+
+### Fixed
+- Raid prompt still silently didn't work after every earlier fix (v0.30.1/v0.30.2) - the real problem was that `RaidPromptDialog` was constructed and shown from `ChatOverlay`'s own background pump thread. Kodi ran the window's C++ Init/Deinit lifecycle fine (visible in kodi.log) but never delivered the `onInit` Python callback at all - no countdown, no content, no fail-safe accept, just an instant silent close with zero exception anywhere. Raid events are now queued (`chat_overlay.PENDING_RAID_PROMPTS`) and the prompt is constructed and shown from the real main thread instead, via a queue drain added to `lib/main.py`'s existing once-a-second poll loop.
+
 ## [0.30.4] - 2026-09-06
 
 ### Fixed

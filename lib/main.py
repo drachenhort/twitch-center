@@ -16,6 +16,7 @@ import xbmcgui
 from lib import keymap_installer, providers
 from lib.player import audio
 from lib.twitch import auth
+from lib.windows import chat_overlay
 from lib.windows.main_window import MainWindow
 
 # Release date of the version in addon.xml - bump this alongside the version number and
@@ -122,6 +123,7 @@ def run(argv, addon=None, main_window_cls=None, monitor_cls=None, keymap_install
     while not window.closed_event.is_set():
         if monitor.waitForAbort(1):
             break
+        chat_overlay.drain_pending_raid_prompts()
         if getattr(window.closed_event, "quit_requested", False):
             if not show_quit_prompt():
                 window.closed_event.quit_requested = False

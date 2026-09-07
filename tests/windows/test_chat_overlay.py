@@ -3,6 +3,7 @@ from unittest.mock import patch
 import xbmc
 import xbmcgui
 
+from lib.windows import chat_overlay
 from lib.windows.chat_overlay import ChatOverlay, _build_message_item, _wrap_message_lines
 
 
@@ -216,6 +217,7 @@ def test_pump_switches_channel_when_raid_prompt_accepted():
     )
     win.onInit()
     win._thread.join(timeout=1)
+    chat_overlay.drain_pending_raid_prompts()
 
     assert len(FakeRaidPrompt.instances) == 1
     assert FakeRaidPrompt.instances[0].prompt_calls == [("Target", "target", 17)]
@@ -246,6 +248,7 @@ def test_pump_stays_put_when_raid_prompt_declined():
     )
     win.onInit()
     win._thread.join(timeout=1)
+    chat_overlay.drain_pending_raid_prompts()
 
     assert len(FakeRaidPrompt.instances) == 1
     assert switch_calls == []
