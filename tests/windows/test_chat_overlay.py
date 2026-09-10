@@ -162,8 +162,9 @@ def test_pump_renders_messages_and_ignores_status_and_raid_events():
 
 
 class FakeSettings:
-    def __init__(self, follow_raids_enabled=True):
+    def __init__(self, follow_raids_enabled=True, follow_raids_confirm=False):
         self.follow_raids_enabled = follow_raids_enabled
+        self.follow_raids_confirm = follow_raids_confirm
 
 
 class FakeRaidPrompt:
@@ -211,7 +212,7 @@ def test_pump_switches_channel_when_raid_prompt_accepted():
         "1080i",
         channel="somechannel",
         chat_client_cls=ClientWithRaidOut,
-        settings=FakeSettings(follow_raids_enabled=True),
+        settings=FakeSettings(follow_raids_enabled=True, follow_raids_confirm=True),
         raid_prompt_cls=FakeRaidPrompt,
         play_channel_fn=lambda to_channel: switch_calls.append(to_channel),
     )
@@ -242,7 +243,7 @@ def test_pump_stays_put_when_raid_prompt_declined():
         "1080i",
         channel="somechannel",
         chat_client_cls=ClientWithRaidOut,
-        settings=FakeSettings(follow_raids_enabled=True),
+        settings=FakeSettings(follow_raids_enabled=True, follow_raids_confirm=True),
         raid_prompt_cls=FakeRaidPrompt,
         play_channel_fn=lambda to_channel: switch_calls.append(to_channel),
     )
@@ -283,6 +284,37 @@ def test_pump_skips_raid_prompt_when_follow_raids_disabled():
     assert switch_calls == []
 
 
+def test_pump_auto_switches_without_prompt_when_confirm_disabled():
+    # follow_raids_confirm defaults to False (see resources/settings.xml) - raids should
+    # switch instantly with no dialog at all, sidestepping RaidPromptDialog entirely.
+    FakeChatClient.instances.clear()
+    FakeRaidPrompt.instances.clear()
+
+    class ClientWithRaidOut(FakeChatClient):
+        def __init__(self, channel, **kwargs):
+            super().__init__(channel, **kwargs)
+            self._events = [_raid_out_event()]
+
+    switch_calls = []
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=ClientWithRaidOut,
+        settings=FakeSettings(follow_raids_enabled=True, follow_raids_confirm=False),
+        raid_prompt_cls=FakeRaidPrompt,
+        play_channel_fn=lambda to_channel: switch_calls.append(to_channel),
+    )
+    win.onInit()
+    win._thread.join(timeout=1)
+
+    # No queued main-thread work, no dialog built at all.
+    assert FakeRaidPrompt.instances == []
+    assert switch_calls == ["target"]
+
+
 def test_raid_prompt_instance_reused_across_multiple_raids():
     # Regression test for the live bug where a fresh RaidPromptDialog was constructed
     # inside the PENDING_RAID_PROMPTS closure with no reference surviving past that
@@ -310,7 +342,7 @@ def test_raid_prompt_instance_reused_across_multiple_raids():
         "1080i",
         channel="somechannel",
         chat_client_cls=ClientWithTwoRaidOuts,
-        settings=FakeSettings(follow_raids_enabled=True),
+        settings=FakeSettings(follow_raids_enabled=True, follow_raids_confirm=True),
         raid_prompt_cls=FakeRaidPrompt,
         play_channel_fn=lambda to_channel: switch_calls.append(to_channel),
     )

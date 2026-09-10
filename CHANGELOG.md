@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.30.7] - 2026-09-10
+
+### Changed
+- Follow raids now switches instantly by default instead of showing a confirmation prompt first - a raid is a short window and the old prompt's own reliability has been shaky (see the v0.30.6 fix above). New "Confirm before following raids" setting (off by default) brings back the old prompt-with-countdown-and-Decline behavior for anyone who wants it; when off, a raid just fires a toast notification and switches, without touching `RaidPromptDialog` at all.
+
 ## [0.30.6] - 2026-09-10
 
 ### Fixed

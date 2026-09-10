@@ -35,3 +35,7 @@ class Settings:
     @property
     def follow_raids_enabled(self):
         return self._addon.getSettingBool("follow_raids_enabled")
+
+    @property
+    def follow_raids_confirm(self):
+        return self._addon.getSettingBool("follow_raids_confirm")

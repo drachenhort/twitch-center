@@ -183,7 +183,7 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
         # it. Building it here, on the same reliable construction path this window itself
         # already uses (this class's own onInit is proof that path works), and holding it
         # on self for reuse across every raid this session sidesteps that race entirely.
-        if self._settings.follow_raids_enabled:
+        if self._settings.follow_raids_enabled and self._settings.follow_raids_confirm:
             self._raid_prompt_instance = self._build_raid_prompt()
 
     def _build_raid_prompt(self):
@@ -252,6 +252,18 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
         to_channel = event["to_channel"]
         display_name = event["display_name"]
         viewer_count = event["viewer_count"]
+
+        if not self._settings.follow_raids_confirm:
+            # Default behavior: switch immediately, no dialog at all - this also means the
+            # fragile RaidPromptDialog/onInit machinery (see onInit's comment) is never even
+            # touched on this path.
+            xbmcgui.Dialog().notification(
+                "Raid incoming",
+                "%s is raiding to %s - switching now" % (display_name, to_channel),
+            )
+            self._play_channel_fn(to_channel)
+            xbmc.log("script.twitch.center: _handle_raid_out: auto-switched to %r" % (to_channel,), xbmc.LOGINFO)
+            return
 
         def on_result(accepted):
             xbmc.log("script.twitch.center: _handle_raid_out: on_result accepted=%r" % (accepted,), xbmc.LOGINFO)
