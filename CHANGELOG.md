@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.30.8] - 2026-09-10
+
+### Fixed
+- Confirmed live: the v0.30.6 raid-prompt fix (persistent `RaidPromptDialog` instance held on `ChatOverlay`) works correctly across real raids.
+
 ## [0.30.7] - 2026-09-10
 
 ### Changed
