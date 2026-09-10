@@ -126,6 +126,7 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
         self._last_render_at = None
         self._total_evicted = 0
         self._control_evicted = 0
+        self._raid_prompt_instance = None
 
     # Actions that should open the player's OSD instead of being swallowed
     # by this dialog - without this, the overlay (which is the focused,
@@ -172,6 +173,30 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
         self._client.connect()
         self._thread = threading.Thread(target=self._pump_messages, daemon=True)
         self._thread.start()
+        # Built once, here, and kept alive on self for the overlay's whole lifetime -
+        # every live raid seen so far constructed a fresh RaidPromptDialog inside the
+        # PENDING_RAID_PROMPTS closure below with no reference to it surviving past that
+        # closure's return. Kodi's own C++ side still logged "Window Init" (confirmed via
+        # kodi.log), but Python's onInit callback never arrived, and "Window Deinit"
+        # followed within ~16ms - consistent with CPython reclaiming the now-unreferenced
+        # wrapper object before Kodi's GUI thread got back around to delivering onInit to
+        # it. Building it here, on the same reliable construction path this window itself
+        # already uses (this class's own onInit is proof that path works), and holding it
+        # on self for reuse across every raid this session sidesteps that race entirely.
+        if self._settings.follow_raids_enabled:
+            self._raid_prompt_instance = self._build_raid_prompt()
+
+    def _build_raid_prompt(self):
+        prompt_cls = self._raid_prompt_cls
+        if prompt_cls is None:
+            from lib.windows.raid_prompt import RaidPromptDialog
+            prompt_cls = RaidPromptDialog
+        return prompt_cls(
+            "script-twitch-center-raid-prompt.xml",
+            self._script_path(),
+            "Default",
+            "1080i",
+        )
 
     def _pump_messages(self):
         try:
@@ -224,11 +249,6 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
         if not self._settings.follow_raids_enabled:
             xbmc.log("script.twitch.center: _handle_raid_out: follow_raids disabled, skipping", xbmc.LOGINFO)
             return
-        prompt_cls = self._raid_prompt_cls
-        if prompt_cls is None:
-            from lib.windows.raid_prompt import RaidPromptDialog
-            prompt_cls = RaidPromptDialog
-        script_path = self._script_path()
         to_channel = event["to_channel"]
         display_name = event["display_name"]
         viewer_count = event["viewer_count"]
@@ -239,14 +259,13 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
                 self._play_channel_fn(to_channel)
 
         def show_prompt():
-            prompt = prompt_cls(
-                "script-twitch-center-raid-prompt.xml",
-                script_path,
-                "Default",
-                "1080i",
-            )
-            xbmc.log("script.twitch.center: _handle_raid_out: dialog constructed", xbmc.LOGINFO)
-            prompt.prompt(
+            # Reuses the instance built (and kept referenced on self) in onInit - see the
+            # comment there. Falls back to building one now only for callers that skip this
+            # window's own onInit (tests, or follow_raids toggled on after onInit already ran).
+            if self._raid_prompt_instance is None:
+                self._raid_prompt_instance = self._build_raid_prompt()
+            xbmc.log("script.twitch.center: _handle_raid_out: dialog ready", xbmc.LOGINFO)
+            self._raid_prompt_instance.prompt(
                 display_name=display_name,
                 to_channel=to_channel,
                 viewer_count=viewer_count,

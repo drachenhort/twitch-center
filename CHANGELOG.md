@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.30.6] - 2026-09-10
+
+### Fixed
+- Raid prompt still silently didn't work even after v0.30.5's main-thread fix - live kodi.log across four real raids showed `show()` returning cleanly with no exception, Kodi's C++ side logging `Window Init` then `Window Deinit` ~16ms apart, and Python's `onInit` callback never arriving at all (no sound, no countdown text, no channel switch). Root cause: each raid built a brand-new `RaidPromptDialog` inside a closure with no reference surviving past that closure's return, so CPython's refcounting reclaimed the wrapper before Kodi's GUI thread got back around to delivering `onInit` to it. `ChatOverlay` now builds the dialog once, in its own `onInit`, and holds it on `self` for reuse across every raid seen during that stream session instead of constructing a throwaway one per event.
+
 ## [0.30.5] - 2026-09-07
 
 ### Fixed

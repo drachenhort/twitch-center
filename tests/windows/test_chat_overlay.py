@@ -283,6 +283,50 @@ def test_pump_skips_raid_prompt_when_follow_raids_disabled():
     assert switch_calls == []
 
 
+def test_raid_prompt_instance_reused_across_multiple_raids():
+    # Regression test for the live bug where a fresh RaidPromptDialog was constructed
+    # inside the PENDING_RAID_PROMPTS closure with no reference surviving past that
+    # closure's return - CPython could reclaim it before Kodi's GUI thread delivered
+    # onInit, producing a raid prompt that opened and closed within ~16ms with no
+    # sound, no countdown text, and no channel switch. The instance must now be built
+    # once (in onInit) and reused for every raid this overlay sees.
+    FakeChatClient.instances.clear()
+    FakeRaidPrompt.instances.clear()
+    FakeRaidPrompt.next_answer = True
+
+    class ClientWithTwoRaidOuts(FakeChatClient):
+        def __init__(self, channel, **kwargs):
+            super().__init__(channel, **kwargs)
+            self._events = [
+                _raid_out_event(to_channel="first", display_name="First", index=1),
+                _raid_out_event(to_channel="second", display_name="Second", index=2),
+            ]
+
+    switch_calls = []
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=ClientWithTwoRaidOuts,
+        settings=FakeSettings(follow_raids_enabled=True),
+        raid_prompt_cls=FakeRaidPrompt,
+        play_channel_fn=lambda to_channel: switch_calls.append(to_channel),
+    )
+    win.onInit()
+    win._thread.join(timeout=1)
+    chat_overlay.drain_pending_raid_prompts()
+
+    # Built eagerly in onInit, before either raid event arrived.
+    assert len(FakeRaidPrompt.instances) == 1
+    assert FakeRaidPrompt.instances[0].prompt_calls == [
+        ("First", "first", 17),
+        ("Second", "second", 17),
+    ]
+    assert switch_calls == ["first", "second"]
+
+
 def test_pump_wraps_long_messages_onto_multiple_lines():
     FakeChatClient.instances.clear()
 
