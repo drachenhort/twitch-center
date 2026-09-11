@@ -94,6 +94,52 @@ def test_play_stream_returns_true_and_plays_when_inputstream_available():
     assert list_item.getPath() == "https://example.invalid/stream.m3u8"
 
 
+def test_play_stream_stops_existing_playback_before_switching():
+    # 2026-09-11 live freeze: an instant channel switch raced the old stream's
+    # hardware decoder teardown on kodi.local and hung the whole box. play_stream
+    # must explicitly stop() whatever's playing (and let it settle) before opening
+    # the new URL, instead of relying on Player.play()'s implicit stop-then-start.
+    sleep_calls = []
+    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
+        "lib.windows.player.xbmc.Player"
+    ) as mock_player_cls, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog):
+        mock_player_cls.return_value.isPlaying.return_value = True
+        mock_helper_cls.return_value.check_inputstream.return_value = True
+        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
+
+        result = player.play_stream(
+            "https://example.invalid/stream.m3u8",
+            "somechannel",
+            settings=FakeSettings(False),
+            sleep_fn=sleep_calls.append,
+        )
+
+    assert result is True
+    mock_player_cls.return_value.stop.assert_called_once()
+    assert sleep_calls == [player._STOP_SETTLE_SECONDS]
+    mock_player_cls.return_value.play.assert_called_once()
+
+
+def test_play_stream_skips_stop_when_nothing_currently_playing():
+    sleep_calls = []
+    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
+        "lib.windows.player.xbmc.Player"
+    ) as mock_player_cls, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog):
+        mock_player_cls.return_value.isPlaying.return_value = False
+        mock_helper_cls.return_value.check_inputstream.return_value = True
+        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
+
+        player.play_stream(
+            "https://example.invalid/stream.m3u8",
+            "somechannel",
+            settings=FakeSettings(False),
+            sleep_fn=sleep_calls.append,
+        )
+
+    mock_player_cls.return_value.stop.assert_not_called()
+    assert sleep_calls == []
+
+
 def test_play_stream_returns_false_when_inputstream_declined():
     with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
         "lib.windows.player.xbmc.Player"
@@ -261,6 +307,7 @@ def test_play_stream_returns_true_even_if_chat_overlay_construction_raises():
     ) as mock_player_cls, patch("lib.windows.player.xbmc.log") as mock_log, patch(
         "lib.windows.player.PlaybackWatchdog", FakeWatchdog
     ):
+        mock_player_cls.return_value.isPlaying.return_value = False
         mock_helper_cls.return_value.check_inputstream.return_value = True
         mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
 
@@ -599,9 +646,10 @@ def test_play_stream_falls_back_to_irc_when_broadcaster_id_resolution_fails():
     FakeChatOverlay.instances.clear()
     with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
         "lib.windows.player.xbmc.Player"
-    ), patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog), patch(
+    ) as mock_player_cls, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog), patch(
         "lib.windows.player.api.get_user_by_login", return_value=None
     ), patch("lib.windows.player.xbmc.log") as mock_log:
+        mock_player_cls.return_value.isPlaying.return_value = False
         mock_helper_cls.return_value.check_inputstream.return_value = True
         mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
 
@@ -628,9 +676,10 @@ def test_play_stream_falls_back_to_irc_when_broadcaster_id_lookup_raises():
     FakeChatOverlay.instances.clear()
     with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
         "lib.windows.player.xbmc.Player"
-    ), patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog), patch(
+    ) as mock_player_cls, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog), patch(
         "lib.windows.player.api.get_user_by_login", side_effect=TypeError("boom")
     ), patch("lib.windows.player.xbmc.log") as mock_log:
+        mock_player_cls.return_value.isPlaying.return_value = False
         mock_helper_cls.return_value.check_inputstream.return_value = True
         mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
 

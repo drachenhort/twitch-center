@@ -36,6 +36,16 @@ def drain_pending_raid_prompts():
 # thread badly enough to delay it processing input (e.g. Back).
 _RENDER_THROTTLE_SECONDS = 0.25
 
+# Give the old stream's hardware decoder (V4L2 mem2mem on kodi.local) time to
+# release before opening the new one. An instant switch raced the decoder
+# teardown on 2026-09-11 (see memory project_raid_freeze_unrelated_modal_2026-09-10):
+# CDVDVideoCodecDRMPRIME failed to reopen, kodi.bin's main thread ended up
+# pegged at 100% CPU in an uninterruptible (D-state) wait, and the remote/
+# keyboard stopped responding entirely (video/audio kept running off the
+# stalled decoder in the meantime). Delay is on this background pump thread,
+# not the GUI thread, so it doesn't freeze anything itself.
+_RAID_SWITCH_SAFETY_DELAY_SECONDS = 7
+
 # The skin's <wrapmultiline> label tag isn't honored on this Kodi build (long
 # messages render as a single ellipsized line no matter how tall the label
 # is), so lines are wrapped by hand and joined with literal newlines, which
@@ -107,6 +117,7 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
     def __init__(self, *args, channel, access_token=None, client_id=None,
                  broadcaster_user_id=None, user_id=None, chat_client_cls=None, time_fn=None,
                  settings=None, raid_prompt_cls=None, play_channel_fn=None,
+                 raid_switch_delay_seconds=None,
                  **kwargs):
         super().__init__(*args, **kwargs)
         self.channel = channel
@@ -127,6 +138,11 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
         self._total_evicted = 0
         self._control_evicted = 0
         self._raid_prompt_instance = None
+        self._raid_switch_delay_seconds = (
+            _RAID_SWITCH_SAFETY_DELAY_SECONDS
+            if raid_switch_delay_seconds is None
+            else raid_switch_delay_seconds
+        )
 
     # Actions that should open the player's OSD instead of being swallowed
     # by this dialog - without this, the overlay (which is the focused,
@@ -259,8 +275,13 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
             # touched on this path.
             xbmcgui.Dialog().notification(
                 "Raid incoming",
-                "%s is raiding to %s - switching now" % (display_name, to_channel),
+                "%s is raiding to %s - switching in %ds" % (
+                    display_name, to_channel, _RAID_SWITCH_SAFETY_DELAY_SECONDS
+                ),
             )
+            self._cancel_event.wait(self._raid_switch_delay_seconds)
+            if self._cancel_event.is_set():
+                return
             self._play_channel_fn(to_channel)
             xbmc.log("script.twitch.center: _handle_raid_out: auto-switched to %r" % (to_channel,), xbmc.LOGINFO)
             return

@@ -306,12 +306,49 @@ def test_pump_auto_switches_without_prompt_when_confirm_disabled():
         settings=FakeSettings(follow_raids_enabled=True, follow_raids_confirm=False),
         raid_prompt_cls=FakeRaidPrompt,
         play_channel_fn=lambda to_channel: switch_calls.append(to_channel),
+        raid_switch_delay_seconds=0,
     )
     win.onInit()
     win._thread.join(timeout=1)
 
     # No queued main-thread work, no dialog built at all.
     assert FakeRaidPrompt.instances == []
+    assert switch_calls == ["target"]
+
+
+def test_pump_auto_switch_waits_safety_delay_before_switching():
+    # 2026-09-11 live freeze: an instant channel switch raced the old stream's
+    # hardware decoder teardown on kodi.local and hung the whole box. Auto-switch
+    # must wait rather than call play_channel_fn immediately.
+    FakeChatClient.instances.clear()
+    FakeRaidPrompt.instances.clear()
+
+    class ClientWithRaidOut(FakeChatClient):
+        def __init__(self, channel, **kwargs):
+            super().__init__(channel, **kwargs)
+            self._events = [_raid_out_event()]
+
+    switch_calls = []
+    win = ChatOverlay(
+        "script-twitch-center-chat-overlay.xml",
+        "/tmp",
+        "Default",
+        "1080i",
+        channel="somechannel",
+        chat_client_cls=ClientWithRaidOut,
+        settings=FakeSettings(follow_raids_enabled=True, follow_raids_confirm=False),
+        raid_prompt_cls=FakeRaidPrompt,
+        play_channel_fn=lambda to_channel: switch_calls.append(to_channel),
+        raid_switch_delay_seconds=0.3,
+    )
+    win.onInit()
+
+    # Still within the delay window: switch must not have happened yet.
+    win._thread.join(timeout=0.1)
+    assert switch_calls == []
+
+    # Delay elapsed: switch now goes through.
+    win._thread.join(timeout=1)
     assert switch_calls == ["target"]
 
 

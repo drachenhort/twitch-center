@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.30.9] - 2026-09-11
+
+### Fixed
+- Raid auto-switch now waits 7s before opening the new channel instead of switching instantly, and `play_stream` explicitly stops whatever's currently playing (with a brief settle pause) instead of relying on `xbmc.Player().play()`'s implicit stop-then-start. Live on 2026-09-11, an instant switch raced the old stream's V4L2 hardware decoder teardown on kodi.local: `CDVDVideoCodecDRMPRIME` failed to reopen, `kodi.bin`'s main thread ended up pegged at 100% CPU in an uninterruptible (D-state) wait, and the remote/keyboard stopped responding entirely while video/audio kept running off the stalled decoder. Same underlying issue as the still-open [[project_raid_freeze_unrelated_modal_2026-09-10]] freeze - these are mitigations for the instant-switch race, not a fix for the driver-level hang itself. Only the default (no-prompt) auto-switch path got the delay; the opt-in confirm-prompt path already has its own countdown before the user accepts, and the explicit stop applies to every channel switch (raid or otherwise).
+
 ## [0.30.8] - 2026-09-10
 
 ### Fixed

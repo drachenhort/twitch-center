@@ -225,8 +225,11 @@ class _ChatAwarePlayer(xbmc.Player):
             self._relay.stop()
 
 
+_STOP_SETTLE_SECONDS = 0.5
+
+
 def play_stream(url, channel, settings=None, access_token=None, client_id=None, user_id=None,
-                 chat_overlay_cls=None, chat_client_cls=None, platform="twitch"):
+                 chat_overlay_cls=None, chat_client_cls=None, platform="twitch", sleep_fn=None):
     """Hand the resolved HLS URL to Kodi's player - via inputstream.adaptive,
     which handles proper adaptive-bitrate switching for live multi-quality
     HLS, unless settings.skip_twitch_ads is on, in which case a local
@@ -253,6 +256,24 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
     global _current_chat_watcher
 
     settings = settings or Settings()
+    sleep_fn = sleep_fn or time.sleep
+
+    # Explicitly stop whatever's currently playing before opening the new URL,
+    # instead of relying on xbmc.Player().play()'s implicit stop-then-start.
+    # An instant channel switch (raid auto-switch) raced the old stream's
+    # hardware decoder teardown on kodi.local 2026-09-11: CDVDVideoCodecDRMPRIME
+    # failed to reopen and kodi.bin's main thread ended up pegged at 100% CPU in
+    # an uninterruptible wait, freezing remote/keyboard input. See memory
+    # project_raid_freeze_unrelated_modal_2026-09-10 for the live trace.
+    existing_player = xbmc.Player()
+    if existing_player.isPlaying():
+        existing_player.stop()
+        xbmc.log(
+            "script.twitch.center: play_stream: stopped previous playback before switching to %r"
+            % (channel,),
+            xbmc.LOGINFO,
+        )
+        sleep_fn(_STOP_SETTLE_SECONDS)
 
     relay = None
     play_url = url
