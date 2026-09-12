@@ -10,19 +10,24 @@ import xbmcgui
 from lib.settings import Settings
 from lib.twitch.irc import ChatClient
 
-# Raid prompts must be constructed and shown from the main/invoker thread, not
-# from this module's own background pump thread - constructing a WindowXMLDialog
+# Any WindowXMLDialog construction/show triggered by a raid - the confirm prompt,
+# or the actual channel switch itself - must happen on the main/invoker thread,
+# not from this module's own background pump thread: constructing a WindowXMLDialog
 # there let Kodi run its C++ Window Init/Deinit lifecycle (confirmed live via
-# kodi.log) but never delivered the onInit callback to Python at all, leaving
-# the dialog silently non-functional (no countdown, no visible content, no
-# fail-safe accept - just an instant, silent close). lib.main's run() loop
-# drains this queue once a second on the real main thread instead.
+# kodi.log) but never delivered the onInit callback to Python at all, leaving the
+# window silently non-functional (for RaidPromptDialog: no countdown, no visible
+# content, no fail-safe accept, just an instant silent close; for a switched-to
+# ChatOverlay: onInit never runs, so its own pump thread - started inside its
+# onInit - never starts either, leaving that channel's chat dead even though the
+# stream itself plays fine). lib.main's run() loop drains this queue once a
+# second on the real main thread instead.
 PENDING_RAID_PROMPTS = queue.Queue()
 
 
 def drain_pending_raid_prompts():
-    """Run every raid-prompt-construction callable queued so far. Must be
-    called from the main/invoker thread - see PENDING_RAID_PROMPTS above."""
+    """Run every queued main-thread callable (raid-prompt construction, or a
+    raid auto-switch's channel change) queued so far. Must be called from the
+    main/invoker thread - see PENDING_RAID_PROMPTS above."""
     while True:
         try:
             show_prompt = PENDING_RAID_PROMPTS.get_nowait()
@@ -270,9 +275,18 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
         viewer_count = event["viewer_count"]
 
         if not self._settings.follow_raids_confirm:
-            # Default behavior: switch immediately, no dialog at all - this also means the
-            # fragile RaidPromptDialog/onInit machinery (see onInit's comment) is never even
-            # touched on this path.
+            # Default behavior: switch immediately, no dialog at all. The switch itself
+            # (_play_channel_fn) still has to run on the main/invoker thread, not here -
+            # this method runs on _pump_messages' background thread, and play_channel_fn
+            # constructs+shows a brand new ChatOverlay for the destination channel. A
+            # WindowXMLDialog built off the main thread gets its "Window Init" logged by
+            # Kodi's C++ side but never has onInit delivered to Python at all (the same
+            # failure already hit and fixed for RaidPromptDialog - see onInit's comment
+            # below) - so that new overlay's pump thread (started in its own onInit)
+            # would silently never start, leaving the new channel's chat dead even though
+            # the stream itself plays fine. Queue the switch through the same
+            # PENDING_RAID_PROMPTS/drain_pending_raid_prompts main-thread hop already used
+            # for the confirm-prompt path below, instead of calling it directly here.
             xbmcgui.Dialog().notification(
                 "Raid incoming",
                 "%s is raiding to %s - switching in %ds" % (
@@ -282,8 +296,16 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
             self._cancel_event.wait(self._raid_switch_delay_seconds)
             if self._cancel_event.is_set():
                 return
-            self._play_channel_fn(to_channel)
-            xbmc.log("script.twitch.center: _handle_raid_out: auto-switched to %r" % (to_channel,), xbmc.LOGINFO)
+
+            def do_switch():
+                self._play_channel_fn(to_channel)
+                xbmc.log(
+                    "script.twitch.center: _handle_raid_out: auto-switched to %r" % (to_channel,),
+                    xbmc.LOGINFO,
+                )
+
+            PENDING_RAID_PROMPTS.put(do_switch)
+            xbmc.log("script.twitch.center: _handle_raid_out: switch queued for main thread", xbmc.LOGINFO)
             return
 
         def on_result(accepted):

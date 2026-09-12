@@ -286,7 +286,11 @@ def test_pump_skips_raid_prompt_when_follow_raids_disabled():
 
 def test_pump_auto_switches_without_prompt_when_confirm_disabled():
     # follow_raids_confirm defaults to False (see resources/settings.xml) - raids should
-    # switch instantly with no dialog at all, sidestepping RaidPromptDialog entirely.
+    # switch with no dialog at all, sidestepping RaidPromptDialog entirely. The actual
+    # channel switch is still queued through PENDING_RAID_PROMPTS for the main thread
+    # (see chat_overlay.py's onInit comment - play_channel_fn constructs+shows a new
+    # ChatOverlay, which needs the same main-thread treatment RaidPromptDialog does),
+    # so it only happens once drain_pending_raid_prompts() runs.
     FakeChatClient.instances.clear()
     FakeRaidPrompt.instances.clear()
 
@@ -311,8 +315,12 @@ def test_pump_auto_switches_without_prompt_when_confirm_disabled():
     win.onInit()
     win._thread.join(timeout=1)
 
-    # No queued main-thread work, no dialog built at all.
+    # No dialog built at all, but the switch itself is queued, not yet applied.
     assert FakeRaidPrompt.instances == []
+    assert switch_calls == []
+
+    chat_overlay.drain_pending_raid_prompts()
+
     assert switch_calls == ["target"]
 
 
@@ -347,8 +355,12 @@ def test_pump_auto_switch_waits_safety_delay_before_switching():
     win._thread.join(timeout=0.1)
     assert switch_calls == []
 
-    # Delay elapsed: switch now goes through.
+    # Delay elapsed: switch is queued for the main thread now.
     win._thread.join(timeout=1)
+    assert switch_calls == []
+
+    chat_overlay.drain_pending_raid_prompts()
+
     assert switch_calls == ["target"]
 
 

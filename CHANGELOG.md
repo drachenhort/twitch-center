@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.30.10] - 2026-09-12
+
+### Fixed
+- Raid auto-switch (the default, no-prompt path) now queues the actual channel switch onto the main thread instead of calling `play_channel_fn` directly from the chat overlay's own background pump thread. Root-caused a live "raid freeze" that turned out not to be a decoder/kernel hang at all: the stream kept playing fine, but chat and the player OSD went completely dead. `ChatOverlay`'s own message-pump thread is started inside its `onInit()`, which Kodi only calls back into Python when the window was constructed/shown from the main thread - building the destination channel's new `ChatOverlay` from the background pump thread (as the raid path did) let Kodi's C++ side finish "Window Init" but never delivered `onInit`, so the new overlay's pump thread never started and chat never connected. Same failure mode already fixed once for `RaidPromptDialog`; now applied to the switch itself via the existing `PENDING_RAID_PROMPTS` main-thread queue. The confirm-prompt path was already unaffected.
+
 ## [0.30.9] - 2026-09-11
 
 ### Fixed
