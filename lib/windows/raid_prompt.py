@@ -34,6 +34,7 @@ class RaidPromptDialog(xbmcgui.WindowXMLDialog):
         super().__init__(*args, **kwargs)
         self._countdown_seconds = countdown_seconds
         self._sleep_fn = sleep_fn or time.sleep
+        self._from_channel = ""
         self._display_name = ""
         self._to_channel = ""
         self._viewer_count = 0
@@ -42,7 +43,8 @@ class RaidPromptDialog(xbmcgui.WindowXMLDialog):
         self._finish_lock = threading.Lock()
         self._finished = False
 
-    def prompt(self, display_name, to_channel, viewer_count, on_result):
+    def prompt(self, from_channel, display_name, to_channel, viewer_count, on_result):
+        self._from_channel = from_channel
         self._display_name = display_name
         self._to_channel = to_channel
         self._viewer_count = viewer_count
@@ -68,7 +70,7 @@ class RaidPromptDialog(xbmcgui.WindowXMLDialog):
             # an audible cue even when nobody's looking at the screen.
             xbmcgui.Dialog().notification(
                 "Raid incoming",
-                "%s is raiding to %s" % (self._display_name, self._to_channel),
+                "%s is raiding to %s" % (self._from_channel, self._display_name),
             )
             self._update_label(self._countdown_seconds)
             self._thread = threading.Thread(target=self._countdown, daemon=True)
@@ -106,7 +108,7 @@ class RaidPromptDialog(xbmcgui.WindowXMLDialog):
             return
         control.setLabel(
             "%s is raiding to %s (%d viewers) - switching in %ds" % (
-                self._display_name, self._to_channel, self._viewer_count, remaining
+                self._from_channel, self._display_name, self._viewer_count, remaining
             )
         )
 

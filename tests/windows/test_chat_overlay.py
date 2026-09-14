@@ -179,8 +179,8 @@ class FakeRaidPrompt:
         self.prompt_calls = []
         FakeRaidPrompt.instances.append(self)
 
-    def prompt(self, display_name, to_channel, viewer_count, on_result):
-        self.prompt_calls.append((display_name, to_channel, viewer_count))
+    def prompt(self, from_channel, display_name, to_channel, viewer_count, on_result):
+        self.prompt_calls.append((from_channel, display_name, to_channel, viewer_count))
         on_result(FakeRaidPrompt.next_answer)
 
 
@@ -221,7 +221,7 @@ def test_pump_switches_channel_when_raid_prompt_accepted():
     chat_overlay.drain_pending_raid_prompts()
 
     assert len(FakeRaidPrompt.instances) == 1
-    assert FakeRaidPrompt.instances[0].prompt_calls == [("Target", "target", 17)]
+    assert FakeRaidPrompt.instances[0].prompt_calls == [("somechannel", "Target", "target", 17)]
     assert switch_calls == ["target"]
 
 
@@ -402,8 +402,8 @@ def test_raid_prompt_instance_reused_across_multiple_raids():
     # Built eagerly in onInit, before either raid event arrived.
     assert len(FakeRaidPrompt.instances) == 1
     assert FakeRaidPrompt.instances[0].prompt_calls == [
-        ("First", "first", 17),
-        ("Second", "second", 17),
+        ("somechannel", "First", "first", 17),
+        ("somechannel", "Second", "second", 17),
     ]
     assert switch_calls == ["first", "second"]
 

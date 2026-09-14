@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.30.11] - 2026-09-14
+
+### Fixed
+- Raid incoming notification/prompt showed the *destination* channel twice ("X is raiding to X") instead of origin -> destination. `channel.raid` EventSub's outgoing-raid event only carries the destination's login/display name, and `_handle_raid_out`/`RaidPromptDialog.prompt()` never received the origin channel at all - the watched channel's own name (`ChatOverlay.channel`) is now plumbed through as a new `from_channel` argument to both the notification and the countdown-prompt label.
+
 ## [0.30.10] - 2026-09-12
 
 ### Fixed

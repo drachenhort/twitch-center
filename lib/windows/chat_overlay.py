@@ -290,7 +290,7 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
             xbmcgui.Dialog().notification(
                 "Raid incoming",
                 "%s is raiding to %s - switching in %ds" % (
-                    display_name, to_channel, _RAID_SWITCH_SAFETY_DELAY_SECONDS
+                    self.channel, display_name, _RAID_SWITCH_SAFETY_DELAY_SECONDS
                 ),
             )
             self._cancel_event.wait(self._raid_switch_delay_seconds)
@@ -321,6 +321,7 @@ class ChatOverlay(xbmcgui.WindowXMLDialog):
                 self._raid_prompt_instance = self._build_raid_prompt()
             xbmc.log("script.twitch.center: _handle_raid_out: dialog ready", xbmc.LOGINFO)
             self._raid_prompt_instance.prompt(
+                from_channel=self.channel,
                 display_name=display_name,
                 to_channel=to_channel,
                 viewer_count=viewer_count,

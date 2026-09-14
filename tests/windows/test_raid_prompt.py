@@ -23,7 +23,7 @@ def test_prompt_shows_non_modally_instead_of_domodal():
     # threads elsewhere in this codebase.
     dialog = _dialog()
     with patch.object(dialog, "show") as show, patch.object(dialog, "doModal") as do_modal:
-        dialog.prompt(display_name="X", to_channel="target", viewer_count=5, on_result=lambda a: None)
+        dialog.prompt(from_channel="origin", display_name="X", to_channel="target", viewer_count=5, on_result=lambda a: None)
     show.assert_called_once()
     do_modal.assert_not_called()
 
@@ -35,7 +35,7 @@ def test_countdown_reaching_zero_invokes_on_result_true_and_closes():
     dialog = _dialog(countdown_seconds=2)
     with patch.object(dialog, "close") as close:
         dialog.prompt(
-            display_name="X", to_channel="target", viewer_count=5, on_result=results.append
+            from_channel="origin", display_name="X", to_channel="target", viewer_count=5, on_result=results.append
         )
         dialog.onInit()
         dialog._thread.join(timeout=1)
@@ -49,7 +49,7 @@ def test_decline_button_invokes_on_result_false_and_closes():
     dialog = _dialog()
     with patch.object(dialog, "close") as close:
         dialog.prompt(
-            display_name="X", to_channel="target", viewer_count=5, on_result=results.append
+            from_channel="origin", display_name="X", to_channel="target", viewer_count=5, on_result=results.append
         )
         dialog.onClick(RaidPromptDialog.DECLINE_BUTTON_ID)
         close.assert_called_once()
@@ -61,7 +61,7 @@ def test_back_action_invokes_on_result_false_and_closes():
     dialog = _dialog()
     with patch.object(dialog, "close") as close:
         dialog.prompt(
-            display_name="X", to_channel="target", viewer_count=5, on_result=results.append
+            from_channel="origin", display_name="X", to_channel="target", viewer_count=5, on_result=results.append
         )
         dialog.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
         close.assert_called_once()
@@ -73,7 +73,7 @@ def test_other_actions_do_not_finish_the_prompt():
     dialog = _dialog()
     with patch.object(dialog, "close") as close:
         dialog.prompt(
-            display_name="X", to_channel="target", viewer_count=5, on_result=results.append
+            from_channel="origin", display_name="X", to_channel="target", viewer_count=5, on_result=results.append
         )
         dialog.onAction(xbmcgui.Action(999))
         close.assert_not_called()
@@ -87,7 +87,7 @@ def test_decline_after_countdown_already_finished_does_not_invoke_on_result_twic
     dialog = _dialog(countdown_seconds=1)
     with patch.object(dialog, "close"):
         dialog.prompt(
-            display_name="X", to_channel="target", viewer_count=5, on_result=results.append
+            from_channel="origin", display_name="X", to_channel="target", viewer_count=5, on_result=results.append
         )
         dialog.onInit()
         dialog._thread.join(timeout=1)
@@ -109,7 +109,7 @@ def test_countdown_exception_still_finishes_instead_of_hanging_forever():
     with patch.object(dialog, "close"):
         dialog._update_label = _boom_after_init
         dialog.prompt(
-            display_name="X", to_channel="target", viewer_count=5, on_result=results.append
+            from_channel="origin", display_name="X", to_channel="target", viewer_count=5, on_result=results.append
         )
         dialog.onInit()
         dialog._thread.join(timeout=1)
@@ -121,13 +121,13 @@ def test_countdown_label_shows_raid_details_and_final_second():
     dialog = _dialog(countdown_seconds=2)
     with patch.object(dialog, "close"):
         dialog.prompt(
-            display_name="SomeRaider", to_channel="target", viewer_count=17,
+            from_channel="origin", display_name="SomeRaider", to_channel="target", viewer_count=17,
             on_result=lambda accepted: None,
         )
         dialog.onInit()
         dialog._thread.join(timeout=1)
     label = dialog.getControl(RaidPromptDialog.COUNTDOWN_LABEL_ID).getLabel()
+    assert "origin" in label
     assert "SomeRaider" in label
-    assert "target" in label
     assert "17" in label
     assert "1" in label  # countdown's last update before hitting zero and closing
