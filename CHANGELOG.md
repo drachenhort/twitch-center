@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.30.13] - 2026-09-19
+
+### Changed
+- Variable-height chat overlay now shows up to 20 wrapped lines per message (was 9), enough for Twitch's full 500-character messages instead of cutting long ones off with "...". A maximal 20-line block (936px) still fits the 960px chat column. The fixed-box overlay's 5-line limit is unchanged, since its slot size is fixed by the skin.
+
 ## [0.30.12] - 2026-09-19
 
 ### Fixed

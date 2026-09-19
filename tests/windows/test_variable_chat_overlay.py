@@ -297,3 +297,12 @@ def test_render_handles_an_error_event_among_normal_messages():
     assert len(win._blocks) == 3
     labels = [block["items"][0][0].getLabel() for block in win._blocks]
     assert labels == ["Bob", "[CHAT ERROR]", "Alice"]
+
+
+def test_max_length_twitch_message_is_not_truncated_and_fits_column():
+    from lib.windows.variable_chat_overlay import _COLUMN_HEIGHT
+
+    event = {"display_name": "a", "text": " ".join(["word"] * 100)[:500]}
+    lines, _emotes, height = _message_metrics(event)
+    assert not lines[-1].endswith("...")
+    assert height <= _COLUMN_HEIGHT

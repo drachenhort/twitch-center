@@ -11,8 +11,10 @@ import xbmcgui
 
 from lib.windows.chat_overlay import ChatOverlay, _MAX_EMOTE_SLOTS, _MESSAGE_WRAP_WIDTH
 
-# VariableChatOverlay allows longer messages than the fixed-box ChatOverlay.
-_MAX_MESSAGE_LINES = 9
+# VariableChatOverlay allows longer messages than the fixed-box ChatOverlay. 20 lines covers
+# Twitch's 500-char message limit at _MESSAGE_WRAP_WIDTH (26) chars/line, and a full 20-line
+# block (40 + 20*44 + 16 = 936px) still fits the 960px column.
+_MAX_MESSAGE_LINES = 20
 
 def _wrap_message_lines(text):
     lines = textwrap.wrap(text, _MESSAGE_WRAP_WIDTH)
