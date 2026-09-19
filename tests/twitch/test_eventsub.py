@@ -11,6 +11,7 @@ from lib.twitch.eventsub import (
     _encode_client_frame,
     _expected_accept,
     _extract_emotes,
+    _text_without_shown_emotes,
     _parse_handshake_response,
     _parse_rfc3339_ms,
     EMOTE_IMAGE_URL_TEMPLATE,
@@ -656,3 +657,26 @@ def test_connect_raises_value_error_when_required_credentials_missing():
     except ValueError:
         pass
 
+
+
+def test_text_without_shown_emotes_drops_emote_names():
+    fragments = [
+        {"type": "text", "text": "hi "},
+        {"type": "emote", "text": "abgemahype", "emote": {"id": "1"}},
+        {"type": "text", "text": " there"},
+    ]
+    assert _text_without_shown_emotes(fragments, "hi abgemahype there") == "hi there"
+
+
+def test_text_without_shown_emotes_keeps_names_beyond_cap():
+    fragments = [
+        {"type": "emote", "text": "E%d" % i, "emote": {"id": str(i)}} for i in range(7)
+    ]
+    text = " ".join("E%d" % i for i in range(7))
+    assert _text_without_shown_emotes(fragments, text) == "E6"
+
+
+def test_text_without_shown_emotes_falls_back_when_fragments_unusable():
+    assert _text_without_shown_emotes(None, "raw text") == "raw text"
+    assert _text_without_shown_emotes([{"type": "emote"}], "raw text") == "raw text"
+    assert _text_without_shown_emotes([{"type": "text", "text": "plain"}], "plain") == "plain"

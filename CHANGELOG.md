@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.30.12] - 2026-09-19
+
+### Fixed
+- Chat overlay no longer shows an emote as both its name (e.g. `abgemahype`) and its image. `channel.chat.message`'s text is now rebuilt from the message fragments with the names of emotes that get an image removed; emotes past the 6-image cap keep their name, and unusable fragments fall back to the raw text.
+
 ## [0.30.11] - 2026-09-14
 
 ### Fixed

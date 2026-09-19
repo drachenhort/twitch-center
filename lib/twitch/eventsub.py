@@ -63,6 +63,30 @@ def _extract_emotes(fragments):
     return emotes
 
 
+def _text_without_shown_emotes(fragments, text):
+    """Message text with the names of emotes that _extract_emotes() will render as images
+    (its first _MAX_EMOTES_PER_MESSAGE valid ones) removed, so an emote isn't shown as both
+    its name and its image. Falls back to `text` unchanged when fragments are unusable;
+    emotes past the cap keep their name since they get no image."""
+    if not isinstance(fragments, list):
+        return text
+    parts = []
+    shown = 0
+    for fragment in fragments:
+        if not isinstance(fragment, dict) or not isinstance(fragment.get("text"), str):
+            return text
+        emote = fragment.get("emote")
+        is_shown = (
+            fragment.get("type") == "emote" and isinstance(emote, dict) and emote.get("id")
+            and shown < _MAX_EMOTES_PER_MESSAGE
+        )
+        if is_shown:
+            shown += 1
+        else:
+            parts.append(fragment["text"])
+    return " ".join("".join(parts).split()) if shown else text
+
+
 def _build_handshake_key():
     return base64.b64encode(os.urandom(16)).decode("ascii")
 
@@ -396,7 +420,9 @@ class ChatClient:
                 "type": "message",
                 "username": event["chatter_user_login"],
                 "display_name": event["chatter_user_name"],
-                "text": event["message"]["text"],
+                "text": _text_without_shown_emotes(
+                    event.get("message", {}).get("fragments"), event["message"]["text"]
+                ),
                 "timestamp": timestamp,
                 "emotes": _extract_emotes(event.get("message", {}).get("fragments")),
             })
