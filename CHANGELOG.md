@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.30.14] - 2026-09-19
+
+### Fixed
+- Release hygiene: 0.30.13 was tagged on a commit whose truncation test still expected the old 9-line cap. No behavior change from 0.30.13 (20-line variable-height chat cap); this release is tagged on a commit with the full test suite passing.
+
 ## [0.30.13] - 2026-09-19
 
 ### Changed
