@@ -96,3 +96,19 @@
   playback is a different, unresearched mechanism entirely); (3) a `platform` branch each in
   `lib/providers.py`'s `resolve_vod_url`/`resolve_clip_url`, mirroring `resolve_stream_url`'s
   existing Twitch/Kick split.
+
+- YouTube live streaming as a third provider: backburnered (2026-10-06) as a theoretical option
+  only, nothing started. Feasibility notes from the initial look, for if this is ever picked up:
+  (1) would slot in as `lib/youtube/` behind `lib/providers.py`'s normalized dict, same pattern
+  as Kick; (2) playback - delegate to the `plugin.video.youtube` add-on
+  (`plugin://plugin.video.youtube/play/?video_id=X`) rather than a homegrown innertube/HLS
+  extractor, since YouTube's signature/PO-token changes break DIY extractors constantly
+  (`script.module.yt-dlp` is the heavier fallback); (3) login - Google's OAuth device flow fits
+  the TV UX, but `youtube.readonly` is a sensitive scope, so an unverified app stays in testing
+  mode (100-user cap, 7-day refresh-token expiry); (4) "which subscriptions are live" is
+  expensive on the Data API v3 (10k units/day, `search.list` costs 100 per call) - per-channel
+  RSS feed or `/channel/X/live` scraping avoids the quota; (5) chat - official
+  `liveChatMessages.list` polling burns quota, unofficial innertube `get_live_chat`
+  continuation polling (pytchat/chat-downloader approach) is the realistic route and could
+  feed the existing chat overlay; (6) no equivalent for raids/EventSub, and the ad-skip relay
+  likely isn't needed. Suggested order mirrors Kick: provider core, then browse+play, chat last.
