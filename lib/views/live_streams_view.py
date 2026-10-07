@@ -27,6 +27,8 @@ _RELOGIN_MESSAGE = "Your session expired. Log in again to continue."
 _ALL_GAMES_LABEL = "All"
 _NO_MATCHES_MESSAGE = "None of your live followed channels are playing this game right now."
 _PLAYBACK_ERROR_MESSAGE = "Couldn't start playback. Try again."
+_TITLE = "Live Streams"
+_REFRESHING_TITLE = "Live Streams - Refreshing..."
 
 
 _thumbnail_url = view_utils.thumbnail_url
@@ -89,9 +91,7 @@ class LiveStreamsView:
 
     def activate(self):
         addon = xbmcaddon.Addon()
-        title_label = self._safe_control(self.TITLE_LABEL_ID)
-        if title_label:
-            title_label.setLabel("Live Streams")
+        self._set_title(_TITLE)
         client_id = addon.getSetting("client_id")
         token = auth.load_token(addon)
         if token is None:
@@ -106,6 +106,11 @@ class LiveStreamsView:
             self._show_error(_RELOGIN_MESSAGE)
             return
 
+        # Fetching followed channels, live status, games and Kick favorites
+        # can take several seconds; the title says so until the load ends,
+        # however it ends. activate() runs on the add-on's own thread, so Kodi
+        # keeps rendering and the label shows up while the requests block.
+        self._set_title(_REFRESHING_TITLE)
         try:
             self._load_and_populate(addon, client_id, token)
         except api.TokenExpiredError:
@@ -115,6 +120,13 @@ class LiveStreamsView:
                 "script.twitch.center: Home screen failed to load: " + repr(exc), xbmc.LOGERROR
             )
             self._show_error(_NETWORK_ERROR_MESSAGE)
+        finally:
+            self._set_title(_TITLE)
+
+    def _set_title(self, text):
+        title_label = self._safe_control(self.TITLE_LABEL_ID)
+        if title_label:
+            title_label.setLabel(text)
 
     def _load_and_populate(self, addon, client_id, token):
         followed = api.get_followed_channels(token["access_token"], client_id, token["user_id"])

@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.31.0] - 2026-10-08
+
+### Added
+- Live Streams now shows "Live Streams - Refreshing..." in its title while followed channels, live status, games and Kick favorites load, both on opening the view and on pressing Refresh. The title goes back to "Live Streams" once the load finishes, whether it succeeds or fails.
+
 ## [0.30.14] - 2026-09-19
 
 ### Fixed

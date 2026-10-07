@@ -866,3 +866,34 @@ def test_context_menu_on_twitch_result_does_nothing():
 
     assert providers.get_kick_favorites(addon) == []
     assert xbmcgui.Dialog.notifications == []
+
+
+def test_activate_shows_refreshing_indicator_while_loading():
+    # Loading followed channels/live status can take a few seconds; the title
+    # tells the user a refresh is underway, then reverts once it finishes.
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    window = FakeWindow()
+    seen = []
+
+    def fake_followed(*args):
+        seen.append(window.getControl(LiveStreamsView.TITLE_LABEL_ID).getLabel())
+        return FOLLOWED
+
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", side_effect=fake_followed
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ):
+        LiveStreamsView(window).activate()
+    assert "Refreshing" in seen[0]
+    assert window.getControl(LiveStreamsView.TITLE_LABEL_ID).getLabel() == "Live Streams"
+
+
+def test_activate_clears_refreshing_indicator_on_error():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    window = FakeWindow()
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", side_effect=RuntimeError("boom")
+    ), patch("lib.views.live_streams_view.xbmc.log"):
+        LiveStreamsView(window).activate()
+    assert window.getControl(LiveStreamsView.TITLE_LABEL_ID).getLabel() == "Live Streams"
