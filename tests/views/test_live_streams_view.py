@@ -897,3 +897,32 @@ def test_activate_clears_refreshing_indicator_on_error():
     ), patch("lib.views.live_streams_view.xbmc.log"):
         LiveStreamsView(window).activate()
     assert window.getControl(LiveStreamsView.TITLE_LABEL_ID).getLabel() == "Live Streams"
+
+
+def test_activate_shows_each_load_step_in_title():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    window = FakeWindow()
+    seen = []
+
+    def record(result):
+        def fake(*args):
+            seen.append(window.getControl(LiveStreamsView.TITLE_LABEL_ID).getLabel())
+            return result
+
+        return fake
+
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", side_effect=record(FOLLOWED)
+    ), patch.object(api, "get_live_status", side_effect=record(LIVE)), patch.object(
+        gql, "get_followed_live_games", side_effect=record([])
+    ), patch(
+        "lib.views.live_streams_view.providers.get_kick_live_favorites", side_effect=record([])
+    ):
+        LiveStreamsView(window).activate()
+    assert seen == [
+        "Live Streams - Refreshing: followed channels (1/4)",
+        "Live Streams - Refreshing: live status (2/4)",
+        "Live Streams - Refreshing: games (3/4)",
+        "Live Streams - Refreshing: Kick favorites (4/4)",
+    ]
+    assert window.getControl(LiveStreamsView.TITLE_LABEL_ID).getLabel() == "Live Streams"

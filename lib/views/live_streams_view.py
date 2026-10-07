@@ -29,6 +29,16 @@ _NO_MATCHES_MESSAGE = "None of your live followed channels are playing this game
 _PLAYBACK_ERROR_MESSAGE = "Couldn't start playback. Try again."
 _TITLE = "Live Streams"
 _REFRESHING_TITLE = "Live Streams - Refreshing..."
+_REFRESH_STEPS = ("followed channels", "live status", "games", "Kick favorites")
+
+
+def _refreshing_title(step):
+    """Title for load step `step` (0-based index into _REFRESH_STEPS)."""
+    return "Live Streams - Refreshing: %s (%d/%d)" % (
+        _REFRESH_STEPS[step],
+        step + 1,
+        len(_REFRESH_STEPS),
+    )
 
 
 _thumbnail_url = view_utils.thumbnail_url
@@ -129,10 +139,16 @@ class LiveStreamsView:
             title_label.setLabel(text)
 
     def _load_and_populate(self, addon, client_id, token):
+        # Each request can be slow on its own; naming the running step in the
+        # title shows the refresh is progressing and which call is the slow one.
+        self._set_title(_refreshing_title(0))
         followed = api.get_followed_channels(token["access_token"], client_id, token["user_id"])
         broadcaster_ids = [c["broadcaster_id"] for c in followed]
+        self._set_title(_refreshing_title(1))
         live_list = api.get_live_status(token["access_token"], client_id, broadcaster_ids)
+        self._set_title(_refreshing_title(2))
         games = gql.get_followed_live_games(addon.getSetting("website_token"))
+        self._set_title(_refreshing_title(3))
         kick_live = providers.get_kick_live_favorites(addon)
         self._followed = followed
         self._live = live_list

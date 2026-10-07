@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.31.1] - 2026-10-08
+
+### Changed
+- The Live Streams refresh indicator now names the step that is loading and how far along it is: "Live Streams - Refreshing: followed channels (1/4)", then live status (2/4), games (3/4) and Kick favorites (4/4).
+
 ## [0.31.0] - 2026-10-08
 
 ### Added
