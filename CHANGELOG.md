@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.31.3] - 2026-11-03
+
+### Changed
+- Every version in the addon's changelog (the `<news>` text Kodi shows on the addon's info screen) now includes its release date, e.g. "v0.31.2 (2026-11-03): ...". Older entries were backfilled from this file and git history.
+
 ## [0.31.2] - 2026-11-03
 
 ### Fixed
