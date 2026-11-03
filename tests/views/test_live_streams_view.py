@@ -549,6 +549,31 @@ def test_selecting_a_live_channel_shows_error_when_resolution_fails():
     assert win.window.getControl(LiveStreamsView.CHANNEL_LIST_ID).size() == 2
 
 
+def test_selecting_a_live_channel_shows_preflight_reason_when_stream_start_fails():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_followed_channels", return_value=FOLLOWED
+    ), patch.object(api, "get_live_status", return_value=LIVE), patch.object(
+        gql, "get_followed_live_games", return_value=[]
+    ), patch.object(
+        providers, "resolve_stream_url", return_value="https://example.invalid/stream.m3u8"
+    ), patch(
+        "lib.views.live_streams_view.player.play_stream",
+        side_effect=providers.StreamStartError("Twitch refused the stream (HTTP 403)."),
+    ), patch("lib.views.live_streams_view.xbmcgui.Dialog") as mock_dialog_cls:
+        win = LiveStreamsView(FakeWindow())
+        win.activate()
+        channel_control = win.window.getControl(LiveStreamsView.CHANNEL_LIST_ID)
+        channel_control.selectItem(0)
+        win.window.setFocusId(LiveStreamsView.CHANNEL_LIST_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+    mock_dialog_cls.return_value.ok.assert_called_once_with(
+        "Couldn't start stream", "Twitch refused the stream (HTTP 403)."
+    )
+    assert win.window.getControl(LiveStreamsView.ERROR_LABEL_ID).getLabel() != ""
+
+
 def test_selecting_a_live_channel_shows_error_when_playback_declined():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(

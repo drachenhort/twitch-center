@@ -13,6 +13,7 @@ from lib.settings import Settings
 from lib.twitch import api
 from lib.twitch import eventsub
 from lib.twitch import irc
+from lib.twitch import stream as twitch_stream
 from lib.windows.chat_overlay import ChatOverlay
 from lib.windows.variable_chat_overlay import VariableChatOverlay
 
@@ -116,11 +117,16 @@ class PlaybackWatchdog:
     _STALL_THRESHOLD = 15.0
     _AD_GRACE_PERIOD = 10.0
 
-    def __init__(self, player, ad_state, recovery_manager, is_paused_fn=None):
+    def __init__(self, player, ad_state, recovery_manager, is_paused_fn=None,
+                 is_started_fn=None):
         self._player = player
         self._ad_state = ad_state
         self._recovery = recovery_manager
         self._is_paused_fn = is_paused_fn or (lambda: False)
+        # isPlaying() is already True while Kodi is still opening the stream (fetching the
+        # master playlist), so without this gate a slow open was misread as a 15s stall and
+        # "recovered" by re-opening mid-open (seen on kodi.local 2026-11-03).
+        self._is_started_fn = is_started_fn or (lambda: True)
         self._last_position = -1.0
         self._last_progress_time = None
         self._cancel_event = threading.Event()
@@ -143,7 +149,7 @@ class PlaybackWatchdog:
             self._check_once()
 
     def _check_once(self):
-        if not self._player.isPlaying():
+        if not self._player.isPlaying() or not self._is_started_fn():
             self._last_progress_time = None
             return False
         try:
@@ -190,14 +196,22 @@ class _ChatAwarePlayer(xbmc.Player):
         self._url = url
         self._channel = channel
         self._paused = False
+        self._av_started = False
         self._ad_state = AdBreakState()
         self._relay = relay
         self._recovery = RecoveryManager(self, channel, platform, relay=relay, relay_url=url)
         self._watchdog = PlaybackWatchdog(
-            self, self._ad_state, self._recovery, is_paused_fn=lambda: self._paused
+            self, self._ad_state, self._recovery, is_paused_fn=lambda: self._paused,
+            is_started_fn=lambda: self._av_started,
         )
         if enable_watchdog:
             self._watchdog.start()
+
+    def onPlayBackStarted(self):
+        self._av_started = False
+
+    def onAVStarted(self):
+        self._av_started = True
 
     def onPlayBackPaused(self):
         self._paused = True
@@ -215,6 +229,21 @@ class _ChatAwarePlayer(xbmc.Player):
         self._teardown()
 
     def onPlayBackError(self):
+        if not self._av_started:
+            # Our own check_playlist fetch of this URL succeeded moments ago, so the failure is
+            # inside Kodi's player (its HTTP stack or inputstream.adaptive), not Twitch.
+            xbmc.log(
+                "script.twitch.center: Kodi's player failed to open %r although Twitch served "
+                "its playlist" % (self._channel,),
+                xbmc.LOGERROR,
+            )
+            xbmcgui.Dialog().notification(
+                "SIGMA Streaming Hub",
+                "Twitch answered, but Kodi's player couldn't open the stream. "
+                "Restart Kodi if this repeats.",
+                xbmcgui.NOTIFICATION_ERROR,
+                10000,
+            )
         self._teardown()
 
     def _teardown(self):
@@ -228,8 +257,12 @@ class _ChatAwarePlayer(xbmc.Player):
 _STOP_SETTLE_SECONDS = 0.5
 
 
+_PREFLIGHT_PLATFORMS = ("twitch", "twitch_vod")
+
+
 def play_stream(url, channel, settings=None, access_token=None, client_id=None, user_id=None,
-                 chat_overlay_cls=None, chat_client_cls=None, platform="twitch", sleep_fn=None):
+                 chat_overlay_cls=None, chat_client_cls=None, platform="twitch", sleep_fn=None,
+                 preflight_fn=None):
     """Hand the resolved HLS URL to Kodi's player - via inputstream.adaptive,
     which handles proper adaptive-bitrate switching for live multi-quality
     HLS, unless settings.skip_twitch_ads is on, in which case a local
@@ -252,11 +285,27 @@ def play_stream(url, channel, settings=None, access_token=None, client_id=None, 
     access_token/client_id/user_id are the logged-in Twitch user's Helix
     credentials - required only when settings.chat_engine == "eventsub"
     (to resolve the channel's numeric id and subscribe); ignored for the
-    default "irc" engine and always ignored for platform=="kick"."""
+    default "irc" engine and always ignored for platform=="kick".
+
+    For Twitch live/VOD URLs, first fetches the master playlist itself
+    (preflight_fn, default lib.twitch.stream.check_playlist) and raises
+    providers.StreamStartError with the reason if that fails - before
+    stopping whatever is currently playing, so a failed switch leaves the
+    old stream running."""
     global _current_chat_watcher
 
     settings = settings or Settings()
     sleep_fn = sleep_fn or time.sleep
+    preflight_fn = preflight_fn or twitch_stream.check_playlist
+
+    if platform in _PREFLIGHT_PLATFORMS:
+        reason = preflight_fn(url)
+        if reason is not None:
+            xbmc.log(
+                "script.twitch.center: play_stream: preflight failed for %r: %s" % (channel, reason),
+                xbmc.LOGERROR,
+            )
+            raise providers.StreamStartError(reason)
 
     # Explicitly stop whatever's currently playing before opening the new URL,
     # instead of relying on xbmc.Player().play()'s implicit stop-then-start.

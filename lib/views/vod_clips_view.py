@@ -193,6 +193,10 @@ class VodClipsView:
         try:
             url = providers.resolve_vod_url(addon, video_id)
             played = player.play_stream(url, title, platform="twitch_vod")
+        except providers.StreamStartError as exc:
+            self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
+            xbmcgui.Dialog().ok("Couldn't start stream", str(exc))
+            return
         except providers.StreamUnavailableError as exc:
             xbmc.log(
                 "script.twitch.center: VOD unavailable (video_id=%r): %s" % (video_id, exc),

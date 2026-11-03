@@ -1,7 +1,10 @@
 """Resolves a Twitch channel name to a playable HLS URL via Twitch's GraphQL +
 usher.ttvnw.net access-token endpoints. No xbmc* imports - pure Python, pytest-testable."""
+import json
 import random
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
+
+import requests
 
 from lib.twitch import gql
 
@@ -37,6 +40,39 @@ def resolve_stream_url(channel_login, website_token=None):
         + "&p="
         + str(random.randint(1, 999999))
     )
+
+
+def check_playlist(url, timeout=10):
+    """Fetch an HLS master playlist ourselves before Kodi's player gets it, so a failure can be
+    shown to the user with its actual cause instead of Kodi's generic "Playback failed" dialog
+    (Kodi gives add-ons no way to read why inputstream.adaptive's own fetch failed). Returns None
+    if the URL served a playlist, otherwise a short human-readable reason. Never raises."""
+    host = urlsplit(url).hostname or url
+    try:
+        response = requests.get(url, timeout=timeout)
+    except requests.exceptions.Timeout:
+        return "Twitch video server ({}) didn't answer within {}s.".format(host, timeout)
+    except requests.exceptions.RequestException as exc:
+        return "Can't reach Twitch video server ({}): {}.".format(host, type(exc).__name__)
+    if response.status_code != 200:
+        return "Twitch refused the stream (HTTP {}){}.".format(
+            response.status_code, _usher_error_suffix(response.text)
+        )
+    if not response.text.lstrip().startswith("#EXTM3U"):
+        return "Twitch video server ({}) sent a response that is not a playlist.".format(host)
+    return None
+
+
+def _usher_error_suffix(body):
+    """usher.ttvnw.net error bodies are a JSON list like
+    [{"error": "Can not find channel", "error_code": "...", ...}] - return ": <error>" from it,
+    or "" if the body isn't that shape."""
+    try:
+        errors = json.loads(body)
+        message = errors[0]["error"]
+    except (ValueError, LookupError, TypeError):
+        return ""
+    return ": " + str(message) if message else ""
 
 
 def resolve_vod_url(vod_id, website_token=None):

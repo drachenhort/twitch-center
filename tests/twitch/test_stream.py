@@ -76,3 +76,48 @@ def test_resolve_clip_url_passes_website_token_through():
     with patch.object(gql, "get_clip_video_url", return_value="https://example/1080.mp4") as mock_get:
         stream.resolve_clip_url("SomeClipSlug", "my-website-token")
     mock_get.assert_called_once_with("SomeClipSlug", "my-website-token")
+
+
+class _FakeResponse:
+    def __init__(self, status_code, text):
+        self.status_code = status_code
+        self.text = text
+
+
+def test_check_playlist_returns_none_for_a_valid_playlist():
+    with patch.object(stream.requests, "get", return_value=_FakeResponse(200, "#EXTM3U\n#EXT-X-TWITCH-INFO:x")):
+        assert stream.check_playlist("https://usher.ttvnw.net/x.m3u8") is None
+
+
+def test_check_playlist_reports_timeout():
+    with patch.object(stream.requests, "get", side_effect=stream.requests.exceptions.Timeout()):
+        reason = stream.check_playlist("https://usher.ttvnw.net/x.m3u8", timeout=10)
+    assert "didn't answer within 10s" in reason
+
+
+def test_check_playlist_reports_connection_failure():
+    with patch.object(
+        stream.requests, "get", side_effect=stream.requests.exceptions.ConnectionError("boom")
+    ):
+        reason = stream.check_playlist("https://usher.ttvnw.net/x.m3u8")
+    assert "Can't reach" in reason
+
+
+def test_check_playlist_reports_usher_error_text_and_status():
+    body = '[{"url":"https://usher.ttvnw.net/x","error":"Can not find channel","error_code":"no_channel"}]'
+    with patch.object(stream.requests, "get", return_value=_FakeResponse(404, body)):
+        reason = stream.check_playlist("https://usher.ttvnw.net/x.m3u8")
+    assert "HTTP 404" in reason
+    assert "Can not find channel" in reason
+
+
+def test_check_playlist_reports_http_status_when_body_is_not_json():
+    with patch.object(stream.requests, "get", return_value=_FakeResponse(503, "<html>down</html>")):
+        reason = stream.check_playlist("https://usher.ttvnw.net/x.m3u8")
+    assert "HTTP 503" in reason
+
+
+def test_check_playlist_reports_non_playlist_200_body():
+    with patch.object(stream.requests, "get", return_value=_FakeResponse(200, "<html>captive portal</html>")):
+        reason = stream.check_playlist("https://usher.ttvnw.net/x.m3u8")
+    assert "not a playlist" in reason

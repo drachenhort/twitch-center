@@ -1,11 +1,21 @@
 from unittest.mock import ANY, patch
 
+import pytest
 import xbmc
+import xbmcgui
 
 from lib import providers
 from lib.twitch import eventsub as eventsub_module
 from lib.twitch import irc as irc_module
 from lib.windows import player
+
+
+@pytest.fixture(autouse=True)
+def _passing_preflight():
+    # play_stream's real preflight would hit the network - every test gets a passing one
+    # unless it passes its own preflight_fn.
+    with patch("lib.windows.player.twitch_stream.check_playlist", return_value=None):
+        yield
 
 
 class FakeSettings:
@@ -915,3 +925,78 @@ def test_play_stream_twitch_vod_still_uses_inputstream_adaptive():
     list_item = mock_player_cls.return_value.play.call_args[0][1]
     assert list_item.getProperty("inputstream") == "inputstream.adaptive"
     assert list_item.getMimeType() == "application/x-mpegURL"
+
+
+def test_play_stream_raises_stream_start_error_with_reason_when_preflight_fails():
+    with patch("lib.windows.player.Helper"), patch(
+        "lib.windows.player.xbmc.Player"
+    ) as mock_player_cls, patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog):
+        mock_player_cls.return_value.isPlaying.return_value = True
+        with pytest.raises(providers.StreamStartError) as excinfo:
+            player.play_stream(
+                "https://usher.ttvnw.net/x.m3u8", "somechannel",
+                settings=FakeSettings(chat_overlay_enabled=False),
+                preflight_fn=lambda url: "Twitch refused the stream (HTTP 403).",
+            )
+
+    assert str(excinfo.value) == "Twitch refused the stream (HTTP 403)."
+    # The old stream keeps playing - a failed switch must not stop it.
+    mock_player_cls.return_value.stop.assert_not_called()
+    mock_player_cls.return_value.play.assert_not_called()
+
+
+def test_play_stream_skips_preflight_for_kick():
+    calls = []
+    with patch("lib.windows.player.Helper") as mock_helper_cls, patch(
+        "lib.windows.player.xbmc.Player"
+    ), patch("lib.windows.player.PlaybackWatchdog", FakeWatchdog):
+        mock_helper_cls.return_value.check_inputstream.return_value = True
+        mock_helper_cls.return_value.inputstream_addon = "inputstream.adaptive"
+        player.play_stream(
+            "https://kick.invalid/x.m3u8", "slug", platform="kick",
+            settings=FakeSettings(chat_overlay_enabled=False),
+            preflight_fn=lambda url: calls.append(url) or "fail",
+        )
+    assert calls == []
+
+
+def test_chat_aware_player_notifies_when_kodi_fails_before_av_start():
+    xbmcgui.Dialog.notifications.clear()
+    watcher = player._ChatAwarePlayer(None, url="https://x.invalid/s.m3u8", channel="c",
+                                      enable_watchdog=False)
+    watcher.onPlayBackStarted()
+    watcher.onPlayBackError()
+    assert len(xbmcgui.Dialog.notifications) == 1
+    assert "Kodi's player couldn't open" in xbmcgui.Dialog.notifications[0][1]
+
+
+def test_chat_aware_player_no_open_failure_notice_after_av_started():
+    xbmcgui.Dialog.notifications.clear()
+    watcher = player._ChatAwarePlayer(None, url="https://x.invalid/s.m3u8", channel="c",
+                                      enable_watchdog=False)
+    watcher.onAVStarted()
+    watcher.onPlayBackError()
+    assert xbmcgui.Dialog.notifications == []
+
+
+def test_playback_watchdog_ignores_stall_before_av_started():
+    fake_player = FakePlayerForRecovery()
+    fake_player.getTime = lambda: 0.0
+    recovery = player.RecoveryManager(fake_player, "channel")
+    watchdog = player.PlaybackWatchdog(
+        fake_player, player.AdBreakState(), recovery, is_started_fn=lambda: False
+    )
+    with patch.object(recovery, "recover") as mock_recover, patch.object(
+        player, "time"
+    ) as mock_time:
+        counter = [0]
+
+        def monotonic():
+            counter[0] += 1
+            return counter[0] * 10
+
+        mock_time.monotonic.side_effect = monotonic
+        for _ in range(10):
+            watchdog._check_once()
+
+    mock_recover.assert_not_called()

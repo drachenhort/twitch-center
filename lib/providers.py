@@ -270,6 +270,12 @@ class StreamUnavailableError(Exception):
     type regardless of platform."""
 
 
+class StreamStartError(StreamUnavailableError):
+    """Raised by lib.windows.player.play_stream when the resolved URL fails
+    our own pre-playback check (see lib.twitch.stream.check_playlist).
+    str(exc) is a short user-facing reason, meant to be shown as-is."""
+
+
 def resolve_stream_url(addon, platform, identifier):
     """Resolve `identifier` (a Twitch login or Kick slug) to a playable HLS
     URL for the given platform. Raises StreamUnavailableError - never the

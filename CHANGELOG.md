@@ -4,6 +4,12 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.31.2] - 2026-11-03
+
+### Fixed
+- When a Twitch stream or VOD won't start, the addon now says why instead of leaving only Kodi's generic "Playback failed" dialog. Before handing the URL to Kodi it fetches the stream's playlist itself; if that fails, a dialog shows the cause (timeout, connection failure, or Twitch's own HTTP error such as "Can not find channel"), and whatever was already playing keeps playing. If Twitch answers fine but Kodi's player still can't open the stream, a notification says the problem is on Kodi's side.
+- The stall watchdog no longer counts the time Kodi spends opening a stream as a stall. A slow open used to trigger a "recovery" after 15s that re-opened the stream while the first open was still running.
+
 ## [0.31.1] - 2026-10-08
 
 ### Changed
