@@ -45,6 +45,10 @@ class CategoryStreamsView:
             return None
 
     def activate(self):
+        # MainWindow shows this group before activate()'s blocking fetch -
+        # clear the previous category's streams so they can't be seen or
+        # played under the new category's title meanwhile.
+        self._clear()
         if not self.context or not self.context.get("game_id"):
             # Not an auth/network failure - leave the relogin button hidden,
             # same as VodClipsView's guard.
@@ -132,6 +136,15 @@ class CategoryStreamsView:
             return
         control.addItems([view_utils.build_stream_item(stream) for stream in streams])
         self.window.setFocusId(self.STREAM_LIST_ID)
+
+    def _clear(self):
+        control = self._safe_control(self.STREAM_LIST_ID)
+        if control:
+            control.reset()
+        for label_id in (self.EMPTY_LABEL_ID, self.ERROR_LABEL_ID):
+            label = self._safe_control(label_id)
+            if label:
+                label.setLabel("")
 
     def _show_list_error(self, message):
         """Transient failure (e.g. playback): show the message, keep the list."""

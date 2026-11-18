@@ -641,8 +641,12 @@
         <width>1824</width>
         <height>70</height>
         <font>font13</font>
+        <textcolor>FFE6E1E5</textcolor>
+        <focusedcolor>FFD0BCFF</focusedcolor>
         <align>center</align>
         <aligny>center</aligny>
+        <texturenofocus>name_box.png</texturenofocus>
+        <texturefocus colordiffuse="ff0a6ed3">card_surface_focus.png</texturefocus>
         <onup>306</onup>
         <ondown>309</ondown>
         <onleft>310</onleft>

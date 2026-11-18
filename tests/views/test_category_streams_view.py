@@ -155,3 +155,35 @@ def test_network_error_shows_error():
         view.activate()
     assert view.window.getControl(CategoryStreamsView.ERROR_LABEL_ID).getLabel() != ""
     assert view.window.getControl(CategoryStreamsView.STREAM_LIST_ID).size() == 0
+
+
+def test_switching_category_clears_old_streams_before_loading():
+    # The group becomes visible before activate()'s blocking HTTP call; the
+    # previous category's streams must not sit there (and be playable) meanwhile.
+    addon = _addon_with_token(TOKEN)
+    sizes_during_fetch = []
+    view = _view()
+
+    def fake_streams(*args, **kwargs):
+        sizes_during_fetch.append(view.window.getControl(CategoryStreamsView.STREAM_LIST_ID).size())
+        return STREAMS
+
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_live_streams_by_game", side_effect=fake_streams
+    ):
+        view.activate()
+        view.context = {"game_id": "21779", "game_name": "League of Legends"}
+        view.activate()
+    assert sizes_during_fetch == [0, 0]
+
+
+def test_missing_context_clears_old_streams():
+    addon = _addon_with_token(TOKEN)
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
+        api, "get_live_streams_by_game", return_value=STREAMS
+    ):
+        view = _view()
+        view.activate()
+        view.context = None
+        view.activate()
+    assert view.window.getControl(CategoryStreamsView.STREAM_LIST_ID).size() == 0

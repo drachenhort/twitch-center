@@ -371,3 +371,17 @@ def test_main_skin_control_ids_are_still_unique_after_vod_clips_additions():
     control_ids = _main_skin_control_ids()
     duplicates = {cid for cid in control_ids if control_ids.count(cid) > 1}
     assert not duplicates
+
+
+def test_discover_browse_categories_button_has_visible_focus_state():
+    # Discover lands focus on this button, so without a focus texture a
+    # remote user sees nothing highlighted on entering the screen.
+    from lib.views.discover_view import BROWSE_CATEGORIES_BUTTON_ID
+
+    root = ET.parse(MAIN_SKIN_XML).getroot()
+    button = next(
+        c for c in root.iter("control") if c.attrib.get("id") == str(BROWSE_CATEGORIES_BUTTON_ID)
+    )
+    assert button.find("texturefocus") is not None
+    assert button.find("texturefocus").text
+    assert button.find("focusedcolor") is not None
