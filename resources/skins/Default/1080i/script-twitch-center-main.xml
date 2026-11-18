@@ -605,7 +605,7 @@
         <height>60</height>
         <font>font13</font>
         <onright>307</onright>
-        <ondown>305</ondown>
+        <ondown>310</ondown>
         <label>Search channels...</label>
       </control>
       <control type="button" id="307">
@@ -618,7 +618,7 @@
         <align>center</align>
         <onleft>306</onleft>
         <onright>308</onright>
-        <ondown>305</ondown>
+        <ondown>310</ondown>
         <label>Search</label>
       </control>
       <control type="button" id="308">
@@ -631,65 +631,23 @@
         <align>center</align>
         <onleft>307</onleft>
         <onright>304</onright>
-        <ondown>305</ondown>
+        <ondown>310</ondown>
         <label>Searching: Channels</label>
       </control>
-      <control type="label">
-        <description>Twitch row label</description>
+      <control type="button" id="310">
+        <description>Browse Twitch Categories (opens Top Categories grid)</description>
         <posx>48</posx>
         <posy>210</posy>
-        <width>140</width>
+        <width>1824</width>
         <height>70</height>
-        <font>CardHeadline</font>
-        <textcolor>FFE6E1E5</textcolor>
+        <font>font13</font>
+        <align>center</align>
         <aligny>center</aligny>
-        <label>TWITCH:</label>
-      </control>
-      <control type="list" id="305">
-        <description>Top games</description>
-        <posx>198</posx>
-        <posy>210</posy>
-        <width>1674</width>
-        <height>70</height>
-        <orientation>horizontal</orientation>
         <onup>306</onup>
         <ondown>309</ondown>
-        <onleft>305</onleft>
-        <onright>305</onright>
-        <itemlayout width="240" height="64">
-          <control type="image">
-            <width>240</width>
-            <height>64</height>
-            <texture>name_box.png</texture>
-            <colordiffuse>801a73e8</colordiffuse>
-          </control>
-          <control type="label">
-            <width>240</width>
-            <height>64</height>
-            <font>CardHeadline</font>
-            <textcolor>FFE6E1E5</textcolor>
-            <align>center</align>
-            <aligny>center</aligny>
-            <label>$INFO[ListItem.Label]</label>
-          </control>
-        </itemlayout>
-        <focusedlayout width="240" height="64">
-          <control type="image">
-            <width>240</width>
-            <height>64</height>
-            <texture>card_surface_focus.png</texture>
-            <colordiffuse>ff0a6ed3</colordiffuse>
-          </control>
-          <control type="label">
-            <width>240</width>
-            <height>64</height>
-            <font>CardHeadline</font>
-            <textcolor>FFFFFFFF</textcolor>
-            <align>center</align>
-            <aligny>center</aligny>
-            <label>$INFO[ListItem.Label]</label>
-          </control>
-        </focusedlayout>
+        <onleft>310</onleft>
+        <onright>310</onright>
+        <label>Browse Twitch Categories</label>
       </control>
       <control type="label">
         <description>Kick row label</description>
@@ -709,7 +667,7 @@
         <width>1674</width>
         <height>70</height>
         <orientation>horizontal</orientation>
-        <onup>305</onup>
+        <onup>310</onup>
         <ondown>301</ondown>
         <onleft>309</onleft>
         <onright>309</onright>
@@ -965,7 +923,7 @@
         <font>font13</font>
         <align>center</align>
         <onleft>308</onleft>
-        <ondown>305</ondown>
+        <ondown>310</ondown>
         <label>Log in again</label>
       </control>
     </control>
@@ -1346,6 +1304,382 @@
       </control>
     </control>
 
+    <!-- ===================== TOP CATEGORIES (1000) ===================== -->
+    <control type="group" id="1000">
+      <control type="label" id="1005">
+        <description>Title</description>
+        <posx>64</posx>
+        <posy>48</posy>
+        <width>1200</width>
+        <height>48</height>
+        <font>Title</font>
+        <textcolor>FFE6E1E5</textcolor>
+        <label>Top Categories</label>
+      </control>
+      <control type="label">
+        <description>Subtitle</description>
+        <posx>64</posx>
+        <posy>100</posy>
+        <width>1200</width>
+        <height>28</height>
+        <font>CardBody</font>
+        <textcolor>FFCAC4D0</textcolor>
+        <label>Most-watched on Twitch right now</label>
+      </control>
+      <control type="panel" id="1001">
+        <description>Top categories box-art grid (vertical: columns = width / item width = 6)</description>
+        <posx>48</posx>
+        <posy>140</posy>
+        <width>1824</width>
+        <height>900</height>
+        <onup>1001</onup>
+        <ondown>1001</ondown>
+        <onleft>1001</onleft>
+        <onright>1001</onright>
+        <orientation>vertical</orientation>
+        <itemlayout width="300" height="420">
+          <control type="image">
+            <posx>20</posx>
+            <posy>10</posy>
+            <width>260</width>
+            <height>347</height>
+            <aspectratio>keep</aspectratio>
+            <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Art(thumb)]</texture>
+          </control>
+          <control type="label">
+            <posx>20</posx>
+            <posy>362</posy>
+            <width>260</width>
+            <height>50</height>
+            <font>CardHeadline</font>
+            <textcolor>FFE6E1E5</textcolor>
+            <align>center</align>
+            <aligny>center</aligny>
+            <scroll>false</scroll>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+        </itemlayout>
+        <focusedlayout width="300" height="420">
+          <control type="image">
+            <posx>10</posx>
+            <posy>0</posy>
+            <width>280</width>
+            <height>415</height>
+            <texture>card_surface_focus.png</texture>
+            <colordiffuse>ff0a6ed3</colordiffuse>
+          </control>
+          <control type="image">
+            <posx>20</posx>
+            <posy>10</posy>
+            <width>260</width>
+            <height>347</height>
+            <aspectratio>keep</aspectratio>
+            <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Art(thumb)]</texture>
+          </control>
+          <control type="label">
+            <posx>20</posx>
+            <posy>362</posy>
+            <width>260</width>
+            <height>50</height>
+            <font>CardHeadline</font>
+            <textcolor>FFFFFFFF</textcolor>
+            <align>center</align>
+            <aligny>center</aligny>
+            <scroll>true</scroll>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+        </focusedlayout>
+      </control>
+      <control type="label" id="1002">
+        <description>Empty message</description>
+        <posx>560</posx>
+        <posy>460</posy>
+        <width>800</width>
+        <height>60</height>
+        <font>CardHeadline</font>
+        <textcolor>FFCAC4D0</textcolor>
+        <align>center</align>
+        <label></label>
+      </control>
+      <control type="label" id="1003">
+        <description>Error / re-login message</description>
+        <posx>560</posx>
+        <posy>460</posy>
+        <width>800</width>
+        <height>60</height>
+        <font>CardHeadline</font>
+        <textcolor>FFCAC4D0</textcolor>
+        <align>center</align>
+        <label></label>
+      </control>
+      <control type="button" id="1004">
+        <description>Log in again</description>
+        <posx>760</posx>
+        <posy>540</posy>
+        <width>400</width>
+        <height>60</height>
+        <font>CardBody</font>
+        <textcolor>FFE6E1E5</textcolor>
+        <focusedcolor>FFD0BCFF</focusedcolor>
+        <align>center</align>
+        <aligny>center</aligny>
+        <onup>1001</onup>
+        <ondown>1001</ondown>
+        <onleft>1004</onleft>
+        <onright>1004</onright>
+        <label>Log in again</label>
+        <visible>false</visible>
+      </control>
+    </control>
+    <!-- ===================== CATEGORY STREAMS (1100) ===================== -->
+    <control type="group" id="1100">
+      <control type="label" id="1105">
+        <description>Title</description>
+        <posx>64</posx>
+        <posy>48</posy>
+        <width>1200</width>
+        <height>48</height>
+        <font>Title</font>
+        <textcolor>FFE6E1E5</textcolor>
+        <label></label>
+      </control>
+      <control type="label">
+        <description>Subtitle</description>
+        <posx>64</posx>
+        <posy>100</posy>
+        <width>1200</width>
+        <height>28</height>
+        <font>CardBody</font>
+        <textcolor>FFCAC4D0</textcolor>
+        <label>Live now</label>
+      </control>
+      <control type="panel" id="1101">
+        <description>Live streams in the selected category</description>
+        <posx>48</posx>
+        <posy>140</posy>
+        <width>1824</width>
+        <height>900</height>
+        <onup>1101</onup>
+        <ondown>1101</ondown>
+        <onleft>1101</onleft>
+        <onright>1101</onright>
+        <orientation>vertical</orientation>
+        <itemlayout width="415" height="275">
+          <control type="image">
+            <posx>16</posx>
+            <posy>16</posy>
+            <width>383</width>
+            <height>32</height>
+            <texture>name_box.png</texture>
+          </control>
+          <control type="label">
+            <posx>16</posx>
+            <posy>16</posy>
+            <width>383</width>
+            <height>32</height>
+            <font>CardHeadline</font>
+            <textcolor>FFE6E1E5</textcolor>
+            <align>center</align>
+            <aligny>center</aligny>
+            <scroll>false</scroll>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+          <control type="image">
+            <posx>16</posx>
+            <posy>56</posy>
+            <width>383</width>
+            <height>155</height>
+            <aspectratio>scale</aspectratio>
+            <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Art(thumb)]</texture>
+            <diffuse>thumb_mask.png</diffuse>
+          </control>
+          <control type="label">
+            <posx>16</posx>
+            <posy>223</posy>
+            <width>270</width>
+            <height>28</height>
+            <font>CardBody</font>
+            <textcolor>FFCAC4D0</textcolor>
+            <aligny>center</aligny>
+            <label>$INFO[ListItem.Property(game_name)]</label>
+          </control>
+          <control type="image">
+            <posx>303</posx>
+            <posy>223</posy>
+            <width>96</width>
+            <height>28</height>
+            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
+            <texture>stat_chip.png</texture>
+          </control>
+          <control type="label">
+            <posx>303</posx>
+            <posy>223</posy>
+            <width>96</width>
+            <height>28</height>
+            <font>CardLabel</font>
+            <textcolor>FFE6E1E5</textcolor>
+            <align>center</align>
+            <aligny>center</aligny>
+            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
+            <label>$INFO[ListItem.Property(viewer_count)]</label>
+          </control>
+          <control type="label">
+            <posx>16</posx>
+            <posy>251</posy>
+            <width>270</width>
+            <height>20</height>
+            <font>CardLabel</font>
+            <textcolor>ff53fc18</textcolor>
+            <visible>String.IsEqual(ListItem.Property(platform),kick)</visible>
+            <label>KICK</label>
+          </control>
+          <control type="label">
+            <posx>16</posx>
+            <posy>251</posy>
+            <width>270</width>
+            <height>20</height>
+            <font>CardLabel</font>
+            <textcolor>ff9146ff</textcolor>
+            <visible>String.IsEqual(ListItem.Property(platform),twitch)</visible>
+            <label>TWITCH</label>
+          </control>
+        </itemlayout>
+        <focusedlayout width="415" height="275">
+          <control type="image">
+            <width>415</width>
+            <height>275</height>
+            <texture>card_surface_focus.png</texture>
+            <colordiffuse>ff0a6ed3</colordiffuse>
+            <visible>!String.IsEqual(ListItem.Property(platform),kick)</visible>
+          </control>
+          <control type="image">
+            <width>415</width>
+            <height>275</height>
+            <texture>card_surface_focus.png</texture>
+            <colordiffuse>ff53fc18</colordiffuse>
+            <visible>String.IsEqual(ListItem.Property(platform),kick)</visible>
+          </control>
+          <control type="image">
+            <posx>16</posx>
+            <posy>16</posy>
+            <width>383</width>
+            <height>32</height>
+            <texture>name_box.png</texture>
+          </control>
+          <control type="label">
+            <posx>16</posx>
+            <posy>16</posy>
+            <width>383</width>
+            <height>32</height>
+            <font>CardHeadline</font>
+            <textcolor>FFD0BCFF</textcolor>
+            <align>center</align>
+            <aligny>center</aligny>
+            <scroll>true</scroll>
+            <label>$INFO[ListItem.Label]</label>
+          </control>
+          <control type="image">
+            <posx>16</posx>
+            <posy>56</posy>
+            <width>383</width>
+            <height>155</height>
+            <aspectratio>scale</aspectratio>
+            <texture fallback="DefaultAddonNone.png">$INFO[ListItem.Art(thumb)]</texture>
+            <diffuse>thumb_mask.png</diffuse>
+          </control>
+          <control type="label">
+            <posx>16</posx>
+            <posy>223</posy>
+            <width>270</width>
+            <height>28</height>
+            <font>CardBody</font>
+            <textcolor>FFE6E1E5</textcolor>
+            <aligny>center</aligny>
+            <label>$INFO[ListItem.Property(game_name)]</label>
+          </control>
+          <control type="image">
+            <posx>303</posx>
+            <posy>223</posy>
+            <width>96</width>
+            <height>28</height>
+            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
+            <texture>stat_chip.png</texture>
+          </control>
+          <control type="label">
+            <posx>303</posx>
+            <posy>223</posy>
+            <width>96</width>
+            <height>28</height>
+            <font>CardLabel</font>
+            <textcolor>FFD0BCFF</textcolor>
+            <align>center</align>
+            <aligny>center</aligny>
+            <visible>String.IsEqual(ListItem.Property(is_live),true)</visible>
+            <label>$INFO[ListItem.Property(viewer_count)]</label>
+          </control>
+          <control type="label">
+            <posx>16</posx>
+            <posy>251</posy>
+            <width>270</width>
+            <height>20</height>
+            <font>CardLabel</font>
+            <textcolor>ff53fc18</textcolor>
+            <visible>String.IsEqual(ListItem.Property(platform),kick)</visible>
+            <label>KICK</label>
+          </control>
+          <control type="label">
+            <posx>16</posx>
+            <posy>251</posy>
+            <width>270</width>
+            <height>20</height>
+            <font>CardLabel</font>
+            <textcolor>ff9146ff</textcolor>
+            <visible>String.IsEqual(ListItem.Property(platform),twitch)</visible>
+            <label>TWITCH</label>
+          </control>
+        </focusedlayout>
+      </control>
+      <control type="label" id="1102">
+        <description>Empty message</description>
+        <posx>560</posx>
+        <posy>460</posy>
+        <width>800</width>
+        <height>60</height>
+        <font>CardHeadline</font>
+        <textcolor>FFCAC4D0</textcolor>
+        <align>center</align>
+        <label></label>
+      </control>
+      <control type="label" id="1103">
+        <description>Error / re-login message</description>
+        <posx>560</posx>
+        <posy>460</posy>
+        <width>800</width>
+        <height>60</height>
+        <font>CardHeadline</font>
+        <textcolor>FFCAC4D0</textcolor>
+        <align>center</align>
+        <label></label>
+      </control>
+      <control type="button" id="1104">
+        <description>Log in again</description>
+        <posx>760</posx>
+        <posy>540</posy>
+        <width>400</width>
+        <height>60</height>
+        <font>CardBody</font>
+        <textcolor>FFE6E1E5</textcolor>
+        <focusedcolor>FFD0BCFF</focusedcolor>
+        <align>center</align>
+        <aligny>center</aligny>
+        <onup>1101</onup>
+        <ondown>1101</ondown>
+        <onleft>1104</onleft>
+        <onright>1104</onright>
+        <label>Log in again</label>
+        <visible>false</visible>
+      </control>
+    </control>
     <!-- ===================== VERSION LABEL (900) ===================== -->
     <!-- Outside every view group (100/500/200/300/600) so it stays visible across
          every view switch instead of being toggled with them - see MainWindow._switch_view. -->

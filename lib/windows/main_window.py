@@ -17,6 +17,8 @@ class MainWindow(xbmcgui.WindowXML):
         "kick_login": 600,
         "vod_clips_channels": 700,
         "vod_clips": 800,
+        "top_categories": 1000,
+        "category_streams": 1100,
     }
 
     VERSION_LABEL_ID = 900
@@ -37,11 +39,13 @@ class MainWindow(xbmcgui.WindowXML):
 
     @staticmethod
     def _default_view_classes():
+        from lib.views.category_streams_view import CategoryStreamsView
         from lib.views.discover_view import DiscoverView
         from lib.views.kick_login_view import KickLoginView
         from lib.views.live_streams_view import LiveStreamsView
         from lib.views.login_view import LoginView
         from lib.views.menu_view import MenuView
+        from lib.views.top_categories_view import TopCategoriesView
         from lib.views.vod_clips_channels_view import VodClipsChannelsView
         from lib.views.vod_clips_view import VodClipsView
 
@@ -53,6 +57,8 @@ class MainWindow(xbmcgui.WindowXML):
             "kick_login": KickLoginView,
             "vod_clips_channels": VodClipsChannelsView,
             "vod_clips": VodClipsView,
+            "top_categories": TopCategoriesView,
+            "category_streams": CategoryStreamsView,
         }
 
     def onInit(self):

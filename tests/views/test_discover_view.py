@@ -20,6 +20,7 @@ class FakeWindow:
         self._controls = {}
         self._focus_id = None
         self.switched_to = []
+        self.switched_to_with_context = []
 
     def getControl(self, control_id):
         from xbmcgui import FakeListControl
@@ -34,8 +35,9 @@ class FakeWindow:
     def getFocusId(self):
         return self._focus_id
 
-    def _switch_view(self, name):
+    def _switch_view(self, name, context=None):
         self.switched_to.append(name)
+        self.switched_to_with_context.append((name, context))
 
 
 TOP_GAMES = [
@@ -108,22 +110,41 @@ def test_build_channel_item_offline_shows_offline():
     assert item.getLabel2() == "Offline"
 
 
-def test_oninit_populates_top_games():
+def _browse_game_via_search(win):
+    """Reach a game's live streams the way a user now does on Discover:
+    switch search to Games mode and search for it."""
+    with patch.object(api, "search_categories", return_value=[TOP_GAMES[0]]):
+        win.window.setFocusId(DiscoverView.SEARCH_MODE_TOGGLE_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        win.window.getControl(DiscoverView.SEARCH_EDIT_ID).setText("chatting")
+        win.window.setFocusId(DiscoverView.SEARCH_BUTTON_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+
+
+def test_activate_focuses_browse_categories_button():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ):
+    with patch("xbmcaddon.Addon", return_value=addon):
         win = DiscoverView(FakeWindow())
         win.activate()
-    games_control = win.window.getControl(DiscoverView.GAMES_LIST_ID)
-    assert games_control.size() == 2
-    labels = [games_control._items[i].getLabel() for i in range(2)]
-    assert labels == ["Just Chatting", "League of Legends"]
-    # The skin's <defaultcontrol> targets the search box (always focusable),
-    # not the games list, which is empty at skin-parse time and would abort
-    # window activation if Kodi tried to focus it directly - activate() must
-    # claim focus explicitly once real data is loaded.
-    assert win.window.getFocusId() == DiscoverView.GAMES_LIST_ID
+    assert win.window.getFocusId() == DiscoverView.BROWSE_CATEGORIES_BUTTON_ID
+
+
+def test_activate_does_not_call_get_top_games():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(api, "get_top_games") as mock_games:
+        win = DiscoverView(FakeWindow())
+        win.activate()
+    mock_games.assert_not_called()
+
+
+def test_browse_categories_button_opens_grid_with_refresh():
+    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
+    with patch("xbmcaddon.Addon", return_value=addon):
+        win = DiscoverView(FakeWindow())
+        win.activate()
+        win.window.setFocusId(DiscoverView.BROWSE_CATEGORIES_BUTTON_ID)
+        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+    assert win.window.switched_to_with_context[-1] == ("top_categories", {"refresh": True})
 
 
 def test_oninit_shows_relogin_when_no_token():
@@ -140,35 +161,16 @@ def test_oninit_shows_error_on_network_failure():
 
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", side_effect=requests.ConnectionError("boom")
+        providers, "get_kick_top_categories", side_effect=requests.ConnectionError("boom")
     ):
         win = DiscoverView(FakeWindow())
         win.activate()
     assert win.window.getControl(DiscoverView.ERROR_LABEL_ID).getLabel() != ""
 
 
-def test_selecting_a_game_populates_results_with_stream_items():
-    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(api, "get_live_streams_by_game", return_value=STREAMS):
-        win = DiscoverView(FakeWindow())
-        win.activate()
-        games_control = win.window.getControl(DiscoverView.GAMES_LIST_ID)
-        games_control.selectItem(0)
-        win.window.setFocusId(DiscoverView.GAMES_LIST_ID)
-        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
-
-    results_control = win.window.getControl(DiscoverView.RESULTS_LIST_ID)
-    assert results_control.size() == 1
-    assert results_control._items[0].getLabel() == "Alice"
-
-
 def test_pressing_search_populates_results_with_channel_items():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(api, "search_channels", return_value=SEARCH_RESULTS):
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(api, "search_channels", return_value=SEARCH_RESULTS):
         win = DiscoverView(FakeWindow())
         win.activate()
         win.window.getControl(DiscoverView.SEARCH_EDIT_ID).setText("bob")
@@ -182,9 +184,7 @@ def test_pressing_search_populates_results_with_channel_items():
 
 def test_pressing_search_with_empty_query_does_nothing():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(api, "search_channels") as mock_search:
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(api, "search_channels") as mock_search:
         win = DiscoverView(FakeWindow())
         win.activate()
         win.window.setFocusId(DiscoverView.SEARCH_BUTTON_ID)
@@ -195,9 +195,7 @@ def test_pressing_search_with_empty_query_does_nothing():
 
 def test_empty_search_results_show_nothing_found_message():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(api, "search_channels", return_value=[]):
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(api, "search_channels", return_value=[]):
         win = DiscoverView(FakeWindow())
         win.activate()
         win.window.getControl(DiscoverView.SEARCH_EDIT_ID).setText("nobody")
@@ -210,9 +208,7 @@ def test_empty_search_results_show_nothing_found_message():
 
 def test_toggling_search_mode_button_flips_mode_and_label():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ):
+    with patch("xbmcaddon.Addon", return_value=addon):
         win = DiscoverView(FakeWindow())
         win.activate()
         assert win._search_mode == "channels"
@@ -235,8 +231,6 @@ def test_pressing_search_in_game_mode_searches_categories_then_lists_its_streams
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     matches = [{"id": "16497", "name": "World of Warships"}]
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(
         api, "search_categories", return_value=matches
     ) as mock_search_categories, patch.object(
         api, "get_live_streams_by_game", return_value=STREAMS
@@ -258,9 +252,7 @@ def test_pressing_search_in_game_mode_searches_categories_then_lists_its_streams
 
 def test_pressing_search_in_game_mode_shows_message_when_no_game_matches():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(api, "search_categories", return_value=[]), patch.object(
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(api, "search_categories", return_value=[]), patch.object(
         api, "get_live_streams_by_game"
     ) as mock_get_streams:
         win = DiscoverView(FakeWindow())
@@ -287,8 +279,6 @@ def test_pressing_search_in_kick_mode_searches_categories_then_lists_its_streams
     addon.setSetting("kick_client_secret", "csecret")
     matches = [{"id": 3, "name": "EVE Online"}]
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(
         providers, "kick_category_cache_exists", return_value=True
     ), patch.object(
         providers, "search_kick_categories", return_value=matches
@@ -313,8 +303,6 @@ def test_live_kick_filter_populates_category_row_with_matches():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     matches = [{"id": 166, "name": "EVE Online"}, {"id": 1067, "name": "EVE Online"}]
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(
         providers, "get_kick_top_categories", return_value=KICK_TOP_CATEGORIES
     ), patch.object(
         providers, "search_kick_categories", return_value=matches
@@ -334,8 +322,6 @@ def test_live_kick_filter_populates_category_row_with_matches():
 def test_live_kick_filter_restores_top_categories_when_query_cleared():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(
         providers, "get_kick_top_categories", return_value=KICK_TOP_CATEGORIES
     ), patch.object(
         providers, "search_kick_categories", return_value=[{"id": 166, "name": "EVE Online"}]
@@ -357,8 +343,6 @@ def test_selecting_a_live_filtered_category_loads_its_streams():
     # behave exactly like selecting one from the top-categories row.
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(
         providers, "get_kick_top_categories", return_value=KICK_TOP_CATEGORIES
     ), patch.object(
         providers, "search_kick_categories", return_value=[{"id": 1067, "name": "EVE Online"}]
@@ -381,9 +365,7 @@ def test_selecting_a_live_filtered_category_loads_its_streams():
 
 def test_stop_cancels_the_live_filter_poll_thread():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(providers, "get_kick_top_categories", return_value=KICK_TOP_CATEGORIES):
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(providers, "get_kick_top_categories", return_value=KICK_TOP_CATEGORIES):
         win = DiscoverView(FakeWindow())
         win.activate()
         assert win._live_filter_cancel is not None
@@ -405,8 +387,6 @@ def test_pressing_search_in_kick_mode_merges_streams_from_duplicate_category_mat
         return {166: [], 1067: [other_stream]}[category_id]
 
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(
         providers, "kick_category_cache_exists", return_value=True
     ), patch.object(
         providers, "search_kick_categories", return_value=matches
@@ -429,8 +409,6 @@ def test_pressing_search_in_kick_mode_shows_message_when_no_category_matches():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     addon.setSetting("kick_client_secret", "csecret")
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(
         providers, "kick_category_cache_exists", return_value=True
     ), patch.object(
         providers, "search_kick_categories", return_value=[]
@@ -455,8 +433,6 @@ def test_pressing_search_in_kick_mode_shows_distinct_message_when_cache_build_fa
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     addon.setSetting("kick_client_secret", "csecret")
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(
         providers, "kick_category_cache_exists", return_value=False
     ), patch.object(
         providers, "search_kick_categories", return_value=[]
@@ -478,8 +454,6 @@ def test_pressing_search_in_kick_mode_shows_error_when_kick_app_not_configured()
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     # kick_client_secret left unset
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(
         providers, "search_kick_categories"
     ) as mock_search:
         win = DiscoverView(FakeWindow())
@@ -494,11 +468,11 @@ def test_pressing_search_in_kick_mode_shows_error_when_kick_app_not_configured()
 
 
 def test_selecting_relogin_button_switches_to_login_view():
-    addon = _addon_with_token({"access_token": "old", "refresh_token": "ref", "user_id": "u1"})
+    # A token without user_id predates the user_id migration - Discover clears
+    # it and offers re-login.
+    addon = _addon_with_token({"access_token": "old", "refresh_token": "ref"})
 
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", side_effect=api.TokenExpiredError()
-    ), patch("lib.views.discover_view.auth.refresh_access_token", return_value=None):
+    with patch("xbmcaddon.Addon", return_value=addon):
         win = DiscoverView(FakeWindow())
         win.activate()
         win.window.setFocusId(DiscoverView.RELOGIN_BUTTON_ID)
@@ -507,86 +481,20 @@ def test_selecting_relogin_button_switches_to_login_view():
     assert win.window.switched_to == ["login"]
 
 
-def test_empty_top_games_shows_a_message_instead_of_a_blank_row():
-    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=[]
-    ):
-        win = DiscoverView(FakeWindow())
-        win.activate()
-
-    assert win.window.getControl(DiscoverView.EMPTY_LABEL_ID).getLabel() != ""
-    assert win.window.getControl(DiscoverView.GAMES_LIST_ID).size() == 0
-    assert win.window.getControl(DiscoverView.ERROR_LABEL_ID).getLabel() == ""
-
-
-def test_search_failure_keeps_the_top_games_row_intact():
+def test_search_failure_does_not_offer_relogin():
     import requests
 
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(api, "search_channels", side_effect=requests.ConnectionError("boom")):
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(api, "search_channels", side_effect=requests.ConnectionError("boom")):
         win = DiscoverView(FakeWindow())
         win.activate()
-        assert win.window.getControl(DiscoverView.GAMES_LIST_ID).size() == 2
         win.window.getControl(DiscoverView.SEARCH_EDIT_ID).setText("bob")
         win.window.setFocusId(DiscoverView.SEARCH_BUTTON_ID)
         win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
     assert win.window.getControl(DiscoverView.ERROR_LABEL_ID).getLabel() != ""
     # A transient blip must not force an addon restart.
-    assert win.window.getControl(DiscoverView.GAMES_LIST_ID).size() == 2
     assert win.window.getControl(DiscoverView.RELOGIN_BUTTON_ID).isVisible() is False
-
-
-def test_game_select_failure_keeps_the_top_games_row_intact():
-    import requests
-
-    addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(
-        api, "get_live_streams_by_game", side_effect=requests.ConnectionError("boom")
-    ):
-        win = DiscoverView(FakeWindow())
-        win.activate()
-        win.window.getControl(DiscoverView.GAMES_LIST_ID).selectItem(0)
-        win.window.setFocusId(DiscoverView.GAMES_LIST_ID)
-        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
-
-    assert win.window.getControl(DiscoverView.ERROR_LABEL_ID).getLabel() != ""
-    assert win.window.getControl(DiscoverView.GAMES_LIST_ID).size() == 2
-
-
-def test_expired_token_during_game_select_retries_that_game_after_refresh():
-    addon = _addon_with_token({"access_token": "old", "refresh_token": "ref", "user_id": "u1"})
-    calls = []
-
-    def fake_streams(access_token, client_id, game_id, **kwargs):
-        calls.append((access_token, game_id))
-        if access_token == "old":
-            raise api.TokenExpiredError()
-        return STREAMS
-
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(api, "get_live_streams_by_game", side_effect=fake_streams), patch(
-        "lib.views.discover_view.auth.refresh_access_token",
-        return_value={"access_token": "new", "refresh_token": "ref2"},
-    ):
-        win = DiscoverView(FakeWindow())
-        win.activate()
-        win.window.getControl(DiscoverView.GAMES_LIST_ID).selectItem(0)
-        win.window.setFocusId(DiscoverView.GAMES_LIST_ID)
-        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
-
-    # The user's original game was retried with the refreshed token, not
-    # silently dropped in favour of reloading the games row.
-    assert calls == [("old", "509658"), ("new", "509658")]
-    results_control = win.window.getControl(DiscoverView.RESULTS_LIST_ID)
-    assert results_control.size() == 1
-    assert results_control._items[0].getLabel() == "Alice"
 
 
 def test_expired_token_during_search_retries_that_search_after_refresh():
@@ -599,9 +507,7 @@ def test_expired_token_during_search_retries_that_search_after_refresh():
             raise api.TokenExpiredError()
         return SEARCH_RESULTS
 
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(api, "search_channels", side_effect=fake_search), patch(
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(api, "search_channels", side_effect=fake_search), patch(
         "lib.views.discover_view.auth.refresh_access_token",
         return_value={"access_token": "new", "refresh_token": "ref2"},
     ):
@@ -619,9 +525,7 @@ def test_expired_token_during_search_retries_that_search_after_refresh():
 
 def test_missing_token_at_click_time_shows_an_error_instead_of_no_op():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ):
+    with patch("xbmcaddon.Addon", return_value=addon):
         win = DiscoverView(FakeWindow())
         win.activate()
         # Another window cleared the token between activate() and the click.
@@ -631,7 +535,7 @@ def test_missing_token_at_click_time_shows_an_error_instead_of_no_op():
         win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
     assert win.window.getControl(DiscoverView.ERROR_LABEL_ID).getLabel() != ""
-    assert win.window.getControl(DiscoverView.GAMES_LIST_ID).size() == 2
+    assert win.window.getControl(DiscoverView.RELOGIN_BUTTON_ID).isVisible() is False
 
 
 def test_build_stream_item_sets_broadcaster_login_and_is_live_true():
@@ -650,19 +554,14 @@ def test_build_channel_item_sets_broadcaster_login_and_is_live_from_data():
 
 def test_selecting_a_live_result_plays_it():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(api, "get_live_streams_by_game", return_value=STREAMS), patch.object(
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(api, "get_live_streams_by_game", return_value=STREAMS), patch.object(
         providers, "resolve_stream_url", return_value="https://example.invalid/stream.m3u8"
     ) as mock_resolve, patch(
         "lib.views.playback.player.play_stream", return_value=True
     ) as mock_play:
         win = DiscoverView(FakeWindow())
         win.activate()
-        games_control = win.window.getControl(DiscoverView.GAMES_LIST_ID)
-        games_control.selectItem(0)
-        win.window.setFocusId(DiscoverView.GAMES_LIST_ID)
-        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        _browse_game_via_search(win)
         results_control = win.window.getControl(DiscoverView.RESULTS_LIST_ID)
         results_control.selectItem(0)
         win.window.setFocusId(DiscoverView.RESULTS_LIST_ID)
@@ -683,9 +582,7 @@ def test_selecting_a_live_result_plays_it():
 
 def test_selecting_an_offline_search_result_does_nothing():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(api, "search_channels", return_value=SEARCH_RESULTS):
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(api, "search_channels", return_value=SEARCH_RESULTS):
         win = DiscoverView(FakeWindow())
         win.activate()
         win.window.getControl(DiscoverView.SEARCH_EDIT_ID).setText("bob")
@@ -702,48 +599,36 @@ def test_selecting_an_offline_search_result_does_nothing():
 
 def test_selecting_a_live_result_shows_results_error_when_resolution_fails():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(api, "get_live_streams_by_game", return_value=STREAMS), patch.object(
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(api, "get_live_streams_by_game", return_value=STREAMS), patch.object(
         providers, "resolve_stream_url", side_effect=providers.StreamUnavailableError("alice"),
     ):
         win = DiscoverView(FakeWindow())
         win.activate()
-        games_control = win.window.getControl(DiscoverView.GAMES_LIST_ID)
-        games_control.selectItem(0)
-        win.window.setFocusId(DiscoverView.GAMES_LIST_ID)
-        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        _browse_game_via_search(win)
         results_control = win.window.getControl(DiscoverView.RESULTS_LIST_ID)
         results_control.selectItem(0)
         win.window.setFocusId(DiscoverView.RESULTS_LIST_ID)
         win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
     assert win.window.getControl(DiscoverView.ERROR_LABEL_ID).getLabel() != ""
-    # Games row must survive a transient playback failure, same as a transient
-    # search/browse failure already does.
-    assert games_control.size() == 2
+    assert win.window.getControl(DiscoverView.RELOGIN_BUTTON_ID).isVisible() is False
 
 
 def test_selecting_a_live_result_shows_error_on_unexpected_exception():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(api, "get_live_streams_by_game", return_value=STREAMS), patch.object(
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(api, "get_live_streams_by_game", return_value=STREAMS), patch.object(
         providers, "resolve_stream_url", side_effect=RuntimeError("boom"),
     ):
         win = DiscoverView(FakeWindow())
         win.activate()
-        games_control = win.window.getControl(DiscoverView.GAMES_LIST_ID)
-        games_control.selectItem(0)
-        win.window.setFocusId(DiscoverView.GAMES_LIST_ID)
-        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        _browse_game_via_search(win)
         results_control = win.window.getControl(DiscoverView.RESULTS_LIST_ID)
         results_control.selectItem(0)
         win.window.setFocusId(DiscoverView.RESULTS_LIST_ID)
         win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
 
     assert win.window.getControl(DiscoverView.ERROR_LABEL_ID).getLabel() != ""
-    assert games_control.size() == 2
+    assert win.window.getControl(DiscoverView.RELOGIN_BUTTON_ID).isVisible() is False
 
 
 KICK_TOP_CATEGORIES = [{"id": 7, "name": "Just Chatting"}, {"id": 8, "name": "Slots"}]
@@ -762,9 +647,7 @@ KICK_CATEGORY_STREAM = {
 
 def test_oninit_populates_kick_categories_row():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(providers, "get_kick_top_categories", return_value=KICK_TOP_CATEGORIES):
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(providers, "get_kick_top_categories", return_value=KICK_TOP_CATEGORIES):
         win = DiscoverView(FakeWindow())
         win.activate()
 
@@ -776,9 +659,7 @@ def test_oninit_populates_kick_categories_row():
 
 def test_kick_categories_row_is_empty_when_no_kick_token():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
-    with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(providers, "get_kick_top_categories", return_value=[]):
+    with patch("xbmcaddon.Addon", return_value=addon), patch.object(providers, "get_kick_top_categories", return_value=[]):
         win = DiscoverView(FakeWindow())
         win.activate()
 
@@ -789,8 +670,6 @@ def test_kick_categories_row_is_empty_when_no_kick_token():
 def test_selecting_a_kick_category_populates_results_with_kick_items():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(
         providers, "get_kick_top_categories", return_value=KICK_TOP_CATEGORIES
     ), patch.object(
         providers, "get_kick_category_streams", return_value=[KICK_CATEGORY_STREAM]
@@ -813,8 +692,6 @@ def test_selecting_a_kick_category_populates_results_with_kick_items():
 def test_selecting_a_live_kick_result_plays_it():
     addon = _addon_with_token({"access_token": "tok", "refresh_token": "ref", "user_id": "u1"})
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(
         providers, "get_kick_top_categories", return_value=KICK_TOP_CATEGORIES
     ), patch.object(
         providers, "get_kick_category_streams", return_value=[KICK_CATEGORY_STREAM]
@@ -847,8 +724,6 @@ def test_context_menu_on_kick_result_adds_favorite():
     xbmcgui.Dialog.next_contextmenu_choice = 0
     xbmcgui.Dialog.notifications = []
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(
         providers, "get_kick_top_categories", return_value=KICK_TOP_CATEGORIES
     ), patch.object(
         providers, "get_kick_category_streams", return_value=[KICK_CATEGORY_STREAM]
@@ -872,16 +747,11 @@ def test_context_menu_on_twitch_result_does_nothing():
     xbmcgui.Dialog.next_contextmenu_choice = 0
     xbmcgui.Dialog.notifications = []
     with patch("xbmcaddon.Addon", return_value=addon), patch.object(
-        api, "get_top_games", return_value=TOP_GAMES
-    ), patch.object(
         api, "get_live_streams_by_game", return_value=STREAMS
     ):
         win = DiscoverView(FakeWindow())
         win.activate()
-        games_control = win.window.getControl(DiscoverView.GAMES_LIST_ID)
-        games_control.selectItem(0)
-        win.window.setFocusId(DiscoverView.GAMES_LIST_ID)
-        win.handle_action(xbmcgui.Action(xbmcgui.ACTION_SELECT_ITEM))
+        _browse_game_via_search(win)
         results_control = win.window.getControl(DiscoverView.RESULTS_LIST_ID)
         results_control.selectItem(0)
         win.window.setFocusId(DiscoverView.RESULTS_LIST_ID)

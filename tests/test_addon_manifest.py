@@ -247,7 +247,7 @@ def test_main_skin_xml_declares_all_expected_control_ids():
     from lib.views.discover_view import (
         EMPTY_LABEL_ID as DISCOVER_EMPTY_LABEL_ID,
         ERROR_LABEL_ID as DISCOVER_ERROR_LABEL_ID,
-        GAMES_LIST_ID as DISCOVER_GAMES_LIST_ID,
+        BROWSE_CATEGORIES_BUTTON_ID as DISCOVER_BROWSE_CATEGORIES_BUTTON_ID,
         KICK_CATEGORIES_LIST_ID as DISCOVER_KICK_CATEGORIES_LIST_ID,
         RELOGIN_BUTTON_ID as DISCOVER_RELOGIN_BUTTON_ID,
         RESULTS_LIST_ID as DISCOVER_RESULTS_LIST_ID,
@@ -263,9 +263,11 @@ def test_main_skin_xml_declares_all_expected_control_ids():
         RELOGIN_BUTTON_ID as LIVE_STREAMS_RELOGIN_BUTTON_ID,
         TITLE_LABEL_ID,
     )
+    from lib.views.category_streams_view import CategoryStreamsView
     from lib.views.kick_login_view import KickLoginView
     from lib.views.login_view import LoginView
     from lib.views.menu_view import MenuView
+    from lib.views.top_categories_view import TopCategoriesView
 
     expected_ids = {
         LoginView.CODE_LABEL_ID,
@@ -287,7 +289,7 @@ def test_main_skin_xml_declares_all_expected_control_ids():
         DISCOVER_EMPTY_LABEL_ID,
         DISCOVER_ERROR_LABEL_ID,
         DISCOVER_RELOGIN_BUTTON_ID,
-        DISCOVER_GAMES_LIST_ID,
+        DISCOVER_BROWSE_CATEGORIES_BUTTON_ID,
         DISCOVER_SEARCH_EDIT_ID,
         DISCOVER_SEARCH_BUTTON_ID,
         DISCOVER_SEARCH_MODE_TOGGLE_ID,
@@ -295,6 +297,16 @@ def test_main_skin_xml_declares_all_expected_control_ids():
         KickLoginView.URL_LABEL_ID,
         KickLoginView.STATUS_LABEL_ID,
         KickLoginView.CANCEL_BUTTON_ID,
+        TopCategoriesView.CATEGORY_LIST_ID,
+        TopCategoriesView.EMPTY_LABEL_ID,
+        TopCategoriesView.ERROR_LABEL_ID,
+        TopCategoriesView.RELOGIN_BUTTON_ID,
+        TopCategoriesView.TITLE_LABEL_ID,
+        CategoryStreamsView.STREAM_LIST_ID,
+        CategoryStreamsView.EMPTY_LABEL_ID,
+        CategoryStreamsView.ERROR_LABEL_ID,
+        CategoryStreamsView.RELOGIN_BUTTON_ID,
+        CategoryStreamsView.TITLE_LABEL_ID,
     }
     control_ids = set(_main_skin_control_ids())
     assert expected_ids <= control_ids

@@ -267,3 +267,40 @@ def test_switch_view_reentry_on_same_view_does_not_clobber_context():
 def test_group_ids_include_the_new_vod_clips_screens():
     assert MainWindow.GROUP_IDS["vod_clips_channels"] == 700
     assert MainWindow.GROUP_IDS["vod_clips"] == 800
+
+
+def test_group_ids_include_category_views():
+    assert MainWindow.GROUP_IDS["top_categories"] == 1000
+    assert MainWindow.GROUP_IDS["category_streams"] == 1100
+
+
+def test_default_views_include_category_views():
+    from lib.views.category_streams_view import CategoryStreamsView
+    from lib.views.top_categories_view import TopCategoriesView
+
+    win = MainWindow("script-twitch-center-main.xml", "/tmp")
+    assert isinstance(win._views["top_categories"], TopCategoriesView)
+    assert isinstance(win._views["category_streams"], CategoryStreamsView)
+
+
+def test_back_from_category_streams_goes_to_top_categories():
+    class GridView(FakeView):
+        BACK_TARGET = "discover"
+
+    class StreamsView(FakeView):
+        BACK_TARGET = "top_categories"
+
+    win = _make_window(
+        initial_view="menu",
+        view_classes={"top_categories": GridView, "category_streams": StreamsView},
+    )
+    win.onInit()
+    win._switch_view("category_streams", context={"game_id": "1"})
+    with patch("lib.windows.main_window.xbmc.Player") as mock_player_cls:
+        mock_player_cls.return_value.isPlaying.return_value = False
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
+        assert win._active_name == "top_categories"
+        assert win.getControl(win.GROUP_IDS["top_categories"]).isVisible() is True
+        assert win.getControl(win.GROUP_IDS["category_streams"]).isVisible() is False
+        win.onAction(xbmcgui.Action(xbmcgui.ACTION_NAV_BACK))
+    assert win._active_name == "discover"

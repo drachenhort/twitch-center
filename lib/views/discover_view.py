@@ -1,6 +1,7 @@
-"""Discover view: browse live channels by any game, or search by channel name,
-Twitch game/category name, or Kick category name (toggle via
-SEARCH_MODE_TOGGLE_ID). Also browses Kick's top categories in a separate row.
+"""Discover view: search by channel name, Twitch game/category name, or Kick
+category name (toggle via SEARCH_MODE_TOGGLE_ID). Twitch's top categories are
+browsed on their own box-art grid (TopCategoriesView), opened by
+BROWSE_CATEGORIES_BUTTON_ID. Also browses Kick's top categories in a row.
 In Kick search mode, that row live-filters to matching category names as the
 user types (Kick has ~19k categories - far too many to browse as a flat
 list), so results are reached by selecting a category rather than jumping
@@ -26,11 +27,11 @@ RESULTS_LIST_ID = 301
 EMPTY_LABEL_ID = 302
 ERROR_LABEL_ID = 303
 RELOGIN_BUTTON_ID = 304
-GAMES_LIST_ID = 305
 SEARCH_EDIT_ID = 306
 SEARCH_BUTTON_ID = 307
 SEARCH_MODE_TOGGLE_ID = 308
 KICK_CATEGORIES_LIST_ID = 309
+BROWSE_CATEGORIES_BUTTON_ID = 310
 
 _MISSING_TOKEN_MESSAGE = "You're not logged in. Reopen the addon to log in."
 _MISSING_KICK_TOKEN_MESSAGE = "Set your Kick app's Client Secret in Settings to search Kick categories."
@@ -44,7 +45,6 @@ _KICK_CACHE_BUILD_FAILED_MESSAGE = (
 _KICK_CACHE_BUILDING_NOTIFICATION = (
     "Building Kick category index for the first time - this can take a minute..."
 )
-_EMPTY_GAMES_MESSAGE = "No games to browse right now."
 _NETWORK_ERROR_MESSAGE = "Couldn't reach Twitch. Check your connection and reopen the addon."
 _RELOGIN_MESSAGE = "Your session expired. Log in again to continue."
 _SEARCH_MODES = ("channels", "games", "kick")
@@ -66,11 +66,11 @@ class DiscoverView:
     EMPTY_LABEL_ID = EMPTY_LABEL_ID
     ERROR_LABEL_ID = ERROR_LABEL_ID
     RELOGIN_BUTTON_ID = RELOGIN_BUTTON_ID
-    GAMES_LIST_ID = GAMES_LIST_ID
     SEARCH_EDIT_ID = SEARCH_EDIT_ID
     SEARCH_BUTTON_ID = SEARCH_BUTTON_ID
     SEARCH_MODE_TOGGLE_ID = SEARCH_MODE_TOGGLE_ID
     KICK_CATEGORIES_LIST_ID = KICK_CATEGORIES_LIST_ID
+    BROWSE_CATEGORIES_BUTTON_ID = BROWSE_CATEGORIES_BUTTON_ID
 
     def __init__(self, window, closed_event=None):
         self.window = window
@@ -100,7 +100,7 @@ class DiscoverView:
             return
 
         try:
-            self._load_games(addon, client_id, token)
+            self._load_rows(addon, client_id, token)
         except api.TokenExpiredError:
             self._handle_expired_token(addon, client_id, token)
         except Exception as exc:
@@ -165,24 +165,22 @@ class DiscoverView:
             return
         self._populate_kick_categories(matches)
 
-    def _load_games(self, addon, client_id, token):
-        games = api.get_top_games(token["access_token"], client_id)
-        self._populate_games(games)
+    def _load_rows(self, addon, client_id, token):
         kick_categories = providers.get_kick_top_categories(addon)
         self._kick_top_categories = kick_categories
         self._populate_kick_categories(kick_categories)
-        # Claim focus on the now-populated games list explicitly rather than
-        # leaving it wherever the previous view left it - same race-avoidance
-        # as LiveStreamsView._load_and_populate.
-        games_list = self._safe_control(self.GAMES_LIST_ID)
-        if games_list and games_list.size():
-            self.window.setFocusId(self.GAMES_LIST_ID)
+        relogin_btn = self._safe_control(self.RELOGIN_BUTTON_ID)
+        if relogin_btn:
+            relogin_btn.setVisible(False)
+        # Claim focus explicitly rather than leaving it wherever the previous
+        # view left it - same race-avoidance as LiveStreamsView._load_and_populate.
+        self.window.setFocusId(self.BROWSE_CATEGORIES_BUTTON_ID)
 
     def _handle_expired_token(self, addon, client_id, token, on_success=None, on_error=None):
         """Refresh the access token, then redo whatever the user was doing.
 
         on_success is a callable taking (addon, client_id, refreshed_token); it
-        defaults to reloading the top-games row (activate's behaviour). Callers
+        defaults to reloading the Discover rows (activate's behaviour). Callers
         that were mid-action (browse-by-game, search) pass a closure that
         retries THAT action, so an expiry doesn't silently discard the user's
         click."""
@@ -198,7 +196,7 @@ class DiscoverView:
         auth.save_token(new_token, addon)
 
         if on_success is None:
-            on_success = self._load_games
+            on_success = self._load_rows
         if on_error is None:
             on_error = self._show_error
 
@@ -214,28 +212,6 @@ class DiscoverView:
                 xbmc.LOGERROR,
             )
             on_error(_NETWORK_ERROR_MESSAGE)
-
-    def _populate_games(self, games):
-        relogin_btn = self._safe_control(self.RELOGIN_BUTTON_ID)
-        if relogin_btn:
-            relogin_btn.setVisible(False)
-
-        control = self._safe_control(self.GAMES_LIST_ID)
-        if control:
-            control.reset()
-            if not games:
-                # Without this the row would just render blank with no
-                # explanation, unlike the results list which already says so.
-                empty_label = self._safe_control(self.EMPTY_LABEL_ID)
-                if empty_label:
-                    empty_label.setLabel(_EMPTY_GAMES_MESSAGE)
-                return
-            items = []
-            for game in games:
-                item = xbmcgui.ListItem(game["name"])
-                item.setProperty("game_id", game["id"])
-                items.append(item)
-            control.addItems(items)
 
     def _populate_kick_categories(self, categories):
         control = self._safe_control(self.KICK_CATEGORIES_LIST_ID)
@@ -264,10 +240,6 @@ class DiscoverView:
                     empty_label.setLabel(_EMPTY_RESULTS_MESSAGE)
                 return
             control.addItems(items)
-
-    def _load_streams_for_game(self, addon, client_id, token, game_id):
-        streams = api.get_live_streams_by_game(token["access_token"], client_id, game_id)
-        self._populate_results([_build_stream_item(stream_data) for stream_data in streams])
 
     def _load_search_results(self, addon, client_id, token, query):
         channels = api.search_channels(token["access_token"], client_id, query)
@@ -315,39 +287,6 @@ class DiscoverView:
         stream_lists = [providers.get_kick_category_streams(addon, match["id"]) for match in matches]
         streams = providers.merge_by_viewer_count(*stream_lists)
         self._populate_results([_build_kick_result_item(r) for r in streams])
-
-    def _on_game_selected(self):
-        control = self._safe_control(self.GAMES_LIST_ID)
-        if not control:
-            return
-        selected = control.getSelectedItem()
-        if selected is None:
-            return
-        addon = xbmcaddon.Addon()
-        client_id = addon.getSetting("client_id")
-        token = auth.load_token(addon)
-        if token is None:
-            self._show_results_error(_MISSING_TOKEN_MESSAGE)
-            return
-        game_id = selected.getProperty("game_id")
-        try:
-            self._load_streams_for_game(addon, client_id, token, game_id)
-        except api.TokenExpiredError:
-            # Retry THIS game with the refreshed token rather than just
-            # reloading the games row, which would silently drop the click.
-            self._handle_expired_token(
-                addon,
-                client_id,
-                token,
-                on_success=lambda a, c, t: self._load_streams_for_game(a, c, t, game_id),
-                on_error=self._show_results_error,
-            )
-        except Exception as exc:
-            xbmc.log(
-                "script.twitch.center: Discover browse-by-game failed: " + repr(exc),
-                xbmc.LOGERROR,
-            )
-            self._show_results_error(_NETWORK_ERROR_MESSAGE)
 
     def _on_kick_category_selected(self):
         control = self._safe_control(self.KICK_CATEGORIES_LIST_ID)
@@ -462,9 +401,6 @@ class DiscoverView:
     def _show_error(self, message):
         """Fatal failure (activate / expired session): the whole screen is
         unusable, so wipe everything and offer the re-login button."""
-        games_list = self._safe_control(self.GAMES_LIST_ID)
-        if games_list:
-            games_list.reset()
         kick_categories_list = self._safe_control(self.KICK_CATEGORIES_LIST_ID)
         if kick_categories_list:
             kick_categories_list.reset()
@@ -483,7 +419,7 @@ class DiscoverView:
             self.window.setFocusId(self.RELOGIN_BUTTON_ID)
 
     def _show_results_error(self, message):
-        """Transient failure of one browse/search: keep the top-games row
+        """Transient failure of one browse/search: keep the Discover rows
         intact so a single network blip doesn't force an addon restart."""
         results_list = self._safe_control(self.RESULTS_LIST_ID)
         if results_list:
@@ -500,8 +436,8 @@ class DiscoverView:
             focus = self.window.getFocusId()
             if focus == self.RELOGIN_BUTTON_ID:
                 self.window._switch_view("login")
-            elif focus == self.GAMES_LIST_ID:
-                self._on_game_selected()
+            elif focus == self.BROWSE_CATEGORIES_BUTTON_ID:
+                self.window._switch_view("top_categories", context={"refresh": True})
             elif focus == self.KICK_CATEGORIES_LIST_ID:
                 self._on_kick_category_selected()
             elif focus == self.SEARCH_BUTTON_ID:
