@@ -113,7 +113,7 @@ def test_get_live_status_empty_ids_makes_no_request():
     mock_get.assert_not_called()
 
 
-def test_get_top_games_returns_id_and_name():
+def test_get_top_games_returns_id_name_and_box_art():
     body = {
         "data": [
             {"id": "509658", "name": "Just Chatting", "box_art_url": "https://example.invalid/1.jpg"},
@@ -123,10 +123,23 @@ def test_get_top_games_returns_id_and_name():
     with patch.object(api.requests, "get", return_value=_response(body)) as mock_get:
         result = api.get_top_games("token", "client-id")
     assert result == [
-        {"id": "509658", "name": "Just Chatting"},
-        {"id": "21779", "name": "League of Legends"},
+        {"id": "509658", "name": "Just Chatting", "box_art_url": "https://example.invalid/1.jpg"},
+        {"id": "21779", "name": "League of Legends", "box_art_url": "https://example.invalid/2.jpg"},
     ]
     assert mock_get.call_args.kwargs["params"]["first"] == 20
+
+
+def test_get_top_games_defaults_missing_box_art_to_empty():
+    body = {"data": [{"id": "1", "name": "No Art"}, {"id": "2", "name": "Null Art", "box_art_url": None}]}
+    with patch.object(api.requests, "get", return_value=_response(body)):
+        result = api.get_top_games("token", "client-id")
+    assert [game["box_art_url"] for game in result] == ["", ""]
+
+
+def test_get_top_games_passes_first():
+    with patch.object(api.requests, "get", return_value=_response({"data": []})) as mock_get:
+        api.get_top_games("token", "client-id", first=100)
+    assert mock_get.call_args.kwargs["params"]["first"] == 100
 
 
 def test_get_top_games_raises_token_expired_on_401():

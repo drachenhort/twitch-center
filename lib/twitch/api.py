@@ -98,9 +98,13 @@ def get_games_for_channels(access_token, user_ids):
 
 def get_top_games(access_token, client_id, first=20):
     """Return Twitch's current top-viewed games (Helix /games/top) as a list of
-    {"id", "name"} dicts."""
+    {"id", "name", "box_art_url"} dicts. box_art_url is Helix's raw template
+    (with {width}x{height} placeholders), or "" when Twitch has none."""
     body = _get(HELIX_BASE + "/games/top", access_token, client_id, params={"first": first})
-    return [{"id": game["id"], "name": game["name"]} for game in body["data"]]
+    return [
+        {"id": game["id"], "name": game["name"], "box_art_url": game.get("box_art_url") or ""}
+        for game in body["data"]
+    ]
 
 
 def get_live_streams_by_game(access_token, client_id, game_id, first=20):
