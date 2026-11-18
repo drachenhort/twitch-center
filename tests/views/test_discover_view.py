@@ -655,7 +655,7 @@ def test_selecting_a_live_result_plays_it():
     ), patch.object(api, "get_live_streams_by_game", return_value=STREAMS), patch.object(
         providers, "resolve_stream_url", return_value="https://example.invalid/stream.m3u8"
     ) as mock_resolve, patch(
-        "lib.views.discover_view.player.play_stream", return_value=True
+        "lib.views.playback.player.play_stream", return_value=True
     ) as mock_play:
         win = DiscoverView(FakeWindow())
         win.activate()
@@ -821,7 +821,7 @@ def test_selecting_a_live_kick_result_plays_it():
     ), patch.object(
         providers, "resolve_stream_url", return_value="https://kick.example/x.m3u8"
     ) as mock_resolve, patch(
-        "lib.views.discover_view.player.play_stream", return_value=True
+        "lib.views.playback.player.play_stream", return_value=True
     ) as mock_play:
         win = DiscoverView(FakeWindow())
         win.activate()

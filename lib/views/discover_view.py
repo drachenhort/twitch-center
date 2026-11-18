@@ -15,9 +15,9 @@ import xbmcgui
 
 from lib import providers
 from lib.twitch import api, auth
+from lib.views import playback
 from lib.views import utils as view_utils
 from lib.views.kick_favorites_menu import show_kick_favorite_context_menu
-from lib.windows import player
 
 _LIVE_FILTER_POLL_INTERVAL = 0.25
 _LIVE_FILTER_DEBOUNCE = 0.5
@@ -47,7 +47,6 @@ _KICK_CACHE_BUILDING_NOTIFICATION = (
 _EMPTY_GAMES_MESSAGE = "No games to browse right now."
 _NETWORK_ERROR_MESSAGE = "Couldn't reach Twitch. Check your connection and reopen the addon."
 _RELOGIN_MESSAGE = "Your session expired. Log in again to continue."
-_PLAYBACK_ERROR_MESSAGE = "Couldn't start playback. Try again."
 _SEARCH_MODES = ("channels", "games", "kick")
 _SEARCH_MODE_LABELS = {
     "channels": "Searching: Channels",
@@ -383,35 +382,17 @@ class DiscoverView:
         self._play_channel("twitch", broadcaster_login, token=token, client_id=client_id)
 
     def _play_channel(self, platform, broadcaster_login, token=None, client_id=None):
-        addon = xbmcaddon.Addon()
-        try:
-            url = providers.resolve_stream_url(addon, platform, broadcaster_login)
-            play_kwargs = {"platform": platform}
-            if platform == "twitch":
-                play_kwargs.update(
-                    access_token=token["access_token"], client_id=client_id, user_id=token["user_id"]
-                )
-            played = player.play_stream(url, broadcaster_login, **play_kwargs)
-        except providers.StreamStartError as exc:
-            self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
-            xbmcgui.Dialog().ok("Couldn't start stream", str(exc))
-            return
-        except providers.StreamUnavailableError:
-            self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
-            return
-        except Exception as exc:
-            xbmc.log(
-                "script.twitch.center: Discover channel selection failed: " + repr(exc),
-                xbmc.LOGERROR,
-            )
-            self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
-            return
+        played = playback.play_channel(
+            platform,
+            broadcaster_login,
+            show_error=self._show_results_error,
+            token=token,
+            client_id=client_id,
+        )
         if played:
             error_label = self._safe_control(self.ERROR_LABEL_ID)
             if error_label:
                 error_label.setLabel("")
-        else:
-            self._show_results_error(_PLAYBACK_ERROR_MESSAGE)
 
     def _on_search(self):
         control = self._safe_control(self.SEARCH_EDIT_ID)
