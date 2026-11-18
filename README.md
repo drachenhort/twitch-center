@@ -36,8 +36,8 @@ and closes itself when the stream stops or ends.
   no password ever touches this addon).
 - **Live Streams**: your followed channels, live ones first, sorted by viewer count, with a
   followed-games filter row.
-- **Discover**: browse live channels by any Twitch game/category, or search by channel name,
-  Twitch game name, or Kick category name.
+- **Discover**: browse Twitch's top 100 categories as a box-art grid and open any of them to
+  see its live channels, or search by channel name, Twitch game name, or Kick category name.
 - **VODs & Clips**: browse a followed Twitch channel's past broadcasts and clips and play them
   back, video-only (no chat overlay). Twitch only for now.
 - **Kick.com support**: browse and watch Kick streams alongside Twitch, interleaved by viewer

@@ -4,6 +4,14 @@ All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow the addon's own
 `version` field in `addon.xml`.
 
+## [0.32.0] - 2026-11-18
+
+### Added
+- Discover has a new "Browse Twitch Categories" button. It opens a full-screen grid of Twitch's top 100 categories, ranked by viewers, with box art. You move through it with up/down/left/right. Picking a category lists its live streams, and Back returns to the grid on the same tile.
+
+### Changed
+- Discover's text-only row of Twitch top games is replaced by that button. Searching by game name still works.
+
 ## [0.31.3] - 2026-11-03
 
 ### Changed
